@@ -4,14 +4,12 @@ import json
 import re
 from typing import Any, Dict, List, Tuple
 
-from google.genai.types import GenerateContentConfig
-from .genai_client import get_client
+from .genai_client import generate_content
 from ..models import MapResponse, DocumentSection, TimelineEvent
 
 # Limits aligned with other services
 MAX_CHARS = 8000
 OVERLAP = 200
-MODEL_ID = "gemini-2.5-flash"  # Vertex model id
 
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 
@@ -92,11 +90,9 @@ def _parse_json_list(s: str) -> List[Dict[str, Any]]:
         return []
 
 def _gen_json(prompt: str, context: str, temperature: float = 0.2) -> List[Dict[str, Any]]:
-    client = get_client()
-    cfg = GenerateContentConfig(temperature=temperature)
     full = f"{prompt}\n\nReturn only valid JSON array, no prose.\n\n<text>\n{context}\n</text>"
-    resp = client.models.generate_content(model=MODEL_ID, contents=full, config=cfg)
-    return _parse_json_list(getattr(resp, "text", "") or "")
+    raw_text = generate_content(full, temperature=temperature)
+    return _parse_json_list(raw_text)
 
 def _dedupe_structure(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     seen = set()

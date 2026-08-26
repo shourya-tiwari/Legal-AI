@@ -1,6 +1,10 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 from app.models import MapRequest, MapResponse
 from app.services.timeline import generate_map
+
+logger = logging.getLogger("legalai.routes.map")
 
 router = APIRouter(tags=["timeline"])
 
@@ -12,7 +16,5 @@ def get_contract_map(req: MapRequest) -> MapResponse:
     try:
         return generate_map(req.contract_text)
     except Exception as e:
-        import traceback
-        traceback.print_exc()  # print full stack trace to your terminal logs
-        # 👇 Send real error message back in response while debugging
+        logger.exception("Map generation failed")
         raise HTTPException(status_code=500, detail=str(e))

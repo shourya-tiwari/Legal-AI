@@ -1,7 +1,10 @@
+import logging
 from typing import Dict, List, Optional
 from app.services.genai_client import generate_content
 from app.services.contextualizer.templates import UserContext, build_prompt
 from app.services.contextualizer.rag import SimpleFaissIndex
+
+logger = logging.getLogger("legalai.contextualizer.explainer")
 
 # Comprehensive legal knowledge base
 LEGAL_KNOWLEDGE_BASE = [
@@ -99,7 +102,7 @@ def get_rag_hints(contract_type: Optional[str], clause_text: str) -> List[str]:
         return hints[:3]  # Limit to 3 hints
         
     except Exception as e:
-        print(f"RAG search failed: {e}")
+        logger.warning("RAG search failed: %s", e)
         # Return empty list if RAG fails
         return []
 

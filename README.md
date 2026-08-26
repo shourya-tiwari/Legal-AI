@@ -122,9 +122,12 @@ Response (JSON):
 
 ## Environment Variables
 
-To run this project, you will need to add the following environment variables to your .env file
+The backend reads its configuration from `backend/.env` (see `backend/app/config.py`):
 
-`OPEN_API_KEY`
+| Variable | Required | Description |
+| :-- | :-- | :-- |
+| `GOOGLE_API_KEY` | Yes | API key for the Gemini Developer API (`google-genai`). Get one from Google AI Studio. |
+| `GENAI_MODEL` | No | Gemini model name. Defaults to `gemini-flash-latest` if unset. |
 
 
 
@@ -143,10 +146,11 @@ Go to the project directory
 ```
 
 **Backend Setup**
-- Create and activate a virtual environment(recommended):
+- Create and activate a virtual environment (recommended), from the `backend/` directory:
 ```bash
+    cd backend
     python -m venv venv
-    source venv\Scripts\activate   # On Windows
+    source venv/Scripts/activate   # On Windows (Git Bash); use venv\Scripts\activate in cmd/PowerShell
 ```
 Install dependencies
 
@@ -154,20 +158,34 @@ Install dependencies
     pip install -r requirements.txt
 ```
 
-Start the server
+Create `backend/.env` with your `GOOGLE_API_KEY` (see Environment Variables above), then start the server:
 
 ```bash
     uvicorn app.main:app --reload
 ```
 The backend will run at: http://127.0.0.1:8000
 
+Run the backend test suite:
+
+```bash
+    pytest
+```
+
 **Frontend Setup**
-- Open index.html directly in your browser, or use a simple local server:
+- Open `frontend/index.html` directly in your browser, or use a simple local server:
 
 ```http
-    npx serve .
+    npx serve frontend
 ```
-Frontend will be available at:http://localhost:3000 (if using server)
+Frontend will be available at: http://localhost:3000 (if using server)
+
+By default, `frontend/app.js` points at the deployed production API
+(`https://plainspeak-ai.onrender.com/api`), configured in `frontend/config.js`.
+To point the frontend at your local backend instead, either edit
+`PRODUCTION_BASE_URL` in `frontend/config.js`, or open the page with an `api`
+query parameter, e.g. `index.html?api=http://127.0.0.1:8000/api` — no source
+edit required, and the local backend's CORS config already allows any origin.
+
 ## Authors
 
 - [@Shashquatch28](https://github.com/Shashquatch28)

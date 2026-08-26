@@ -1,5 +1,5 @@
 // Config
-const baseURL = "https://plainspeak-ai.onrender.com/api";
+const baseURL = window.LEGALAI_CONFIG.baseURL;
 const endpoints = {
   upload: "/upload",
   rewrite: "/rewrite",
@@ -154,34 +154,6 @@ uploadBtn?.addEventListener("click", async ()=>{
     setLoading(uploadBtn, false, "Upload & Analyze", "Analyzing…");
   }
 });
-
-// RISK LIST HANDLER
-function renderRiskList(risks) {
-    try {
-        const riskList = document.getElementById("riskList");
-        const risksEmpty = document.getElementById("risksEmpty");
-
-        // Reset list
-        riskList.innerHTML = "";
-
-        if (!risks || risks.length === 0) {
-            risksEmpty.style.display = "block";
-            return;
-        } else {
-            risksEmpty.style.display = "none";
-        }
-
-        // Add each risk as a list item
-        risks.forEach((risk, i) => {
-            const li = document.createElement("li");
-            li.textContent = `${i + 1}. ${risk}`;
-            riskList.appendChild(li);
-        });
-    } catch (err) {
-        console.error("Error rendering risk list:", err);
-    }
-}
-
 
 // Quick Question
 const quickQ = $("#quickQuestion");

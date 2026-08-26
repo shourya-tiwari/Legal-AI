@@ -1,13 +1,14 @@
 # backend/app/services/genai_client.py
 from __future__ import annotations
 
-import os
+import logging
+import time
 from typing import Optional, Dict, Any
 
-# Google Gen AI SDK (unified client for Vertex AI or Developer API)
 from google import genai
 
-# Make typed helpers optional to avoid import-time crashes on older SDKs
+from app.config import get_settings
+
 try:
     from google.genai import types as genai_types  # type: ignore
     from google.genai.types import HttpOptions      # type: ignore
@@ -15,100 +16,122 @@ except Exception:  # pragma: no cover
     genai_types = None  # type: ignore[assignment]
     HttpOptions = None  # type: ignore[assignment]
 
-# Cached client instance
-_client: Optional[genai.Client] = None
+logger = logging.getLogger("legalai.genai_client")
 
-def _read_env() -> Dict[str, str]:
-    # Read env at call-time so values are present even if load_dotenv ran later
-    return {
-        "PROJECT": os.getenv("GCP_PROJECT_ID") or "",
-        "LOCATION": (os.getenv("VAI_GCP_LOCATION") or "global").strip().lower(),
-        "API_KEY": os.getenv("GOOGLE_API_KEY") or "",
-        "MODEL": os.getenv("GENAI_MODEL") or "gemini-2.5-flash",
-    }
+_client: Optional[genai.Client] = None
 
 def get_client() -> genai.Client:
     """
-    Returns a configured Google Gen AI client.
-    - Vertex AI mode (recommended): uses ADC from GOOGLE_APPLICATION_CREDENTIALS,
-      project from GCP_PROJECT_ID, and location from VAI_GCP_LOCATION.
-    - Developer API fallback: if PROJECT is missing but GOOGLE_API_KEY is set, uses API key.
+    Returns a configured Google Gen AI Developer API client using GOOGLE_API_KEY.
+    Cloud-independent, pure Google GenAI Developer API.
     """
     global _client
     if _client is not None:
         return _client
 
-    env = _read_env()
-    use_vertex = bool(env["PROJECT"])
+    logger.info("Initializing GenAI Client...")
+    settings = get_settings()
+
+    if not settings.GOOGLE_API_KEY:
+        logger.error("Missing GOOGLE_API_KEY in environment!")
+        raise RuntimeError("Missing GOOGLE_API_KEY. Please set GOOGLE_API_KEY in your .env file.")
 
     http_kwargs: Dict[str, Any] = {}
-    # Pass HttpOptions only if available in your installed SDK
     if HttpOptions is not None:
         try:
-            http_kwargs["http_options"] = HttpOptions(api_version="v1")
-        except Exception:
-            pass  # continue without http_options on mismatched versions
+            # Configure 30-second HTTP timeout to prevent hanging requests
+            http_kwargs["http_options"] = HttpOptions(timeout=30000)
+            logger.info("Configured HttpOptions with 30.0s timeout")
+        except Exception as e:
+            logger.warning("HttpOptions initialization warning: %s", e)
 
-    if use_vertex:
-        _client = genai.Client(
-            vertexai=True,
-            project=env["PROJECT"],
-            location=env["LOCATION"] or "global",
-            **http_kwargs,
-        )
+    try:
+        _client = genai.Client(api_key=settings.GOOGLE_API_KEY, **http_kwargs)
+        logger.info("GenAI client initialized successfully.")
         return _client
-
-    if not env["API_KEY"]:
-        raise RuntimeError(
-            "Configure GCP_PROJECT_ID (Vertex) or GOOGLE_API_KEY (Developer API)."
-        )
-
-    _client = genai.Client(api_key=env["API_KEY"], **http_kwargs)
-    return _client
+    except Exception as e:
+        logger.error("Client creation failed: %s", e)
+        raise RuntimeError(f"Failed to initialize Gemini Client: {e}") from e
 
 def generate_content(prompt: str, *, model: Optional[str] = None, **config_kwargs) -> str:
     """
-    Teammate-compatible helper:
-    client.models.generate_content(model=..., contents=..., config=...) -> str response.text
+    Centralized generation helper called by all AI features.
+    Calls client.models.generate_content(...) with diagnostic logging and detailed error handling.
     """
     client = get_client()
-    model_name = model or _read_env()["MODEL"]
+    settings = get_settings()
+    model_name = model or settings.GENAI_MODEL
 
     config = None
     if genai_types is not None and config_kwargs:
         try:
             config = genai_types.GenerateContentConfig(**config_kwargs)  # type: ignore[attr-defined]
-        except Exception:
+        except Exception as e:
+            logger.warning("GenerateContentConfig warning: %s", e)
             config = None
 
-    resp = client.models.generate_content(
-        model=model_name,
-        contents=prompt,
-        config=config,
-    )
-    return getattr(resp, "text", "") or ""
+    logger.info("HTTP request start -> Model: '%s' | Prompt length: %d chars", model_name, len(prompt))
+    start_time = time.time()
 
-def generate_content_stream(prompt: str, *, model: Optional[str] = None, **config_kwargs):
+    try:
+        resp = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=config,
+        )
+        elapsed = (time.time() - start_time) * 1000
+        logger.info("HTTP request end -> Completed in %.1fms", elapsed)
+        text = getattr(resp, "text", "") or ""
+        return text.strip()
+
+    except Exception as e:
+        elapsed = (time.time() - start_time) * 1000
+        err_str = str(e)
+        err_type = type(e).__name__
+
+        # 1. Handle 404 / Model Not Found errors
+        if "404" in err_str or "NOT_FOUND" in err_str or "not found" in err_str.lower():
+            msg = (
+                f"Configured Gemini model '{model_name}' is unavailable or not found (HTTP 404). "
+                f"Please update GENAI_MODEL in .env to a supported model (e.g., 'gemini-flash-latest'). "
+                f"Original error: {err_str}"
+            )
+            logger.error(msg)
+            raise RuntimeError(msg) from e
+
+        # 2. Handle 429 / Quota / Rate Limit errors
+        if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
+            msg = (
+                f"Gemini API rate limit or quota exceeded for model '{model_name}' (HTTP 429). "
+                f"Please retry in a moment or check project limits. Original error: {err_str}"
+            )
+            logger.error(msg)
+            raise RuntimeError(msg) from e
+
+        # 3. Handle Timeouts
+        if "timeout" in err_str.lower() or "timed out" in err_str.lower() or "Timeout" in err_type:
+            msg = (
+                f"Gemini API HTTP request timed out after {elapsed:.1f}ms for model '{model_name}' "
+                f"at endpoint 'generativelanguage.googleapis.com'."
+            )
+            logger.error(msg)
+            raise RuntimeError(msg) from e
+
+        # 4. General API errors
+        msg = f"Gemini API call failed for model '{model_name}': [{err_type}] {err_str}"
+        logger.error(msg)
+        raise RuntimeError(msg) from e
+
+def embed_content(contents: Any, *, model: str = "text-embedding-004") -> Any:
     """
-    Streaming variant using client.models.generate_content_stream(...)
-    Yields text chunks.
+    Centralized embedding helper using Gemini API.
     """
     client = get_client()
-    model_name = model or _read_env()["MODEL"]
-
-    config = None
-    if genai_types is not None and config_kwargs:
-        try:
-            config = genai_types.GenerateContentConfig(**config_kwargs)  # type: ignore[attr-defined]
-        except Exception:
-            config = None
-
-    stream = client.models.generate_content_stream(
-        model=model_name,
-        contents=prompt,
-        config=config,
-    )
-    for chunk in stream:
-        text = getattr(chunk, "text", "")
-        if text:
-            yield text
+    logger.info("Embedding request start -> Model: '%s'", model)
+    try:
+        res = client.models.embed_content(model=model, contents=contents)
+        logger.info("Embedding request completed.")
+        return res
+    except Exception as e:
+        logger.error("Embedding request failed: %s: %s", type(e).__name__, e)
+        raise RuntimeError(f"Gemini embedding failed for model '{model}': {e}") from e

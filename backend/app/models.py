@@ -48,7 +48,27 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
-    references: List[str] = Field(default_factory=list, description="Clause references or excerpts used for the answer.")
+
+# ----- Risk Radar (/api/risk/scan) -----
+class RiskScanRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=20000)
+
+class KeywordRiskFlag(BaseModel):
+    term: str
+    predefined_explanation: str
+
+class ContextualRiskFlag(BaseModel):
+    term: str
+    explanation: str
+
+class FlaggedClause(BaseModel):
+    clause: str
+    keyword_flags: List[KeywordRiskFlag] = Field(default_factory=list)
+    contextual_flags: List[ContextualRiskFlag] = Field(default_factory=list)
+
+class RiskScanResponse(BaseModel):
+    flagged_clauses: List[FlaggedClause]
+    risk_summary: str
 
 # ----- Contextualizer (/api/contextualize) -----
 class ContextualizerRequest(BaseModel):

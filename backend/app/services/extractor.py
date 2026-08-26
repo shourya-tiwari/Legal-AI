@@ -1,267 +1,183 @@
-from dotenv import load_dotenv
-from google.cloud import documentai_v1 as documentai
-from google.oauth2 import service_account
-from typing import Dict, Any
-import tempfile
-from io import BytesIO
+from __future__ import annotations
+
+import io
 import os
 import re
+from typing import Dict, Any, List
 
-load_dotenv()
+# Try importing local extraction libraries
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
 
-# ===== define constants =====
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+try:
+    import docx  # python-docx
+except ImportError:
+    docx = None
 
-PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-LOCATION = os.getenv("DAI_GCP_LOCATION")
-PROCESSOR_ID = os.getenv("GCP_PROCESSOR_ID")
-
-# --- Fail fast with clear messages ---
-assert GOOGLE_APPLICATION_CREDENTIALS, "Missing GOOGLE_APPLICATION_CREDENTIALS in .env"
-if not os.getenv("GOOGLE_CREDENTIALS_BASE64"):  # Running locally
-    assert os.path.exists(GOOGLE_APPLICATION_CREDENTIALS), f"Service account key not found at: {GOOGLE_APPLICATION_CREDENTIALS}"
-assert PROJECT_ID,  "Missing GCP_PROJECT_ID in .env"
-assert LOCATION,    "Missing GCP_LOCATION in .env"
-assert PROCESSOR_ID,"Missing GCP_PROCESSOR_ID in .env"
+try:
+    from PIL import Image
+    import pytesseract
+except ImportError:
+    Image = None
+    pytesseract = None
 
 PDF_MIME = "application/pdf"
 TXT_MIME = "text/plain"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-SUPPORTED_IMAGE_MIMES = {"image/jpeg", "image/png", "image/tiff", "image/gif"}
-
-# ===== GCP Client Setup =====
-def _processor_name() -> str:
-    return f"projects/{PROJECT_ID}/locations/{LOCATION}/processors/{PROCESSOR_ID}"
-
-def _client() -> documentai.DocumentProcessorServiceClient:
-    """
-    Build a client that uses either:
-      - LOCATION as a short region code (e.g., 'eu' -> 'eu-documentai.googleapis.com')
-      - or LOCATION already set to a full endpoint 'eu-documentai.googleapis.com'
-    """
-    credentials = service_account.Credentials.from_service_account_file(GOOGLE_APPLICATION_CREDENTIALS)
-
-    # If LOCATION already looks like an endpoint, use it directly
-    if "documentai.googleapis.com" in LOCATION:
-        api_endpoint = LOCATION
-    else:
-        api_endpoint = f"{LOCATION}-documentai.googleapis.com"
-
-    client_options = {"api_endpoint": api_endpoint}
-    return documentai.DocumentProcessorServiceClient(
-        credentials=credentials,
-        client_options=client_options
-    )
-
-# ===== Process and parse input =====
-def _process_with_layout(file_bytes: bytes, mime_type: str) -> documentai.Document:
-    client = _client()
-    name = _processor_name()
-
-    process_options = documentai.ProcessOptions(
-        layout_config=documentai.ProcessOptions.LayoutConfig(
-            chunking_config=documentai.ProcessOptions.LayoutConfig.ChunkingConfig(
-                chunk_size=1000,
-                include_ancestor_headings=True
-            )
-        )
-    )
-
-    request = documentai.ProcessRequest(
-        name=name,
-        raw_document=documentai.RawDocument(content=file_bytes, mime_type=mime_type),
-        process_options=process_options,
-    )
-
-    try:
-        result = client.process_document(request=request)
-    except Exception as e:
-        # Surface a clearer error for debugging
-        raise RuntimeError(f"Document AI processing failed: {e}") from e
-
-    return result.document
-
-# ===== Convert docx to pdf bytes =====
-def _docx_to_pdf(file_bytes: bytes) -> bytes:
-    """
-    Try converting DOCX -> PDF for better layout fidelity with Layout Parser.
-    Strategy:
-      1) Aspose.Words (requires Aspose license)
-      2) docx2pdf (Windows only - COM)
-      3) Fallback: raise error (handled by caller)
-    """
-    # Option A: Aspose.Words (if available & licensed)
-    try:
-        import aspose.words as aw
-        with tempfile.TemporaryDirectory() as tmpdir:
-            in_path = os.path.join(tmpdir, "input.docx")
-            out_path = os.path.join(tmpdir, "output.pdf")
-            with open(in_path, "wb") as f_in:
-                f_in.write(file_bytes)
-            doc = aw.Document(in_path)
-            doc.save(out_path)
-            with open(out_path, "rb") as f_out:
-                return f_out.read()
-    except Exception:
-        # swallow and try next option
-        pass
-
-    # Option B: docx2pdf (Windows only; may fail on Linux)
-    try:
-        from docx2pdf import convert  # type: ignore
-        with tempfile.TemporaryDirectory() as tmpdir:
-            in_path = os.path.join(tmpdir, "input.docx")
-            out_path = os.path.join(tmpdir, "output.pdf")
-            with open(in_path, "wb") as f_in:
-                f_in.write(file_bytes)
-            # convert may raise on non-Windows environments
-            convert(in_path, out_path)
-            with open(out_path, "rb") as f_out:
-                return f_out.read()
-    except Exception as e:
-        raise RuntimeError(f"DOCX->PDF conversion failed (docx2pdf/Aspose not available or conversion error): {e}")
-
-def _docx_text_fallback(file_bytes: bytes) -> str:
-    # As a last resort, extract text without layout (for MVP continuity)
-    try:
-        import docx  # python-docx
-        doc = docx.Document(BytesIO(file_bytes))
-        return "\n".join(p.text for p in doc.paragraphs)
-    except Exception as e:
-        raise RuntimeError(f"DOCX text extraction failed: {e}")
-
-def _text_from_layout(full_text: str, layout) -> str:
-    """
-    Extracts slices from full_text using the layout.text_anchor.text_segments.
-    Returns empty string if no valid anchor present.
-    """
-    if not layout or not getattr(layout, "text_anchor", None) or not getattr(layout.text_anchor, "text_segments", None):
-        return ""
-    parts = []
-    for seg in layout.text_anchor.text_segments:
-        try:
-            start = int(seg.start_index) if seg.start_index is not None else 0
-            end = int(seg.end_index) if seg.end_index is not None else 0
-        except Exception:
-            # Defensive: if indices are not numeric, skip this segment
-            continue
-        parts.append(full_text[start:end])
-    return "".join(parts)
+SUPPORTED_IMAGE_MIMES = {"image/jpeg", "image/jpg", "image/png", "image/tiff", "image/gif", "image/webp"}
 
 def _cleanup_text(s: str) -> str:
-    # de-hyphenate and normalize whitespace
-    s = re.sub(r"(\w)-\n(\w)", r"\1\2", s)   # de-hyphenate at line breaks
+    if not s:
+        return ""
+    # de-hyphenate at line breaks
+    s = re.sub(r"(\w)-\n(\w)", r"\1\2", s)
     s = re.sub(r"[ \t]+", " ", s)
     s = re.sub(r"\n{2,}", "\n", s)
     return s.strip()
 
-def _simple_paragraph_split(text: str):
-    chunks = re.split(r"\n\s*\n|(?<=[.!?])\s+\n?", text)
-    return [c.strip() for c in chunks if c.strip()]
+def _simple_paragraph_split(text: str) -> List[str]:
+    chunks = re.split(r"\n\s*\n", text)
+    result = []
+    for c in chunks:
+        cleaned = _cleanup_text(c)
+        if cleaned:
+            result.append(cleaned)
+    return result
 
-def _simple_blocks(text: str):
-    return [{"id": i, "text": t, "type": "paragraph", "page": 1} for i, t in enumerate(_simple_paragraph_split(text), 1)]
+def _simple_blocks(text: str) -> List[Dict[str, Any]]:
+    paragraphs = _simple_paragraph_split(text)
+    return [{"id": i, "text": p, "type": "paragraph", "page": 1} for i, p in enumerate(paragraphs, 1)]
 
-def _map_layout_to_blocks(doc: documentai.Document) -> Dict[str, Any]:
-    """
-    Prefer Layout Parser's chunked_document if present.
-    Fallback to page paragraphs/blocks if needed.
-    """
-    full_text = doc.text or ""
-    blocks = []
-    id_counter = 1
+def _extract_pdf(file_bytes: bytes) -> Dict[str, Any]:
+    if fitz is None:
+        raise RuntimeError("PyMuPDF (fitz) is not installed. Please install via 'pip install PyMuPDF'")
 
-    # 1) Use chunked_document chunks if available (ideal for rewriting)
-    chunked = getattr(doc, "chunked_document", None)
-    if chunked and getattr(chunked, "chunks", None):
-        for ch in chunked.chunks:
-            # Chunk objects typically expose `text` (not `layout`)
-            ch_text = getattr(ch, "text", None) or getattr(ch, "content", None) or ""
-            txt = _cleanup_text(ch_text)
-            if txt:
-                # try common page field names; fall back to 0
-                page_val = getattr(ch, "page_ref", None) or getattr(ch, "page_number", None) or 0
-                blocks.append({"id": id_counter, "text": txt, "type": "chunk", "page": page_val})
-                id_counter += 1
+    blocks: List[Dict[str, Any]] = []
+    full_text_parts: List[str] = []
+    block_id = 1
 
-    # 2) If no chunks, fall back to page paragraphs/blocks
-    if not blocks and getattr(doc, "pages", None):
-        for p_index, page in enumerate(doc.pages):
-            para_list = getattr(page, "paragraphs", []) or getattr(page, "blocks", [])
-            for para in para_list:
-                txt = _text_from_layout(full_text, getattr(para, "layout", None))
-                txt = _cleanup_text(txt)
-                if txt:
-                    blocks.append({"id": id_counter, "text": txt, "type": "paragraph", "page": p_index + 1})
-                    id_counter += 1
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    for page_idx in range(len(doc)):
+        page = doc[page_idx]
+        page_num = page_idx + 1
+        page_text = page.get_text("text") or ""
+        
+        # Fallback to OCR if page text is empty and pytesseract is available
+        if not page_text.strip() and pytesseract is not None and Image is not None:
+            try:
+                pix = page.get_pixmap()
+                img = Image.open(io.BytesIO(pix.tobytes()))
+                page_text = pytesseract.image_to_string(img) or ""
+            except Exception:
+                pass
 
-    # 3) Last resort: split full text
-    if not blocks and full_text:
-        for t in _simple_paragraph_split(full_text):
-            blocks.append({"id": id_counter, "text": t, "type": "paragraph", "page": 1})
-            id_counter += 1
+        cleaned_page_text = _cleanup_text(page_text)
+        if cleaned_page_text:
+            full_text_parts.append(cleaned_page_text)
 
+        # Extract blocks per page
+        page_blocks = page.get_text("blocks")
+        if page_blocks:
+            for b in page_blocks:
+                # b format: (x0, y0, x1, y1, "text", block_no, block_type)
+                if len(b) >= 5 and b[6] == 0:  # text block
+                    txt = _cleanup_text(b[4])
+                    if txt:
+                        blocks.append({"id": block_id, "text": txt, "type": "paragraph", "page": page_num})
+                        block_id += 1
+        elif cleaned_page_text:
+            # Split page text if no blocks returned
+            for p in _simple_paragraph_split(cleaned_page_text):
+                blocks.append({"id": block_id, "text": p, "type": "paragraph", "page": page_num})
+                block_id += 1
+
+    doc.close()
+    full_text = "\n\n".join(full_text_parts)
     return {"full_text": full_text, "blocks": blocks}
 
-# --- Public entry point ---
+def _extract_docx(file_bytes: bytes) -> Dict[str, Any]:
+    if docx is None:
+        raise RuntimeError("python-docx is not installed. Please install via 'pip install python-docx'")
+
+    doc = docx.Document(io.BytesIO(file_bytes))
+    blocks: List[Dict[str, Any]] = []
+    full_text_parts: List[str] = []
+    block_id = 1
+
+    for p in doc.paragraphs:
+        txt = _cleanup_text(p.text)
+        if txt:
+            full_text_parts.append(txt)
+            blocks.append({"id": block_id, "text": txt, "type": "paragraph", "page": 1})
+            block_id += 1
+
+    full_text = "\n\n".join(full_text_parts)
+    return {"full_text": full_text, "blocks": blocks}
+
+def _extract_image(file_bytes: bytes) -> Dict[str, Any]:
+    if pytesseract is None or Image is None:
+        text = "[Image file uploaded. Install pytesseract and tesseract-ocr to enable image OCR extraction.]"
+        return {"full_text": text, "blocks": _simple_blocks(text)}
+
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        raw_text = pytesseract.image_to_string(img)
+        text = _cleanup_text(raw_text) or "[No text detected in image]"
+        return {"full_text": text, "blocks": _simple_blocks(text)}
+    except Exception as e:
+        text = f"[Image OCR processing error: {e}]"
+        return {"full_text": text, "blocks": _simple_blocks(text)}
+
 def extract_text_and_blocks(file_bytes: bytes, filename: str, content_type: str | None) -> Dict[str, Any]:
     """
-    Always uses the Layout Parser processor when sending documents to Document AI.
-    - PDF/images: send directly.
-    - DOCX: convert to PDF (preferred), else text fallback.
-    - TXT: use as-is, no OCR.
-    Returns dict with full_text and normalized blocks for the frontend.
+    Local document text extraction for PDF, DOCX, TXT, and Images.
+    Cloud-independent, no Document AI required.
+    Returns dict with full_text and normalized blocks for the frontend schema.
     """
     ext = (os.path.splitext(filename)[1] or "").lower()
     mime = (content_type or "").lower()
 
-    # Normalize MIME by extension when missing or generic
     if ext == ".pdf":
         mime = PDF_MIME
     elif ext == ".txt":
         mime = TXT_MIME
     elif ext == ".docx":
         mime = DOCX_MIME
-    elif ext in [".jpg", ".jpeg"]:
-        mime = "image/jpeg"
-    elif ext == ".png":
-        mime = "image/png"
-    elif ext in [".tif", ".tiff"]:
-        mime = "image/tiff"
+    elif ext in [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".gif", ".webp"]:
+        mime = "image/" + ext.lstrip(".")
 
-    # TXT: bypass OCR
-    if mime == TXT_MIME:
+    # TXT handling
+    if mime == TXT_MIME or ext == ".txt":
         text = file_bytes.decode("utf-8", errors="replace")
-        return {"full_text": text, "blocks": _simple_blocks(text)}
+        # Split into paragraphs on the raw text first: _cleanup_text collapses
+        # blank-line paragraph separators, so pre-cleaning before splitting
+        # would merge every paragraph into a single block.
+        blocks = _simple_blocks(text)
+        full_text = "\n\n".join(b["text"] for b in blocks)
+        return {"full_text": full_text, "blocks": blocks}
 
-    # DOCX: convert to PDF for best results with Layout Parser
-    if mime == DOCX_MIME:
-        try:
-            pdf_bytes = _docx_to_pdf(file_bytes)
-            doc = _process_with_layout(pdf_bytes, PDF_MIME)
-            return _map_layout_to_blocks(doc)
-        except Exception:
-            # Fallback: naive DOCX text extraction
-            text = _docx_text_fallback(file_bytes)
-            return {"full_text": text, "blocks": _simple_blocks(text)}
+    # DOCX handling
+    if mime == DOCX_MIME or ext == ".docx":
+        return _extract_docx(file_bytes)
 
-    # PDFs and supported images: send directly
-    if mime == PDF_MIME or mime in SUPPORTED_IMAGE_MIMES:
-        doc = _process_with_layout(file_bytes, mime)
-        return _map_layout_to_blocks(doc)
+    # PDF handling
+    if mime == PDF_MIME or ext == ".pdf":
+        return _extract_pdf(file_bytes)
 
-    # Unknown: try as PDF; if that fails, treat as text
+    # Image handling
+    if mime in SUPPORTED_IMAGE_MIMES or ext in [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".gif", ".webp"]:
+        return _extract_image(file_bytes)
+
+    # Fallback default: try PDF, then plain text
     try:
-        doc = _process_with_layout(file_bytes, PDF_MIME)
-        return _map_layout_to_blocks(doc)
+        return _extract_pdf(file_bytes)
     except Exception:
         text = file_bytes.decode("utf-8", errors="replace")
-        return {"full_text": text, "blocks": _simple_blocks(text)}
-
-if __name__ == "__main__":
-    print("Key path:", GOOGLE_APPLICATION_CREDENTIALS)
-    print("Processor:", _processor_name())
-    c = _client()
-    # safer access to transport host; fallback if attribute names change
-    host = getattr(getattr(c, "_transport", None), "_host", None) or getattr(getattr(c, "transport", None), "_host", None)
-    print("Connected to:", host)
+        # Split into paragraphs on the raw text first: _cleanup_text collapses
+        # blank-line paragraph separators, so pre-cleaning before splitting
+        # would merge every paragraph into a single block.
+        blocks = _simple_blocks(text)
+        full_text = "\n\n".join(b["text"] for b in blocks)
+        return {"full_text": full_text, "blocks": blocks}
