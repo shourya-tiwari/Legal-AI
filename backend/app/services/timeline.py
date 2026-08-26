@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any, Dict, List, Tuple
 
-from .genai_client import generate_content
+from .model_router import generate_content
 from ..models import MapResponse, DocumentSection, TimelineEvent
 
 # Limits aligned with other services

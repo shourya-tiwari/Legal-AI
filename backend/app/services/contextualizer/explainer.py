@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, List, Optional
-from app.services.genai_client import generate_content
+from app.services.model_router import generate_content
 from app.services.contextualizer.templates import UserContext, build_prompt
 from app.services.contextualizer.rag import SimpleFaissIndex
 

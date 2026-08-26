@@ -21,6 +21,21 @@ class Settings(BaseSettings):
     # CORS
     CORS_ALLOWED_ORIGINS: list[str] = ["http://127.0.0.1:5500", "http://localhost:5500", "*"]
 
+    # Persistence (Phase 1 re-platform: docs/v2/ARCHITECTURE.md)
+    # Defaults to a local SQLite file so the app/tests run with zero external
+    # services; docker-compose.yml points this at Postgres for local dev.
+    DATABASE_URL: str = "sqlite:///./legalai.db"
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Auth (docs/v2/ROADMAP.md Phase 1). Off by default so the existing public
+    # frontend keeps working with zero credentials until keys are issued and
+    # this is deliberately flipped on.
+    AUTH_REQUIRED: bool = False
+
+    # Rate limiting (per org when AUTH_REQUIRED, else per client IP). Fails
+    # open (request allowed) if Redis is unreachable.
+    RATE_LIMIT_PER_MINUTE: int = 60
+
 
 @lru_cache
 def get_settings() -> Settings:

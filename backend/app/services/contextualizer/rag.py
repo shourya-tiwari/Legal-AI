@@ -8,7 +8,7 @@ try:
 except Exception:  # pragma: no cover
     faiss = None
 
-from app.services.genai_client import embed_content
+from app.services.model_router import embed_content
 
 logger = logging.getLogger("legalai.contextualizer.rag")
 

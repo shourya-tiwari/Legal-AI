@@ -1,7 +1,7 @@
 # backend/app/services/chatbot.py
 from __future__ import annotations
 
-from .genai_client import generate_content
+from .model_router import generate_content
 from app.models import AskResponse
 
 SYSTEM_INSTRUCTIONS = (

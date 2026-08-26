@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import List, Dict
 
-from app.services.genai_client import generate_content
+from app.services.model_router import generate_content
 from app.services.risk_radar.rules import RISKY_TERMS, find_keyword_flags
 
 def _call_gemini_for_risk(clause_text: str) -> List[Dict]:

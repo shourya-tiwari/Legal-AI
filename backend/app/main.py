@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -6,11 +7,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
+from .db import init_db
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+logger = logging.getLogger("legalai.main")
 
 # Import route modules
 from .routes import upload
@@ -21,7 +24,19 @@ from .routes import contextualize
 
 settings = get_settings()
 
-app = FastAPI(title="LegalAI Contract Analyzer Backend", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    logger.info(
+        "Startup complete. auth_required=%s database=%s",
+        settings.AUTH_REQUIRED,
+        settings.DATABASE_URL.split("://")[0],
+    )
+    yield
+
+
+app = FastAPI(title="LegalAI Contract Analyzer Backend", version="0.1.0", lifespan=lifespan)
 
 # ---- Exception Handler ----
 @app.exception_handler(RequestValidationError)

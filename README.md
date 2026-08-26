@@ -37,6 +37,7 @@ This tool is designed to empower individuals and businesses by making legal docu
 
 Response (JSON):
 {
+  "document_id": 1,
   "filename": "contract.pdf",
   "full_text": "This Agreement is made on..."
 }
@@ -128,6 +129,10 @@ The backend reads its configuration from `backend/.env` (see `backend/app/config
 | :-- | :-- | :-- |
 | `GOOGLE_API_KEY` | Yes | API key for the Gemini Developer API (`google-genai`). Get one from Google AI Studio. |
 | `GENAI_MODEL` | No | Gemini model name. Defaults to `gemini-flash-latest` if unset. |
+| `DATABASE_URL` | No | SQLAlchemy connection string. Defaults to a local SQLite file (`sqlite:///./legalai.db`) — zero setup needed. Point at Postgres with `postgresql+psycopg://user:pass@host:5432/db` (see `docker-compose.yml`). |
+| `REDIS_URL` | No | Redis connection string for rate limiting, e.g. `redis://localhost:6379/0`. Leave unset/empty to disable rate limiting entirely. |
+| `AUTH_REQUIRED` | No | `true`/`false`, defaults to `false`. When off, every request resolves to a shared "default" org and no API key is needed — this is what keeps the public frontend working today. Flip to `true` once you've issued API keys (see below) to require `Authorization: Bearer <key>` on every `/api/*` call. |
+| `RATE_LIMIT_PER_MINUTE` | No | Requests/minute per org (or per client IP when `AUTH_REQUIRED` is off). Defaults to `60`. |
 
 
 
@@ -146,6 +151,13 @@ Go to the project directory
 ```
 
 **Backend Setup**
+
+- (Optional) Start Postgres + Redis for local dev with Docker:
+```bash
+    docker compose up -d
+```
+Without this, the backend falls back to a local SQLite file and disables rate limiting automatically — Docker is not required to run the app.
+
 - Create and activate a virtual environment (recommended), from the `backend/` directory:
 ```bash
     cd backend
@@ -185,6 +197,12 @@ To point the frontend at your local backend instead, either edit
 `PRODUCTION_BASE_URL` in `frontend/config.js`, or open the page with an `api`
 query parameter, e.g. `index.html?api=http://127.0.0.1:8000/api` — no source
 edit required, and the local backend's CORS config already allows any origin.
+
+**Issuing API keys** (only needed once you set `AUTH_REQUIRED=true`):
+```bash
+    python scripts/create_api_key.py "My Org" "my-key-name"
+```
+Prints the raw key once — save it, only its hash is stored. Send it as `Authorization: Bearer <key>` on every `/api/*` request.
 
 ## Authors
 

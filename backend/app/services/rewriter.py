@@ -5,7 +5,7 @@ import time
 from typing import List, Tuple
 
 from app.config import get_settings
-from .genai_client import generate_content
+from .model_router import generate_content
 
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 
