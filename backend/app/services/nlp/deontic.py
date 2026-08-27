@@ -76,7 +76,11 @@ def tag_deontic_modality(clause_text: str, use_ai_escalation: bool = False) -> L
         return tags
 
     try:
-        raw = generate_content(_AI_PROMPT_TEMPLATE.format(clause=clause_text), temperature=0.0)
+        raw = generate_content(
+            _AI_PROMPT_TEMPLATE.format(clause=clause_text),
+            task="deontic_escalation",
+            temperature=0.0,
+        )
         data = parse_json_safely(raw)
         if not isinstance(data, list):
             return []

@@ -114,35 +114,34 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 ---
 
-## Phase 5 — Provider Abstraction Hardening
+## Phase 5 — Provider Abstraction Hardening — 🟡 In progress (core code slice shipped)
+
+**Scope note**: the code core of this phase shipped — the provider interface, packaging split, policy engine, import-linter contract, and removal of the Gemini embedding dependency, all verified by running the full test suite in a fresh venv with **no `google-genai` installed** (101 pass + 1 skip). The infra pieces (a real TEI/Ollama deployment, the observability stack, Inspect AI) are the honest deferrals — they need services stood up, not code written. See `LEARNING_LOG.md` entry #18.
 
 **Model Router → the real provider interface (`AI_STACK.md`)**
-- [ ] Define the `ModelProvider` protocol and provider-neutral request/response schemas (`generate`, `generate_structured`, `embed`, `rerank`, `transcribe`, `synthesize`, `describe`, `health`)
-- [ ] Split `legalai-providers-core` (self-hosted adapters) from `legalai-providers-external` (commercial adapters, may wrap LiteLLM); make `-external` an optional install / extras group
-- [ ] Add the **import-linter CI contract**: no model-provider SDK imported outside `services/model_router/providers/`
-- [ ] Build the declarative routing-policy engine (`packages/policies/routing.yaml`): task × sensitivity × capability × budget → `(provider, model)`; self-hosted-only fallback chains; separate opt-in `emergency_class_c`
-- [ ] Log `{task, sensitivity, provider, model, policy_version, reason}` on every call; join to `eval_runs`
-- [ ] Re-express hosting as Class A / B / C throughout config and code (retire "Tier 2 — commercial frontier")
-- [ ] Move the existing Gemini path behind `-external` + a Class C policy rule; confirm the product still runs with `-external` uninstalled (using the Ollama dev model) — this is the phase's acceptance test
+- [x] Define the `ModelProvider` interface + provider-neutral request/response types — `app/services/model_router/{base,types}.py` (`generate`, `embed`, `rerank`, `describe`, `is_available`). `generate_structured`/`transcribe`/`synthesize` reserved in the design, not needed by any current feature
+- [x] Split providers into an always-installed core (`local.py` hashing/lexical, `openai_compat.py`) and an optional external adapter (`gemini.py`); `requirements.txt` (core, **no `google-genai`**) / `requirements-external.txt` / `requirements-local.txt`
+- [x] **import-linter contract** — `tests/test_provider_isolation.py` (AST scan, CI-gated, zero new deps) + `.importlinter` config; no provider SDK imported outside `app/services/model_router/providers/`
+- [x] Declarative routing-policy engine — `app/policies/routing.yaml` + `app/services/model_router/policy.py`: `task × sensitivity × capability` → ordered candidate chain; Class-A/B-only chains; Class C appended only when `EXTERNAL_PROVIDERS_ENABLED` and the tier is in `class_c_allowed_tiers`; `STRICT_LOCAL_ONLY` hard-off switch. `emergency_class_c` per-org opt-in: **not built** (no multi-tenant policy layer yet)
+- [x] Log `{task, sensitivity, provider, model, reason, candidates}` on every routing decision (`router.py`); a Class C route logs at WARNING. Join to `eval_runs`: **deferred** (no `eval_runs` table yet)
+- [x] Re-express hosting as **Class A / B / C** in config, code, and the policy (retired "Tier 2")
+- [x] Move Gemini behind the optional external package + a Class C policy rule; **verified the product runs with `google-genai` uninstalled** (fresh-venv full-suite run) — the phase's acceptance test
 
 **Self-host everything that isn't a large LLM**
-- [ ] Deploy TEI / Infinity serving a self-hosted embedding model (EmbeddingGemma-300M or Qwen3-Embedding-0.6B on CPU; BGE-M3 batch on ingest)
-- [ ] **Remove the Gemini embedding dependency from the RAG path** (`genai_client.py` / `model_router.py` / `contextualizer/rag.py`) — the single most important deliverable
-- [ ] Deploy a self-hosted reranker (bge-reranker-base, CPU); wire into RRF fusion
-- [ ] Fuse GraphRAG hits into the Contextualizer's hybrid retrieval (the Phase 3 gap)
-- [ ] Add faster-whisper (ASR) and Kokoro/Piper (TTS) providers, CPU-served, for accessibility/audio features
-- [ ] Ship an Ollama-served Qwen3-4B as the docker-compose / local-dev default LLM; document "run the whole product with zero credentials"
+- [~] Self-hosted embeddings — the *interface + local default* shipped: `SentenceTransformerProvider` (Class B, optional `requirements-local.txt`) → `OpenAICompatProvider` embed role (TEI/Infinity endpoint) → `HashingEmbeddingProvider` (Class A, zero-dep, offline floor). **Deploying an actual TEI server with EmbeddingGemma/BGE-M3 is Phase 6** (GPU-served) or a follow-up; the code path is ready
+- [x] **Removed the Gemini embedding dependency from the RAG path** — `contextualizer/rag.py` no longer hardcodes `gemini-embedding-001`; `embed_content()` routes via the policy (`embed_query`/`embed_corpus` tasks) to a self-hosted provider. This was the single most important deliverable
+- [x] Self-hosted reranker + wired into RRF fusion — `rag/hybrid.py` now has a rerank step (`LexicalReranker` Class A default; `SentenceTransformerProvider` cross-encoder when installed), behind `RERANKER_ENABLED`
+- [x] Fuse GraphRAG hits into hybrid retrieval — `rag/graph_retrieval.py` + `hybrid_search(..., graph_hits=...)`; wired into the Clause Research agent (`agents/research.py`), fail-soft when Memgraph is down. Contextualizer route wiring: follow-up (needs org context threaded to `explainer`)
+- [ ] faster-whisper (ASR) / Kokoro-Piper (TTS) providers → **deferred**: no ASR/TTS feature exists in the product yet; premature to add the providers
+- [~] Ollama-served small LLM as the local-dev default — `OpenAICompatProvider` + `LLM_BASE_URL`/`LLM_MODEL` settings ship; adding an `ollama` service to `docker-compose.yml` + a model pull is a follow-up (it downloads a multi-GB model on first `up`)
 
-**Observability & eval**
-- [ ] Wire OpenTelemetry (GenAI semantic conventions) into every service
-- [ ] Deploy Langfuse (agent/LLM tracing) + Arize Phoenix (RAG/eval debugging), self-hosted
-- [ ] Deploy Prometheus + Grafana (or SigNoz) dashboards: latency, cost-per-request by hosting class, queue depth, eval score over time, egress volume
-- [ ] Adopt Inspect AI as the eval-suite backbone; keep the hand-curated gold set as a fast pre-merge check; add promptfoo for prompt regression
-- [ ] Point every eval judge model at a self-hosted model
-- [ ] Build the **self-hosted-vs-external delta report** (per task: what would Class C add?) — gates every future decision to enable Class C
-- [ ] Extend the CI eval gate to fail on routing-policy and provider changes, not just prompt/model changes
+**Observability & eval** — [ ] all deferred (need services stood up, not code):
+- [ ] OpenTelemetry / Langfuse / Arize Phoenix / Prometheus+Grafana
+- [ ] Inspect AI backbone + promptfoo; self-hosted eval judge; the self-hosted-vs-external delta report
+- [x] Extend the CI eval gate to cover provider/policy — partially: `test_model_router.py` + `test_provider_isolation.py` are CI-gated and fail on a policy/interface regression; the full `eval_runs`-joined gate is future work
+- [x] Second CI job (`core-only-smoke`) installs `requirements.txt` alone and proves the product runs with no external SDK
 
-**Exit criteria**: Router is provider-agnostic and passes the import-linter contract; embeddings/rerank/ASR/TTS self-hosted; the only task routed to a commercial API by default is large-LLM generation; the product runs end-to-end locally with no credentials.
+**Exit criteria**: Router is provider-agnostic and passes the import-linter contract ✅; embeddings/rerank self-hosted by default (interface + local providers) ✅, ASR/TTS N/A; the only task routed to a commercial API by default is large-LLM generation ✅ (and only when `EXTERNAL_PROVIDERS_ENABLED`); the product runs end-to-end with no credentials and no `google-genai` ✅ (verified in a fresh venv). Remaining: stand up a real self-hosted embedding server and the observability stack.
 
 ## Phase 6 — Self-Hosted LLM Generation: the GPU unlock
 

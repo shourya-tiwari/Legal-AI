@@ -58,7 +58,9 @@ def classify_clause_type(clause_text: str, use_ai_escalation: bool = False) -> T
 
     try:
         prompt = _ESCALATION_PROMPT.format(categories=", ".join(CLAUSE_TYPE_KEYWORDS.keys()), clause=clause_text)
-        raw = generate_content(prompt, temperature=0.0).strip().lower().replace(" ", "_").strip(".")
+        raw = generate_content(
+            prompt, task="clause_type_escalation", temperature=0.0
+        ).strip().lower().replace(" ", "_").strip(".")
         if raw in CLAUSE_TYPE_KEYWORDS:
             return raw, "ai"
         return "other", "ai"

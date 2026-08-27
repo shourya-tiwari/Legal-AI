@@ -1,12 +1,22 @@
 """
-Tests for the hybrid RAG layer: BM25 (real, no mocking needed -- pure
-Python, no network) and the citation validator. Dense retrieval (Gemini
-embeddings) is exercised indirectly through the contextualize route test in
-test_routes.py, where embed_content is mocked.
+Tests for the hybrid RAG layer: BM25 (real, pure Python), the citation
+validator, and (Phase 5) the reranker step + GraphRAG fusion in
+hybrid_search. Dense retrieval now uses the Model Router's Class A hashing
+embedder by default -- no network, no mocking needed.
 """
+import pytest
+
 from app.services.rag.bm25 import BM25Index
 from app.services.rag.citation_validator import find_invalid_citations
 from app.services.rag.corpus import LEGAL_KNOWLEDGE_BASE, LegalKnowledgeEntry
+
+
+@pytest.fixture
+def _reset_dense_index():
+    import app.services.rag.hybrid as hybrid_module
+    hybrid_module._dense_index = None
+    yield
+    hybrid_module._dense_index = None
 
 
 def test_corpus_entries_have_required_fields():
@@ -60,3 +70,32 @@ def test_find_invalid_citations_empty_when_all_valid():
 
 def test_find_invalid_citations_empty_when_no_citations_present():
     assert find_invalid_citations("No citations here.", num_hints=3) == []
+
+
+# ---- Phase 5: hybrid_search with self-hosted embeddings + rerank + graph ----
+
+def test_hybrid_search_runs_end_to_end_with_local_embeddings(_reset_dense_index):
+    from app.services.rag.hybrid import hybrid_search
+
+    hits = hybrid_search("security deposit limit in California", k=3)
+    assert hits
+    assert len(hits) <= 3
+    assert all(isinstance(h, LegalKnowledgeEntry) for h in hits)
+    assert any("deposit" in h.text.lower() for h in hits)
+
+
+def test_hybrid_search_folds_in_graph_hits_as_portfolio_entries(_reset_dense_index):
+    from app.services.rag.hybrid import hybrid_search
+
+    graph_hit = "The Vendor shall indemnify the Client for any third-party IP claims."
+    hits = hybrid_search("indemnification obligation", k=5, graph_hits=[graph_hit])
+    texts = [h.text for h in hits]
+    assert graph_hit in texts
+    assert next(h for h in hits if h.text == graph_hit).topic == "portfolio"
+
+
+def test_graph_retrieval_is_fail_soft_when_memgraph_unreachable():
+    # conftest points MEMGRAPH_URI at a dead port -- this must not raise.
+    from app.services.rag.graph_retrieval import graph_hits_for_terms
+
+    assert graph_hits_for_terms(org_id=1, terms=["Tenant", "Landlord"]) == []

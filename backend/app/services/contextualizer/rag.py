@@ -12,20 +12,17 @@ from app.services.model_router import embed_content
 
 logger = logging.getLogger("legalai.contextualizer.rag")
 
-# "text-embedding-004" (the original V1 default) now 404s -- Gemini stopped
-# serving it (confirmed via client.models.list() during Phase 3 work).
-# gemini-embedding-001 is the current supported embedding model (3072-dim by
-# default; SimpleFaissIndex reads the dimension from the returned vectors,
-# so no other change was needed). If embeddings start silently returning
-# empty vectors again, check this against a fresh models.list() call first.
-EMBED_MODEL = "gemini-embedding-001"
+# Phase 5: no hardcoded embedding model any more. embed_content() routes
+# through the Model Router, whose default for the `embed_query` task is a
+# self-hosted provider (Class A/B) -- the Gemini embedding API is no longer
+# on this path. See app/policies/routing.yaml and docs/v2/AI_STACK.md.
 
-def embed_texts(texts: List[str]) -> np.ndarray:
+def embed_texts(texts: List[str], *, task: str = "embed_query") -> np.ndarray:
     """
-    Returns an array of shape (n, d). Uses Gemini embeddings via central genai_client.
+    Returns an array of shape (n, d) from the Model Router's embedding provider.
     """
     try:
-        res = embed_content(contents=texts, model=EMBED_MODEL)
+        res = embed_content(contents=texts, task=task)
         vecs = [
             np.array(e.values, dtype="float32") if hasattr(e, "values") else np.array(e, dtype="float32")
             for e in getattr(res, "embeddings", [])
@@ -47,8 +44,7 @@ class SimpleFaissIndex:
 
     @classmethod
     def from_texts(cls, texts: List[str]) -> "SimpleFaissIndex":
-        vecs = embed_texts(texts)
-        # Fixed bug: vecs.shape[14] -> vecs.shape[1]
+        vecs = embed_texts(texts, task="embed_corpus")
         dim = vecs.shape[1] if vecs.size else 768
         return cls(dim, texts, vecs)
 

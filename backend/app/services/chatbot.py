@@ -27,5 +27,5 @@ Question: {question}
 Answer:
 """.strip()
 
-    answer = generate_content(prompt, temperature=temperature)
+    answer = generate_content(prompt, task="qa", temperature=temperature)
     return AskResponse(answer=answer)

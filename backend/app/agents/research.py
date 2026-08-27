@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
+from app.services.rag.graph_retrieval import graph_hits_for_terms
 from app.services.rag.hybrid import hybrid_search
 
 from .state import AgentStep, CaseState
@@ -29,7 +30,12 @@ def run_research(state: CaseState) -> dict:
     for clause in state.clauses:
         if not _needs_research(state, clause):
             continue
-        hits = hybrid_search(clause.text, k=MAX_HITS_PER_CLAUSE)
+        # GraphRAG leg: other portfolio clauses that share this clause's
+        # defined terms (fail-soft -- [] when Memgraph is unreachable).
+        graph_hits = graph_hits_for_terms(
+            state.org_id, clause.defined_terms_used, exclude_texts=[clause.text]
+        )
+        hits = hybrid_search(clause.text, k=MAX_HITS_PER_CLAUSE, graph_hits=graph_hits)
         if hits:
             citations[clause.id] = [h.model_dump() for h in hits]
 

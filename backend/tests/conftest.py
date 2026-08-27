@@ -9,6 +9,12 @@ os.environ.setdefault("GENAI_MODEL", "gemini-flash-latest")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("REDIS_URL", "")  # rate limiting disabled in tests; see test_rate_limit.py for its own coverage
 os.environ.setdefault("AUTH_REQUIRED", "false")
+# Tests run in the self-hosted-first posture (docs/v2/AI_STACK.md): no external
+# (Class C) provider is routed to by default. Embeddings/reranking fall to the
+# Class A local providers; an un-mocked generate() call raises a clear
+# ModelRouterError instead of making a real network call with the dummy key.
+# A test that specifically exercises the Gemini routing path flips this.
+os.environ.setdefault("EXTERNAL_PROVIDERS_ENABLED", "false")
 # Deliberately NOT the real default port: tests must not depend on whether
 # docker-compose happens to be running on this machine right now. KG tests
 # use a fake client (test_kg_builder.py) for anything Memgraph-dependent.

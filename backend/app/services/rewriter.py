@@ -4,7 +4,6 @@ import re
 import time
 from typing import List, Tuple
 
-from app.config import get_settings
 from .model_router import generate_content
 
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
@@ -61,6 +60,7 @@ Clause:
 """
     result = generate_content(
         prompt,
+        task="clause_rewrite",
         temperature=0.3,
     )
     return result
@@ -85,10 +85,11 @@ def rewrite_text(
         outputs.append(_rewrite_chunk(chunk))
 
     rewritten = "\n\n".join(outputs).strip()
-    configured_model = get_settings().GENAI_MODEL
 
     meta = {
-        "model": configured_model,
+        # The concrete model is chosen per-request by the Model Router
+        # (docs/v2/AI_STACK.md) -- this service names a task, not a model.
+        "model": "model-router:clause_rewrite",
         "latency_ms": int((time.time() - start) * 1000),
         "input_len": len(cleaned),
         "output_len": len(rewritten),

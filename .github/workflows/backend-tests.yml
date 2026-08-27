@@ -24,9 +24,32 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        # Core + the optional external-provider SDK, so the full suite
+        # (including the provider-isolation contract and the Gemini adapter)
+        # is exercised. The product itself runs on requirements.txt alone.
+        run: pip install -r requirements-external.txt
 
       - name: Run tests
         env:
           GOOGLE_API_KEY: "ci-dummy-key"
         run: pytest -v
+
+  core-only-smoke:
+    # Proves the product imports and the Model Router resolves a working
+    # provider chain with NO commercial-provider SDK installed
+    # (the on-prem / air-gapped install).
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install core only
+        run: pip install -r requirements.txt
+      - name: Smoke test (no external / no local-neural providers installed)
+        env:
+          GOOGLE_API_KEY: ""
+        run: pytest -v -k "provider_isolation or model_router or rag_hybrid or nlp_pipeline or eval_gate"

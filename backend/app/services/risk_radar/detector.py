@@ -14,7 +14,7 @@ def _call_gemini_for_risk(clause_text: str) -> List[Dict]:
         f'Clause: "{clause_text}"'
     )
     try:
-        output_text = generate_content(prompt_text) or ""
+        output_text = generate_content(prompt_text, task="risk_analysis") or ""
         try:
             parsed = json.loads(output_text)
             return parsed.get("flags", []) if isinstance(parsed, dict) else []

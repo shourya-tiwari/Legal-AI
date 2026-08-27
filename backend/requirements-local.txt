@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# OPTIONAL: self-hosted neural embedding + reranker models (Class B), run
+# in-process. Pulls PyTorch, so it's a heavy install kept out of the core set.
+#
+# With this absent, the Model Router uses:
+#   - the Class A hashing embedder (offline, zero-dep, lexical signal), or
+#   - a TEI / Ollama / OpenAI-compatible embedding endpoint if EMBEDDING_BASE_URL
+#     is configured.
+#
+#   pip install -r requirements-local.txt
+#
+# Recommended models (docs/v2/MODEL_STACK.md):
+#   EMBEDDING_MODEL   -> BAAI/bge-small-en-v1.5  (or a Qwen3-Embedding / EmbeddingGemma build)
+#   RERANKER_MODEL    -> cross-encoder/ms-marco-MiniLM-L-6-v2  (or BAAI/bge-reranker-v2-m3)
+# ---------------------------------------------------------------------------
+-r requirements.txt
+
+sentence-transformers==3.3.1

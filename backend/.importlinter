@@ -1,0 +1,39 @@
+# Import-linter contract (docs/v2/AI_STACK.md, ROADMAP Phase 5).
+#
+# "No module outside app/services/model_router/providers/ may import a
+#  model-provider SDK."
+#
+# The always-on enforcement is tests/test_provider_isolation.py (runs in CI,
+# no extra dependency). This file lets a contributor also run:
+#
+#     pip install import-linter && lint-imports
+#
+[importlinter]
+root_packages =
+    app
+
+[importlinter:contract:no-vendor-sdk-in-business-logic]
+name = Model-provider SDKs stay inside model_router.providers
+type = forbidden
+source_modules =
+    app.routes
+    app.agents
+    app.services.rewriter
+    app.services.timeline
+    app.services.chatbot
+    app.services.risk_radar
+    app.services.contextualizer
+    app.services.nlp
+    app.services.kg
+    app.services.rag
+    app.services.cv
+    app.services.extractor
+forbidden_modules =
+    google.genai
+    openai
+    anthropic
+    cohere
+    mistralai
+    vllm
+    sentence_transformers
+    litellm

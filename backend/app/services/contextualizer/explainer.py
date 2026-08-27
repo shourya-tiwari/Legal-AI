@@ -71,7 +71,7 @@ def generate_contextualized_explanation(clause_text: str, ctx_dict: Dict) -> Dic
     hint_texts = [e.text for e in entries]
 
     prompt = build_prompt(clause_text, ctx, hints=hint_texts)
-    text = generate_content(prompt)
+    text = generate_content(prompt, task="contextualize")
 
     invalid_citations = find_invalid_citations(text, num_hints=len(hint_texts))
     if invalid_citations:

@@ -1,0 +1,45 @@
+# backend/app/policies/routing.yaml
+#
+# Declarative routing policy for the Model Router (docs/v2/AI_STACK.md).
+# Versioned in git and eval-gated: a change here is a reviewed, tested change
+# (tests/test_model_router.py + the eval gate).
+#
+# In the target monorepo this lives at packages/policies/routing.yaml.
+#
+# Provider names are resolved by app/services/model_router/registry.py:
+#   local-llm            -> OpenAICompatProvider (LLM_BASE_URL: Ollama/vLLM/...)   Class B
+#   local-embed-neural   -> SentenceTransformerProvider (optional extra)           Class B
+#   local-embed-remote   -> OpenAICompatProvider embed role (EMBEDDING_BASE_URL)   Class B
+#   local-embed-hash     -> HashingEmbeddingProvider (always available, offline)   Class A
+#   local-rerank-neural  -> SentenceTransformerProvider cross-encoder              Class B
+#   local-rerank-lexical -> LexicalReranker (always available)                     Class A
+#   gemini               -> GeminiProvider (providers-external; absent air-gapped) Class C
+#
+# `chain`   = Class A/B candidates, tried in order by health.
+# `class_c` = external candidates, appended to the chain ONLY when
+#             EXTERNAL_PROVIDERS_ENABLED and STRICT_LOCAL_ONLY=false and the
+#             document's sensitivity tier is in class_c_allowed_tiers.
+#             A Class C provider is NEVER a silent fallback for a sensitive tier.
+
+version: 1
+
+class_c_allowed_tiers: [public, internal]
+
+tasks:
+  # ---- generation --------------------------------------------------------
+  generic:                { capability: generate, chain: [local-llm], class_c: [gemini] }
+  clause_rewrite:         { capability: generate, chain: [local-llm], class_c: [gemini] }
+  timeline_extract:       { capability: generate, chain: [local-llm], class_c: [gemini] }
+  qa:                     { capability: generate, chain: [local-llm], class_c: [gemini] }
+  risk_analysis:          { capability: generate, chain: [local-llm], class_c: [gemini] }
+  contextualize:          { capability: generate, chain: [local-llm], class_c: [gemini] }
+  deontic_escalation:     { capability: generate, chain: [local-llm], class_c: [gemini] }
+  clause_type_escalation: { capability: generate, chain: [local-llm], class_c: [gemini] }
+  agent_summary:          { capability: generate, chain: [local-llm], class_c: [gemini] }
+
+  # ---- embeddings ------------------------------------------------------
+  embed_corpus: { capability: embed, chain: [local-embed-neural, local-embed-remote, local-embed-hash], class_c: [] }
+  embed_query:  { capability: embed, chain: [local-embed-neural, local-embed-remote, local-embed-hash], class_c: [] }
+
+  # ---- reranking ------------------------------------------------------
+  rerank: { capability: rerank, chain: [local-rerank-neural, local-rerank-lexical], class_c: [] }

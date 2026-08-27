@@ -91,7 +91,7 @@ def _parse_json_list(s: str) -> List[Dict[str, Any]]:
 
 def _gen_json(prompt: str, context: str, temperature: float = 0.2) -> List[Dict[str, Any]]:
     full = f"{prompt}\n\nReturn only valid JSON array, no prose.\n\n<text>\n{context}\n</text>"
-    raw_text = generate_content(full, temperature=temperature)
+    raw_text = generate_content(full, task="timeline_extract", temperature=temperature)
     return _parse_json_list(raw_text)
 
 def _dedupe_structure(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

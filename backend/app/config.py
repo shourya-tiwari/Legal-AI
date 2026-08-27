@@ -15,6 +15,40 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # ---- Model Router (docs/v2/AI_STACK.md) ----------------------------------
+    # Providers are classified by WHERE they run, not who sells them:
+    #   Class A -- deterministic / CPU     Class B -- self-hosted neural
+    #   Class C -- external provider API (optional; absent in air-gapped builds)
+    #
+    # Self-hosted generation (Class B): an OpenAI-compatible endpoint --
+    # Ollama (http://localhost:11434/v1), vLLM, SGLang, llama.cpp server, ...
+    # Empty LLM_BASE_URL => the local-llm provider reports itself unavailable
+    # and the router falls through to Class C (if enabled) -- the Phase 5->6
+    # interim. Phase 6 makes a self-hosted model the default.
+    LLM_BASE_URL: str = ""
+    LLM_MODEL: str = "qwen2.5:3b"
+    LLM_API_KEY: str = ""
+
+    # Self-hosted embeddings (Class B). EMBEDDING_BASE_URL points at a
+    # TEI / Infinity / OpenAI-compatible embedding server; if unset, the
+    # router uses the optional sentence-transformers extra when installed,
+    # else the always-available Class A hashing embedder.
+    EMBEDDING_BASE_URL: str = ""
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    RERANKER_ENABLED: bool = True
+
+    # Class C gating. EXTERNAL_PROVIDERS_ENABLED=false OR STRICT_LOCAL_ONLY=true
+    # keeps every request on self-hosted providers. On-prem/air-gapped builds
+    # also simply don't install `google-genai` (requirements-external.txt), so
+    # the provider is physically absent regardless of these flags.
+    EXTERNAL_PROVIDERS_ENABLED: bool = True
+    STRICT_LOCAL_ONLY: bool = False
+    ROUTING_POLICY_PATH: str = ""
+
+    # Commercial provider credentials (Class C -- only used when the matching
+    # provider is installed and enabled).
     GOOGLE_API_KEY: str = ""
     GENAI_MODEL: str = "gemini-flash-latest"
 

@@ -1,9 +1,21 @@
+# ---------------------------------------------------------------------------
+# CORE requirements -- "legalai-providers-core" + the app.
+# This set contains NO commercial-model SDK. The product runs end to end on
+# this alone: self-hosted generation via an OpenAI-compatible endpoint
+# (LLM_BASE_URL), self-hosted / Class-A embeddings and reranking.
+#
+#   requirements-external.txt  -> adds the optional commercial providers
+#                                 (google-genai, ...). Omitted from on-prem /
+#                                 air-gapped builds (docs/v2/AI_STACK.md).
+#   requirements-local.txt     -> adds the optional self-hosted neural
+#                                 embedding/reranker models (sentence-transformers).
+# ---------------------------------------------------------------------------
 fastapi==0.116.1
 uvicorn==0.35.0
 python-dotenv==1.1.1
 pydantic==2.11.7
 pydantic-settings==2.6.1
-google-genai==1.32.0
+PyYAML==6.0.2
 PyMuPDF==1.28.0
 python-docx==1.2.0
 faiss-cpu==1.12.0

@@ -87,9 +87,13 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 
 ---
 
-## Phase 5 — Provider Abstraction Hardening (~4-6 sprints) — the cheap, critical enabler
+## Phase 5 — Provider Abstraction Hardening (~4-6 sprints) — 🟡 In progress (code core shipped)
 
 **No GPU required.** This phase makes the architecture genuinely provider-agnostic and removes every external dependency *except* large-LLM generation quality — before spending a dollar on hardware. It is deliberately small and deliberately first.
+
+**Shipped (code):** the `ModelProvider` interface, the `providers-core` / `providers-external` packaging split (`google-genai` removed from `requirements.txt`), the import-linter contract (CI-gated), the declarative routing-policy engine (`app/policies/routing.yaml`) with Class A/B/C and Class-C gating, per-call routing-decision logging, and — the key deliverable — **removal of the Gemini embedding dependency from the RAG path** (self-hosted / Class-A hashing embedder is the default; reranker + GraphRAG fusion wired into hybrid retrieval). Verified by running the full backend test suite in a fresh venv with **no `google-genai` installed** (see `TASKS.md` and `LEARNING_LOG.md` #18).
+
+**Still open:** standing up a real self-hosted embedding server (TEI/Infinity + EmbeddingGemma/BGE-M3), an Ollama service in `docker-compose`, and the observability stack (OpenTelemetry / Langfuse / Phoenix / Grafana) + Inspect AI — all "run a service", not "write code". ASR/TTS providers are deferred until a feature needs them.
 
 **Model Router → the real provider interface** (`AI_STACK.md`)
 - [ ] Define the `ModelProvider` protocol (`generate`, `generate_structured`, `embed`, `rerank`, `transcribe`, `synthesize`, `describe`, `health`) and provider-neutral request/response schemas.

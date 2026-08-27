@@ -1,0 +1,17 @@
+# ---------------------------------------------------------------------------
+# OPTIONAL: "legalai-providers-external" -- commercial model provider SDKs.
+#
+# Install ONLY where an external (Class C) provider is wanted, e.g. the cloud
+# SaaS profile with per-org opt-in. DO NOT install for on-prem / air-gapped
+# builds -- the SBOM allowlist (docs/v2/ARCHITECTURE.md) treats the presence
+# of these packages as a build failure for those profiles.
+#
+# With these absent, app/services/model_router/registry.py simply does not
+# register the Gemini provider and the router runs on self-hosted providers
+# only.
+#
+#   pip install -r requirements-external.txt
+# ---------------------------------------------------------------------------
+-r requirements.txt
+
+google-genai==1.32.0
