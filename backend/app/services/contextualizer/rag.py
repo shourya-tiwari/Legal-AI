@@ -12,7 +12,13 @@ from app.services.model_router import embed_content
 
 logger = logging.getLogger("legalai.contextualizer.rag")
 
-EMBED_MODEL = "text-embedding-004"
+# "text-embedding-004" (the original V1 default) now 404s -- Gemini stopped
+# serving it (confirmed via client.models.list() during Phase 3 work).
+# gemini-embedding-001 is the current supported embedding model (3072-dim by
+# default; SimpleFaissIndex reads the dimension from the returned vectors,
+# so no other change was needed). If embeddings start silently returning
+# empty vectors again, check this against a fresh models.list() call first.
+EMBED_MODEL = "gemini-embedding-001"
 
 def embed_texts(texts: List[str]) -> np.ndarray:
     """

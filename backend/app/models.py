@@ -84,6 +84,31 @@ class NlpAnalyzeRequest(BaseModel):
 class NlpAnalyzeResponse(BaseModel):
     clauses: List[ClauseObject]
 
+# ----- Knowledge Graph (/api/kg) -----
+class KGIngestRequest(BaseModel):
+    document_id: int
+
+class KGIngestResponse(BaseModel):
+    document_id: int
+    clauses: int
+    defined_terms: int
+    cross_references: int
+    portfolio_links_created: int
+    kg_available: bool = Field(
+        description="False if Memgraph was unreachable -- the ingest call still succeeds (fail-soft), it just wrote nothing."
+    )
+
+class KGQueryRequest(BaseModel):
+    term: str = Field(..., min_length=1, max_length=200)
+
+class KGQueryResponse(BaseModel):
+    term: str
+    clauses: List[dict] = Field(default_factory=list)
+
+class KGConflictsResponse(BaseModel):
+    term: str
+    conflicts: List[dict] = Field(default_factory=list)
+
 # ----- Contextualizer (/api/contextualize) -----
 class ContextualizerRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Contract clause text to explain")
@@ -94,3 +119,12 @@ class ContextualizerResponse(BaseModel):
     context: dict
     explanation: str
     used_hints: List[str] = Field(default_factory=list, description="Contextual hints used in the explanation")
+    citations: List[dict] = Field(
+        default_factory=list,
+        description="The retrieved knowledge-base entries backing used_hints, each with its source citation "
+        "(or null if this is a general principle with no single controlling citation -- see "
+        "services/rag/corpus.py). Additive field; used_hints is unchanged for backward compatibility.",
+    )
+    citation_warning: bool = Field(
+        False, description="True if the model referenced a bracket citation number it wasn't actually given."
+    )

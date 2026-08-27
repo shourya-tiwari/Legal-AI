@@ -65,23 +65,25 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 ## Phase 3 — Knowledge Graph & GraphRAG
 
-**Knowledge graph (`KNOWLEDGE_GRAPH.md`)**
-- [ ] Deploy Memgraph; implement schema (node/edge types)
-- [ ] Build entity resolution pipeline (embedding clustering + LLM-assisted disambiguation)
-- [ ] Build relation extraction pipeline (classifier + LLM-assisted low-confidence fallback)
-- [ ] Implement schema validation + deontic consistency checks on graph write
-- [ ] Implement portfolio-linking on ingestion
-- [ ] Implement bitemporal versioning (valid time / transaction time)
-- [ ] Backfill: re-process existing documents into the graph
+**Scope note**: Memgraph itself needs no GPU (a CPU/RAM graph database, like Postgres), so this phase's infra is fully real, not a stand-in. What's scoped down: entity resolution uses string-similarity (`difflib`), not embedding clustering; relation extraction is derived directly from Phase 2's `ClauseObject` output rather than a separate trained classifier; dense embeddings use Gemini's API (already integrated) rather than self-hosted BGE-M3; and Obligation nodes with resolved actor/action aren't modeled (Phase 2's deontic tagger doesn't resolve `actor`, so that graph would be guessing) — see `KNOWLEDGE_GRAPH.md`-equivalent scoping notes in `app/services/kg/schema.py`'s docstring.
 
-**RAG (`AI_STACK.md`)**
-- [ ] Deploy BGE-M3 for dense embeddings; deploy bge-reranker-v2-m3
-- [ ] Build BM25/SPLADE sparse index
-- [ ] Implement GraphRAG traversal tool over Memgraph
-- [ ] Implement reciprocal rank fusion across dense/sparse/graph retrievers
-- [ ] Ingest and cite a real statute/regulation corpus (start with jurisdictions V1 already hinted at)
-- [ ] Migrate Contextualizer feature to real hybrid RAG with citations; remove the hardcoded 28-string list
-- [ ] Implement citation-grounded generation prompt contract + citation validator
+**Knowledge graph**
+- [x] Deploy Memgraph; implement schema (node/edge types) — `docker-compose.yml` (Memgraph 2.18.1) + `app/services/kg/schema.py`. Schema: `Document`/`Clause`/`DefinedTerm`/`CrossReferenceTarget` nodes, `PART_OF`/`DEFINES`/`USES_TERM`/`REFERENCES`/`SAME_AS` edges — narrower than the full docs/v2 vision (no `Obligation`/`Statute`/`Jurisdiction` nodes yet), honestly scoped to what Phase 2's output actually supports
+- [x] Build entity resolution pipeline — **scoped down**: `difflib.SequenceMatcher` context-similarity (`app/services/kg/builder.py`'s `should_link_terms`) instead of embedding clustering + LLM disambiguation; requires matching alias text AND similar defining context, specifically to avoid conflating two different parties who both call themselves "the Company" in unrelated contracts
+- [x] Build relation extraction pipeline — **scoped down**: derived directly from Phase 2's already-extracted `ClauseObject` fields (defined terms, cross-references, deontic tags) rather than a separate classifier; there was nothing left to classify since Phase 2 already produced the structured signal
+- [x] Implement schema validation + deontic consistency checks on graph write — **partial**: `find_potential_conflicts` in `app/services/kg/queries.py` flags candidate cross-document obligation/prohibition pairs sharing a defined term; explicitly a "candidate for review," not a confirmed conflict (no actor/action resolution yet to be certain they're about the same thing)
+- [x] Implement portfolio-linking on ingestion — `link_portfolio_terms` in `builder.py`, `POST /api/kg/ingest`
+- [ ] Implement bitemporal versioning (valid time / transaction time) — not done; every node just has whatever `created_at`-equivalent Memgraph gives by default. Real bitemporal modeling is deferred, not GPU-blocked -- just genuinely separate scope
+- [x] Backfill: re-process existing documents into the graph — `POST /api/kg/ingest` takes any existing `document_id` and is idempotent (MERGE throughout), so it doubles as the backfill mechanism; no separate batch script was needed
+
+**RAG**
+- [ ] Deploy BGE-M3 for dense embeddings; deploy bge-reranker-v2-m3 → **GPU Upgrade phase**. Dense retrieval today uses Gemini's embedding API (already integrated) — during this work, discovered and fixed a pre-existing bug: V1's `text-embedding-004` default had been silently 404ing (Gemini stopped serving it); updated to `gemini-embedding-001` across `genai_client.py`/`model_router.py`/`contextualizer/rag.py`
+- [x] Build BM25/SPLADE sparse index — **BM25 only** (`app/services/rag/bm25.py`, `rank_bm25`), not SPLADE (a learned sparse model, GPU-adjacent). BM25 is a legitimate permanent choice here, not just a placeholder — see the module's docstring
+- [x] Implement GraphRAG traversal tool over Memgraph — `find_clauses_using_term`/`find_potential_conflicts` in `app/services/kg/queries.py`, exposed via `POST /api/kg/query` and `/api/kg/conflicts`; not yet wired into the Contextualizer's retrieval itself (BM25 + dense only there for now — graph hits are a separate, not-yet-fused signal)
+- [x] Implement reciprocal rank fusion across dense/sparse/graph retrievers — **dense + sparse only** (`app/services/rag/hybrid.py`, standard RRF with k=60); graph fusion not wired in yet (see above)
+- [x] Ingest and cite a real statute/regulation corpus — **modest and judicious, not comprehensive**: extended V1's 27-entry hardcoded list into `app/services/rag/corpus.py` with an explicit `citation` field, populated ONLY where a specific statute/regulation is confidently and easily verifiable (e.g., Cal. Civ. Code § 1950.5, FLSA § 207, GDPR, CCPA); most entries remain `citation=None` (general common-law principles) rather than inventing a citation — see the module's docstring for why
+- [x] Migrate Contextualizer feature to real hybrid RAG with citations; remove the hardcoded 28-string list — done (`app/services/contextualizer/explainer.py` now calls `hybrid_search`)
+- [x] Implement citation-grounded generation prompt contract + citation validator — `templates.py` now asks for `[N]`-style inline citations against numbered hints; `app/services/rag/citation_validator.py` flags (doesn't silently fix) any citation number the model referenced but wasn't given. Does NOT verify the citation is actually *entailed* by the source (that needs an NLI faithfulness model, a `docs/v2/AGENTS.md` Phase 4+ concern) — only that it wasn't fabricated out of range
 
 ## Phase 4 — Agentic Orchestration MVP
 

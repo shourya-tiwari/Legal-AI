@@ -33,13 +33,15 @@ def build_prompt(clause_text: str, ctx: UserContext, hints: Optional[List[str]] 
         "'Specific limits vary by jurisdiction—verify locally.'\n"
         "- If the clause text is too vague to be certain, say what is unclear and suggest confirming with a professional.\n"
         "- Do not fabricate sources or citations; avoid quoting nonexistent statutes.\n"
+        "- When you use a fact from a numbered hint below, cite it inline with its number in brackets, e.g. [1]. "
+        "Never write a bracket citation number that wasn't given to you.\n"
         "- Keep the answer aligned to the selected tone and begin exactly with: \"For you, this means…\""
     )
 
     hints_block = ""
     if hints:
-        hints_joined = "\n- " + "\n- ".join(hints)
-        hints_block = f"\nContextual hints:\n{hints_joined}\n"
+        numbered = "\n".join(f"[{i}] {h}" for i, h in enumerate(hints, start=1))
+        hints_block = f"\nContextual hints (cite by number):\n{numbered}\n"
 
     return (
         f"You are advising a {ctx.role} {loc}{ctype}.\n"

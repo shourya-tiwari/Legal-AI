@@ -9,6 +9,10 @@ os.environ.setdefault("GENAI_MODEL", "gemini-flash-latest")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("REDIS_URL", "")  # rate limiting disabled in tests; see test_rate_limit.py for its own coverage
 os.environ.setdefault("AUTH_REQUIRED", "false")
+# Deliberately NOT the real default port: tests must not depend on whether
+# docker-compose happens to be running on this machine right now. KG tests
+# use a fake client (test_kg_builder.py) for anything Memgraph-dependent.
+os.environ.setdefault("MEMGRAPH_URI", "bolt://127.0.0.1:65535")
 
 import pytest
 from fastapi.testclient import TestClient

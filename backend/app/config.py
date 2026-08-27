@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     # open (request allowed) if Redis is unreachable.
     RATE_LIMIT_PER_MINUTE: int = 60
 
+    # Knowledge Graph (Phase 3: docs/v2/KNOWLEDGE_GRAPH.md). Memgraph speaks
+    # the Bolt protocol, same as Neo4j, hence the neo4j driver. KG features
+    # no-op (log + skip) if unreachable -- see app/services/kg/client.py --
+    # so the rest of the app doesn't depend on this being up.
+    MEMGRAPH_URI: str = "bolt://127.0.0.1:7687"  # IP literal, not "localhost" -- skips a slow dual-stack DNS/connect attempt when Memgraph isn't running
+    MEMGRAPH_USER: str = ""
+    MEMGRAPH_PASSWORD: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

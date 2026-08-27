@@ -148,6 +148,46 @@ Response (JSON):
 }
 
 
+#### knowledge graph: ingest a document
+
+```http
+  POST /api/kg/ingest
+```
+| Body Field | Type | Description |
+| :-- | :-- | :-- |
+| `document_id` | `integer` | **Required.** ID from a previous `/api/upload` response. |
+
+Runs the structured clause analysis pipeline and writes the result into the knowledge graph (Memgraph). Idempotent — safe to call again on the same document. If Memgraph isn't running, this still returns `200` with `"kg_available": false` rather than erroring (fail-soft).
+
+Response (JSON):
+{
+  "document_id": 1,
+  "clauses": 2,
+  "defined_terms": 3,
+  "cross_references": 1,
+  "portfolio_links_created": 0,
+  "kg_available": true
+}
+
+#### knowledge graph: find clauses using a term
+
+```http
+  POST /api/kg/query
+```
+| Body Field | Type | Description |
+| :-- | :-- | :-- |
+| `term` | `string` | **Required.** A defined term, e.g. "Tenant". |
+
+Finds every clause across your organization's ingested documents that uses this term — including documents where a matching term was automatically linked as the same underlying party (see `portfolio_links_created` above).
+
+#### knowledge graph: find candidate conflicts
+
+```http
+  POST /api/kg/conflicts
+```
+Same body as above. Finds clauses using the same term where one is an obligation and another (in a *different* document) is a prohibition — flagged as a candidate for review, not a confirmed conflict.
+
+
 ## Environment Variables
 
 The backend reads its configuration from `backend/.env` (see `backend/app/config.py`):
@@ -160,6 +200,7 @@ The backend reads its configuration from `backend/.env` (see `backend/app/config
 | `REDIS_URL` | No | Redis connection string for rate limiting, e.g. `redis://localhost:6379/0`. Leave unset/empty to disable rate limiting entirely. |
 | `AUTH_REQUIRED` | No | `true`/`false`, defaults to `false`. When off, every request resolves to a shared "default" org and no API key is needed — this is what keeps the public frontend working today. Flip to `true` once you've issued API keys (see below) to require `Authorization: Bearer <key>` on every `/api/*` call. |
 | `RATE_LIMIT_PER_MINUTE` | No | Requests/minute per org (or per client IP when `AUTH_REQUIRED` is off). Defaults to `60`. |
+| `MEMGRAPH_URI` | No | Bolt connection string for the knowledge graph, e.g. `bolt://127.0.0.1:7687` (see `docker-compose.yml`). Knowledge graph endpoints (`/api/kg/*`) no-op if unreachable rather than erroring. |
 
 
 
@@ -179,11 +220,11 @@ Go to the project directory
 
 **Backend Setup**
 
-- (Optional) Start Postgres + Redis for local dev with Docker:
+- (Optional) Start Postgres + Redis + Memgraph for local dev with Docker:
 ```bash
     docker compose up -d
 ```
-Without this, the backend falls back to a local SQLite file and disables rate limiting automatically — Docker is not required to run the app.
+Without this, the backend falls back to a local SQLite file, disables rate limiting, and the knowledge graph endpoints (`/api/kg/*`) no-op — Docker is not required to run the app.
 
 - Create and activate a virtual environment (recommended), from the `backend/` directory:
 ```bash

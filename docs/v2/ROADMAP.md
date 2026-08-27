@@ -21,13 +21,15 @@ Build the pipelines that turn flat text into structured understanding. **Scope n
 
 **Exit criteria**: every uploaded document produces a structured `ClauseObject` graph, not just flat text — met. "At least one production task fully served by an open-weight model" — deferred to Phase 7 (no open-weight model runs on this hardware yet; the rule-based/Gemini-escalation split is the interim answer to the same underlying goal of not paying for a frontier model call on every task).
 
-## Phase 3 — Knowledge Graph & GraphRAG (~6-8 sprints)
-- Knowledge Graph Service and Memgraph deployed (`KNOWLEDGE_GRAPH.md`); entity resolution and relation extraction pipelines running on newly ingested documents.
-- Hybrid RAG (dense + sparse + graph) replaces V1's hardcoded 28-string knowledge base (`AI_STACK.md`); real, cited statute/regulation corpus ingested for the jurisdictions currently hinted at in V1.
-- Contextualizer feature migrated onto real RAG with citations.
-- Backfill: existing documents in the system re-processed to populate the graph retroactively.
+## Phase 3 — Knowledge Graph & GraphRAG (~6-8 sprints) — ✅ Complete (pragmatic slice)
+Unlike Phase 2, Memgraph itself needs no GPU — this phase's infrastructure is real, not a CPU stand-in. What's scoped down instead: entity resolution via string similarity rather than embedding clustering, relation extraction derived directly from Phase 2's already-structured output rather than a separate model, and dense embeddings via Gemini's API rather than self-hosted BGE-M3 (that part *is* deferred to Phase 7, alongside the reranker and SPLADE).
+- Knowledge Graph Service and Memgraph deployed (`KNOWLEDGE_GRAPH.md`); entity resolution (`difflib` context-similarity) and relation extraction (derived from Phase 2's `ClauseObject`) running via `POST /api/kg/ingest`, which is idempotent and doubles as the backfill mechanism for any existing document.
+- Hybrid RAG (dense + sparse, not yet + graph — see below) replaces V1's hardcoded 28-string knowledge base (`AI_STACK.md`); a real, cited statute/regulation corpus ingested for the jurisdictions V1 already hinted at, with citations only where confidently verifiable (most entries remain deliberately uncited general principles).
+- Contextualizer feature migrated onto real hybrid RAG with `[N]`-style inline citations and a citation validator that flags fabricated citation numbers.
+- **Found and fixed a live bug while verifying this phase end-to-end**: V1's embedding model default (`text-embedding-004`) had been silently 404ing against the current Gemini API; updated to `gemini-embedding-001` — dense retrieval had effectively been BM25-only (via graceful RRF degradation) until this was caught.
+- **Not yet done**: GraphRAG hits (from `/api/kg/query`) are exposed as their own endpoints but not yet fused into the Contextualizer's hybrid retrieval alongside BM25/dense — a real remaining gap, not a scope simplification; bitemporal graph versioning is also not implemented.
 
-**Exit criteria**: Contextualizer answers cite real, retrievable sources; a GraphRAG query can answer "what else in this portfolio references this defined term."
+**Exit criteria**: Contextualizer answers cite real, retrievable sources — met, verified live against real Gemini. "A GraphRAG query can answer 'what else in this portfolio references this defined term'" — met via `POST /api/kg/query`, verified live against real Memgraph (including cross-document portfolio-linked results via `SAME_AS`), though not yet fused into the Contextualizer's own retrieval path.
 
 ## Phase 4 — Agentic Orchestration MVP (~8-12 sprints)
 - LangGraph + Temporal orchestration layer deployed (`AGENTS.md`); Orchestrator, Extraction, Risk & Compliance, Clause Research, and Verifier agents implemented first (the core loop needed for a single-document analysis with citation-checked output).

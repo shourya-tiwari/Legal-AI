@@ -122,7 +122,7 @@ def generate_content(prompt: str, *, model: Optional[str] = None, **config_kwarg
         logger.error(msg)
         raise RuntimeError(msg) from e
 
-def embed_content(contents: Any, *, model: str = "text-embedding-004") -> Any:
+def embed_content(contents: Any, *, model: str = "gemini-embedding-001") -> Any:
     """
     Centralized embedding helper using Gemini API.
     """

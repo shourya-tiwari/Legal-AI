@@ -16,6 +16,8 @@ psycopg[binary]==3.2.3
 redis==5.2.1
 dateparser==1.2.0
 opencv-python-headless==4.10.0.84
+neo4j==5.26.0
+rank_bm25==0.2.2
 
 # ---- Dev / test dependencies ----
 pytest==8.3.4

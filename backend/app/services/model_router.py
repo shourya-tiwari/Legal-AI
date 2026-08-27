@@ -22,5 +22,5 @@ def generate_content(prompt: str, *, model: Optional[str] = None, **config_kwarg
     return genai_client.generate_content(prompt, model=model, **config_kwargs)
 
 
-def embed_content(contents: Any, *, model: str = "text-embedding-004") -> Any:
+def embed_content(contents: Any, *, model: str = "gemini-embedding-001") -> Any:
     return genai_client.embed_content(contents, model=model)

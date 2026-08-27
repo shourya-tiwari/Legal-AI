@@ -25,5 +25,13 @@ services:
       timeout: 5s
       retries: 5
 
+  memgraph:
+    image: memgraph/memgraph:2.18.1
+    ports:
+      - "7687:7687"  # Bolt protocol -- the official neo4j Python driver speaks this natively
+    volumes:
+      - legalai_memgraph_data:/var/lib/memgraph
+
 volumes:
   legalai_postgres_data:
+  legalai_memgraph_data:

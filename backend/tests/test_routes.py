@@ -104,9 +104,9 @@ def test_risk_scan_endpoint(client, monkeypatch):
 def test_contextualize_endpoint(client, monkeypatch):
     monkeypatch.setattr("app.services.contextualizer.explainer.generate_content", fake_generate_content)
     monkeypatch.setattr("app.services.contextualizer.rag.embed_content", fake_embed_content)
-    # Reset the module-level RAG index singleton so this test controls its build.
-    import app.services.contextualizer.explainer as explainer_module
-    explainer_module._rag_index = None
+    # Reset the module-level dense-index singleton so this test controls its build.
+    import app.services.rag.hybrid as hybrid_module
+    hybrid_module._dense_index = None
 
     resp = client.post(
         "/api/contextualize/scan",
@@ -134,3 +134,30 @@ def test_nlp_analyze_endpoint(client):
     assert clause["clause_type_source"] == "rule"
     assert "Tenant" in clause["defined_terms_used"]
     assert any(t["modality"] == "obligation" for t in clause["deontic_tags"])
+
+
+def test_kg_ingest_endpoint_fails_soft_without_memgraph_running(client):
+    files = {"file": ("lease.txt", b'The Tenant ("Tenant") shall pay rent within 30 days.', "text/plain")}
+    upload_resp = client.post("/api/upload", files=files)
+    document_id = upload_resp.json()["document_id"]
+
+    resp = client.post("/api/kg/ingest", json={"document_id": document_id})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["document_id"] == document_id
+    # No Memgraph running in the test environment -- ingest still succeeds,
+    # it just reports that nothing was actually written (fail-soft).
+    assert body["kg_available"] is False
+    assert body["clauses"] == 0
+
+
+def test_kg_ingest_unknown_document_returns_404(client):
+    resp = client.post("/api/kg/ingest", json={"document_id": 999999})
+    assert resp.status_code == 404
+
+
+def test_kg_query_endpoint_returns_empty_without_memgraph_running(client):
+    resp = client.post("/api/kg/query", json={"term": "Tenant"})
+    assert resp.status_code == 200
+    assert resp.json()["clauses"] == []
