@@ -8,14 +8,27 @@ Every phase moves inference *toward* the organization's own hardware and *away* 
 
 ```
 V1:        100% Gemini, no fallback
-Phase 1-4: Gemini for generation; local rules/classical-ML for structure  ← WE ARE HERE
-Phase 5:   Provider-agnostic Router; embeddings/rerank/ASR/TTS self-hosted; Gemini only for LLM generation
+Phase 1-4: Gemini for generation; local rules/classical-ML for structure
+Phase 5:   Provider-agnostic Router; embeddings/rerank self-hosted by default;  ← WE ARE HERE
+           Gemini is an optional plugin, used only for LLM generation
 Phase 6:   Self-hosted LLM generation is the default; Gemini removed from the default path
 Phase 7:   On-prem + air-gapped builds; commercial-provider package excludable entirely
 Phase 8+:  Portfolio intelligence, in-house trained models, research track — all on self-hosted infra
 ```
 
 The old roadmap put "GPU Upgrade" *last*, as a quality top-up on a Gemini-based product. **That is inverted here.** Self-hosting is the spine. GPU acquisition (Phase 6) is the pivotal unlock — the point at which the strongest model for every task becomes one we run — not an optional epilogue.
+
+## GPU requirement by phase
+
+**One GPU acquisition (Phase 6) unlocks everything downstream — it is not an escalating requirement, and it can be rented rather than owned.**
+
+| Phase | GPU on *our* side? | Notes |
+|---|---|---|
+| **0–5** | **No** | CPU rules / classical ML / hashing embeddings; generation via an external plugin or a CPU-served small model (Ollama). Phase 5 is deliberately GPU-free. |
+| **6 — Self-hosted LLM generation** | **Yes — this is the phase the GPU is for** | Serving a 32B-class model via vLLM needs ~24 GB (one 3090/4090/A5000, or a rented GPU box). A 6 GB RTX-4050-class card covers a quantized 4B/8B model **and** every fine-tune in the plan (Legal-BERT, small-LLM LoRA via Unsloth). Until then, the Phase 5 interim stands. A **cloud/rented GPU** — spun up for training runs and for the inference node — fully satisfies this phase. |
+| **7 — On-prem / air-gapped deployment** | **No** | Packaging (Zarf/OpenTofu/Harbor/SBOM), collapsed data layer, durable execution, Memory Service, frontend SPA — all CPU/infra. A *customer* running air-gapped supplies their own GPU for self-hosted generation, or accepts the constrained-profile CPU small-model quality; that is their hardware, not the platform team's. |
+| **8 — Portfolio intelligence & research** | **Partially — reuses the Phase 6 GPU** | CPU: Risk Scoring (LightGBM), Document Sensitivity (classical), the Simulation agent, portfolio-agent baselines, bitemporal graph, `NOVELTY.md` #2 and #5. Same GPU as Phase 6: the fine-tuned clause classifier, the Legal Clause Embedding contrastive fine-tune, and the training steps for `NOVELTY.md` #1 and #3. |
+| **9 — Scale & enterprise hardening** | **No new need** | SOC 2, GDPR workflows, cost/latency tuning, multi-tenant scale. "GPU autoscaling" here means *operating* the Phase 6 pool, not acquiring more. |
 
 ## Phase mapping from the previous roadmap
 
