@@ -161,3 +161,39 @@ def test_kg_query_endpoint_returns_empty_without_memgraph_running(client):
     resp = client.post("/api/kg/query", json={"term": "Tenant"})
     assert resp.status_code == 200
     assert resp.json()["clauses"] == []
+
+
+def test_agents_analyze_endpoint(client, monkeypatch):
+    monkeypatch.setattr("app.services.contextualizer.rag.embed_content", fake_embed_content)
+    monkeypatch.setattr("app.agents.summary.generate_content", lambda *a, **k: "Risk summary, no citations.")
+    # Reset the shared dense-index singleton -- an earlier test may have built
+    # it with a differently-shaped (but also fake) embedding vector, and FAISS
+    # asserts on a dimension mismatch rather than just failing the search.
+    import app.services.rag.hybrid as hybrid_module
+    hybrid_module._dense_index = None
+
+    files = {
+        "file": (
+            "lease.txt",
+            b'The Tenant ("Tenant") shall indemnify the Landlord for damages.\n\n'
+            b"The Tenant shall not sublease the premises without written consent.",
+            "text/plain",
+        )
+    }
+    document_id = client.post("/api/upload", files=files).json()["document_id"]
+
+    resp = client.post("/api/agents/analyze", json={"document_id": document_id})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["clause_count"] == 2
+    assert any(f["term"] == "indemnify" for f in body["risk_findings"])
+    assert body["summary"] == "Risk summary, no citations."
+    assert [step["agent_name"] for step in body["trace"]] == [
+        "extraction", "risk_compliance", "clause_research", "summary", "verifier",
+    ]
+
+
+def test_agents_analyze_unknown_document_returns_404(client):
+    resp = client.post("/api/agents/analyze", json={"document_id": 999999})
+    assert resp.status_code == 404

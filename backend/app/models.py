@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 
+from app.agents.state import AgentStep, KGConflictFinding, RiskFinding
 from app.services.nlp.schema import ClauseObject
 
 # ----- Rewrite -----
@@ -108,6 +109,25 @@ class KGQueryResponse(BaseModel):
 class KGConflictsResponse(BaseModel):
     term: str
     conflicts: List[dict] = Field(default_factory=list)
+
+# ----- Agentic Case Analysis (/api/agents/analyze) -----
+class AgentAnalyzeRequest(BaseModel):
+    document_id: int
+
+class AgentAnalyzeResponse(BaseModel):
+    document_id: int
+    clause_count: int
+    risk_findings: List[RiskFinding] = Field(default_factory=list)
+    kg_conflicts: List[KGConflictFinding] = Field(default_factory=list)
+    summary: str
+    faithfulness_ok: bool = Field(
+        description="Lexical-overlap heuristic, NOT a real NLI entailment check -- see app/agents/verifier.py"
+    )
+    invalid_citation_numbers: List[int] = Field(
+        default_factory=list, description="Non-empty means the summary cited a source it was never given"
+    )
+    needs_human_review: bool
+    trace: List[AgentStep] = Field(default_factory=list)
 
 # ----- Contextualizer (/api/contextualize) -----
 class ContextualizerRequest(BaseModel):

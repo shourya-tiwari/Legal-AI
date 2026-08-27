@@ -23,6 +23,7 @@ from .routes import risk_radar
 from .routes import contextualize
 from .routes import nlp
 from .routes import kg
+from .routes import agents
 
 settings = get_settings()
 
@@ -60,6 +61,7 @@ app.include_router(risk_radar.router, prefix="/api", tags=["risk"])
 app.include_router(contextualize.router, prefix="/api", tags=["contextualizer"])
 app.include_router(nlp.router, prefix="/api", tags=["nlp"])
 app.include_router(kg.router, prefix="/api", tags=["knowledge-graph"])
+app.include_router(agents.router, prefix="/api", tags=["agents"])
 
 # ---- Health Endpoint ----
 @app.get("/", tags=["health"])

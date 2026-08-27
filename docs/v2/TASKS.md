@@ -87,20 +87,22 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 ## Phase 4 — Agentic Orchestration MVP
 
-**Agents (`AGENTS.md`)**
-- [ ] Deploy LangGraph + Temporal orchestration runtime
-- [ ] Define the shared `CaseState` schema
-- [ ] Implement Orchestrator/Planner agent
-- [ ] Implement Extraction agent (wraps CV/NLP pipeline outputs)
-- [ ] Implement Risk & Compliance agent
-- [ ] Implement Clause Research agent (hybrid RAG)
-- [ ] Implement Verifier/Critic agent (citation check + NLI faithfulness check + KG consistency check)
-- [ ] Implement typed tool interfaces (KG query, vector search, statute lookup, date math, clause diff, human-approval request)
-- [ ] Persist full agent trace to `agent_traces`
+**Scope note**: the agent graph itself, and every check the Verifier can actually run today, needs no GPU — confirmed by shipping it. Two deliberate scope reductions, neither GPU-related: (1) Temporal is not deployed — the graph runs synchronously within the FastAPI request, since a single-document analysis on the order of seconds doesn't yet justify durable-workflow complexity (see `app/agents/graph.py`'s docstring); (2) the Orchestrator/Planner is a fixed sequence (extract → risk → research → summarize → verify), not a dynamic agent deciding what to run.
 
-**Memory (`AGENTS.md`)**
+**Agents (`AGENTS.md`)** — none of this needs a GPU; LangGraph is pure orchestration, and the agents themselves call Gemini (Tier 2, already integrated) or the existing CPU-only NLP/KG/RAG services, not a self-hosted model.
+- [ ] Deploy LangGraph + Temporal orchestration runtime — **LangGraph: done** (`app/agents/graph.py`). **Temporal: not done**, deliberately deferred (see scope note above), not GPU-related.
+- [x] Define the shared `CaseState` schema — `app/agents/state.py`, scoped to what the fixed pipeline needs (no `memory_refs`/`sensitivity_tier` yet — real future work, not implemented to look more complete than it is)
+- [ ] Implement Orchestrator/Planner agent — **not implemented as a separate dynamic agent**; the fixed sequence in `graph.py` stands in for it (see scope note)
+- [x] Implement Extraction agent (wraps CV/NLP pipeline outputs) — `app/agents/extraction.py`, wraps Phase 2's `build_clause_objects`
+- [x] Implement Risk & Compliance agent — `app/agents/risk_compliance.py`: keyword risk flags (reuses `risk_radar/rules.py`) + KG candidate-conflict lookup (reuses `kg/queries.py`). The AI risk pass (`risk_radar/detector.py`'s Gemini call) is deliberately not invoked here yet — Tier 0 keyword sweep only, matching the fast-first philosophy elsewhere
+- [x] Implement Clause Research agent (hybrid RAG) — `app/agents/research.py`; only runs on clauses already flagged by risk/ambiguity, not every clause (retrieval isn't free)
+- [x] Implement Verifier/Critic agent (citation check + NLI faithfulness check + KG consistency check) — citation check (real, reuses `citation_validator.py`) and KG consistency check (real — a KG conflict always forces `needs_human_review`) both ship now. The *NLI faithfulness check* is a **lexical-overlap heuristic stand-in** (`app/agents/verifier.py`'s `_lexical_overlap_faithfulness`), reported honestly as `faithfulness_ok`, not dressed up as real entailment checking — the real cross-encoder model → **GPU Upgrade phase**
+- [ ] Implement typed tool interfaces (KG query, vector search, statute lookup, date math, clause diff, human-approval request) — **not built as a formal typed-tool-calling layer**; agents call the underlying services (`kg.queries`, `rag.hybrid`) directly as plain Python functions. Worth formalizing once an agent needs to *decide* which tool to call (a real planner), which doesn't exist yet
+- [x] Persist full agent trace to `agent_traces` — new table in `db_models.py`; every run writes one row per step, verified live against real Postgres
+
+**Memory (`AGENTS.md`)** — note: Qdrant itself needs no GPU (a CPU/RAM vector DB, like Memgraph/Postgres); deferring it is a "not needed yet" call, not a hardware limitation — don't conflate the two reasons.
 - [ ] Implement Memory Service: session tier (Redis)
-- [ ] Implement episodic tier (Postgres + Qdrant)
+- [ ] Implement episodic tier (Postgres + Qdrant) — Qdrant deferred until something actually needs persisted vector search beyond what Phase 3's in-memory FAISS handles; not GPU-related
 - [ ] Implement memory consolidation worker (session/episodic → semantic, with privacy-tier gating)
 
 **Frontend (`FRONTEND.md`)**
@@ -120,9 +122,9 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [ ] Curate training data (org corpora with consent + CUAD/ContractNLI)
 - [ ] Weak-supervision labeling pass (batch, offline frontier-model use)
 - [ ] Human legal-expert review of weak labels
-- [ ] Train Risk Scoring Model (LightGBM); integrate SHAP explainability
-- [ ] Train/finalize Clause/Contract Type Classifier
-- [ ] Train Document Sensitivity Classifier
+- [ ] Train Risk Scoring Model (LightGBM); integrate SHAP explainability — **not GPU-blocked**: gradient-boosted trees train fine on CPU. Blocked on labeled training data, not hardware.
+- [ ] Train/finalize Clause/Contract Type Classifier as a fine-tuned transformer, replacing the Phase 2 keyword rule base → **GPU Upgrade phase** (also listed there; same item)
+- [ ] Train Document Sensitivity Classifier — **not GPU-blocked if built as a classical text classifier** (e.g. TF-IDF + logistic regression, or a keyword-taxonomy Tier-0 like `risk_radar/rules.py`'s style); only GPU-blocked if this specifically needs to be a fine-tuned transformer, which isn't obviously required for a sensitivity-tier label. Try the CPU-only approach first.
 - [ ] Set up MLflow model registry + DVC data versioning
 - [ ] Wire eval-gated model promotion into CI/CD
 
@@ -134,17 +136,17 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [ ] Ship Risk Dashboard spider/radar chart (closes the V1 README promise gap)
 
 **Research track (`NOVELTY.md`) — each item independently gated**
-- [ ] Idea #1 (Deontic GAT conflict detection): literature/patent search → prototype → benchmark vs. rule-based baseline
-- [ ] Idea #2 (Temporal obligation simulation): prototype auto-constructed simulation from extracted conditional logic → validate against manually-modeled scenarios
-- [ ] Idea #3 (Legal-semantic fingerprinting): construct hard-negative training set → train contrastive model → benchmark contradiction-detection precision/recall vs. generic embeddings
-- [ ] Idea #4 (Adaptive negotiation playbook): prototype counterfactual fingerprint-delta attribution → validate against a held-out redline history set
-- [ ] Idea #5 (Deontic-structure-aware ablation): implement deontic-parse-based perturbation → compare attribution quality vs. token-level SHAP baseline (human evaluation of "meaningfulness")
+- [ ] Idea #1 (Deontic GAT conflict detection): literature/patent search and architecture design don't need a GPU; **training the GNN → GPU Upgrade phase**
+- [ ] Idea #2 (Temporal obligation simulation): not GPU-blocked — discrete-event simulation over extracted conditional logic is plain CPU work; prototype auto-constructed simulation from extracted conditional logic → validate against manually-modeled scenarios
+- [ ] Idea #3 (Legal-semantic fingerprinting): hard-negative training-pair construction doesn't need a GPU; **training the contrastive embedding model → GPU Upgrade phase**
+- [ ] Idea #4 (Adaptive negotiation playbook): the counterfactual fingerprint-delta attribution logic is CPU-only; whether the downstream Redline Acceptance Predictor needs a GPU depends on whether it ends up as a fine-tuned transformer or a classical model over structured+lexical features — try the classical approach first (same reasoning as the Document Sensitivity Classifier above) before assuming GPU is required
+- [ ] Idea #5 (Deontic-structure-aware ablation): not GPU-blocked — the perturbation/attribution method runs against whatever risk-scoring model already exists (LightGBM, CPU-only) and doesn't itself require training a new model
 - [ ] For any idea advancing past prototype: commission formal prior-art search via qualified patent counsel before further investment or disclosure
 
 ## Phase 6 — Scale, Memory Maturity & Enterprise Hardening
 
-- [ ] Implement semantic memory tier (cross-document, per-org) with privacy-tier gating
-- [ ] Implement procedural memory tier (Redline Acceptance Predictor productionized)
+- [ ] Implement semantic memory tier (cross-document, per-org) with privacy-tier gating — not GPU-blocked (uses Gemini embeddings + Postgres/KG, same as Phase 3's RAG)
+- [ ] Implement procedural memory tier (Redline Acceptance Predictor productionized) — see NOVELTY.md Idea #4's note: GPU-blocked only if this ends up as a fine-tuned transformer, not if a classical model over structured features is adequate
 - [ ] Validate hybrid VPC deployment profile with a pilot customer
 - [ ] Validate on-prem/air-gapped deployment profile with a pilot customer
 - [ ] Begin SOC 2 Type II readiness program
@@ -169,7 +171,11 @@ Runs once GPU hardware is available (target: RTX 4050, 6GB VRAM — confirmed su
 - [ ] Integrate fastcoref for real coreference resolution, replacing the heuristic in `app/services/nlp/coref.py`
 - [ ] Run the weak-supervision-then-distill pipeline for the deontic tagger (`app/services/nlp/deontic.py`'s rule-based Tier 0 becomes the bootstrap/comparison baseline, not a throwaway)
 - [ ] Fine-tune the clause/contract type classifier and eval it against real CUAD, replacing the keyword-taxonomy rule base in `app/services/nlp/clause_classifier.py` as the primary classifier (keep the rule base as a fast Tier-0 pre-filter)
-- [ ] Train the Risk Scoring Model (LightGBM) and Document Sensitivity Classifier per `DEEP_LEARNING.md`
+- [ ] Verifier agent's real NLI faithfulness check (`docs/v2/AGENTS.md`) — a cross-encoder entailment model, replacing Phase 4's lexical-overlap stand-in (`app/agents/verifier.py`)
+- [ ] Training component of NOVELTY.md Idea #1 (Deontic Graph Attention Network) — training a GNN is the GPU-heavy part; the literature/prior-art search and architecture design don't need one
+- [ ] Training component of NOVELTY.md Idea #3 (legal-semantic fingerprinting) — contrastive embedding training is the GPU-heavy part; corpus/hard-negative-pair construction doesn't need one
+
+**Correction — these do NOT belong in a GPU-blocked list** (moved back to Phase 5, since it's inaccurate to call them GPU-limited): LightGBM (the Risk Scoring Model) trains fine on CPU — gradient-boosted trees aren't a GPU workload the way transformer fine-tuning is. Same for a Document Sensitivity Classifier if built as a classical text classifier rather than a fine-tuned transformer. Both are blocked on labeled training data, not hardware — see Phase 5.
 
 **Model serving**
 - [ ] Deploy vLLM; serve a quantized Llama 3.1 8B (or a smaller open-weight model, e.g. Llama 3.2 3B/Phi-3-mini, at full precision) within the 6GB VRAM budget

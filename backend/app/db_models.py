@@ -58,3 +58,19 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(255))
     resource: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AgentTrace(Base):
+    """One row per agent step in a Phase 4 case-analysis run
+    (app/agents/graph.py) -- the audit trail docs/v2/AGENTS.md requires
+    before any agent output can be considered defensible."""
+    __tablename__ = "agent_traces"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
+    agent_name: Mapped[str] = mapped_column(String(100))
+    step_no: Mapped[int] = mapped_column(Integer)
+    input_summary: Mapped[str] = mapped_column(Text)
+    output_summary: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

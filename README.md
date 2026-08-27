@@ -187,6 +187,30 @@ Finds every clause across your organization's ingested documents that uses this 
 ```
 Same body as above. Finds clauses using the same term where one is an obligation and another (in a *different* document) is a prohibition — flagged as a candidate for review, not a confirmed conflict.
 
+#### agentic case analysis
+
+```http
+  POST /api/agents/analyze
+```
+| Body Field | Type | Description |
+| :-- | :-- | :-- |
+| `document_id` | `integer` | **Required.** ID from a previous `/api/upload` response. |
+
+Runs a multi-step agent pipeline over the document: extracts clauses, flags keyword risks, checks the knowledge graph for candidate cross-document conflicts, retrieves supporting citations for anything flagged, generates a plain-English risk summary citing those sources, and verifies the summary before returning it (citation validity + a cross-document-conflict check always force `needs_human_review`). Every step is persisted as an audit trail.
+
+Response (JSON):
+{
+  "document_id": 1,
+  "clause_count": 4,
+  "risk_findings": [{ "clause_id": 2, "term": "indemnify", "explanation": "Potential liability concern", "source": "keyword" }],
+  "kg_conflicts": [],
+  "summary": "This contract includes an indemnification clause...[1]",
+  "faithfulness_ok": true,
+  "invalid_citation_numbers": [],
+  "needs_human_review": false,
+  "trace": [{ "agent_name": "extraction", "input_summary": "...", "output_summary": "4 clauses extracted" }]
+}
+
 
 ## Environment Variables
 

@@ -18,6 +18,7 @@ dateparser==1.2.0
 opencv-python-headless==4.10.0.84
 neo4j==5.26.0
 rank_bm25==0.2.2
+langgraph==0.2.60
 
 # ---- Dev / test dependencies ----
 pytest==8.3.4
