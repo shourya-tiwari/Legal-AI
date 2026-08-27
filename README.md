@@ -121,6 +121,33 @@ Response (JSON):
 }
 
 
+#### structured clause analysis
+
+```http
+  POST /api/nlp/analyze
+```
+| Body Field | Type | Description |
+| :-- | :-- | :-- |
+| `contract_text` | `string` | **Required.** Full contract text |
+| `use_ai_escalation` | `boolean` | Optional, default `false`. If true, clauses the rule-based classifiers can't confidently handle are escalated to Gemini. |
+
+Breaks the contract into clauses and annotates each with its type, deontic tags (obligation/permission/prohibition/discretion), defined terms used, cross-references, money/jurisdiction entities, and dates. Runs entirely offline (rule-based) unless `use_ai_escalation` is set.
+
+Response (JSON):
+{
+  "clauses": [
+    {
+      "id": 1,
+      "text": "The Tenant shall pay a security deposit within 30 days.",
+      "clause_type": "other",
+      "clause_type_source": "rule",
+      "deontic_tags": [{ "modality": "obligation", "trigger_phrase": "shall", "source": "rule" }],
+      "temporal_expressions": [{ "text": "30 days", "normalized_date": null }]
+    }
+  ]
+}
+
+
 ## Environment Variables
 
 The backend reads its configuration from `backend/.env` (see `backend/app/config.py`):

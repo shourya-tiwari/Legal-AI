@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 
+from app.services.nlp.schema import ClauseObject
+
 # ----- Rewrite -----
 class RewriteRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=20000)
@@ -69,6 +71,18 @@ class FlaggedClause(BaseModel):
 class RiskScanResponse(BaseModel):
     flagged_clauses: List[FlaggedClause]
     risk_summary: str
+
+# ----- Structured Clause Analysis (/api/nlp/analyze) -----
+class NlpAnalyzeRequest(BaseModel):
+    contract_text: str = Field(..., min_length=1, max_length=50000)
+    use_ai_escalation: bool = Field(
+        False,
+        description="If true, clauses the rule-based deontic tagger/classifier can't confidently handle "
+        "are escalated to Gemini. Off by default for determinism/speed/cost.",
+    )
+
+class NlpAnalyzeResponse(BaseModel):
+    clauses: List[ClauseObject]
 
 # ----- Contextualizer (/api/contextualize) -----
 class ContextualizerRequest(BaseModel):

@@ -44,9 +44,11 @@ async def upload_contract(
     db.refresh(document)
 
     # ===== Return JSON Object =====
-    # document_id is additive — existing consumers reading filename/full_text/
-    # clauses/count (the V1 response contract) are unaffected.
-    return {
+    # document_id/quality are additive — existing consumers reading
+    # filename/full_text/clauses/count (the V1 response contract) are
+    # unaffected. quality is only present for PDFs with scanned pages
+    # (see services/cv/quality.py) — omitted otherwise.
+    response = {
         "document_id": document.id,
         "filename": file.filename,
         "content_type": file.content_type,
@@ -54,3 +56,6 @@ async def upload_contract(
         "clauses": clauses,
         "count": len(clauses),
     }
+    if "quality" in result:
+        response["quality"] = result["quality"]
+    return response

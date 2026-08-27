@@ -119,3 +119,18 @@ def test_contextualize_endpoint(client, monkeypatch):
     assert resp.status_code == 200
     body = resp.json()
     assert "For you, this means" in body["explanation"]
+
+
+def test_nlp_analyze_endpoint(client):
+    resp = client.post(
+        "/api/nlp/analyze",
+        json={"contract_text": 'The Tenant ("Tenant") shall pay a security deposit within 30 days.'},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["clauses"]) == 1
+    clause = body["clauses"][0]
+    assert clause["clause_type_source"] == "rule"
+    assert "Tenant" in clause["defined_terms_used"]
+    assert any(t["modality"] == "obligation" for t in clause["deontic_tags"])

@@ -2,29 +2,24 @@
 
 Phased delivery plan from V1's current production state to the full V2 vision. Each phase leaves the system deployable — V1's endpoints keep serving throughout (`ARCHITECTURE.md`'s migration path), so this is an incremental cutover, not a rewrite-and-replace. Durations are rough sizing (in sprints, assuming a small dedicated team), not commitments.
 
-## Phase 0 — V1 Hardening (prerequisite, ~2-4 sprints)
+## Phase 0 — V1 Hardening (prerequisite, ~2-4 sprints) — ✅ Complete
 Complete the hardening work already scoped in `docs/v1/ROADMAP.md`/`TASKS.md` (tests, CORS fix, secrets hygiene, config correctness) before layering V2 on top. Building agents and a knowledge graph on top of an untested, unauthenticated, in-memory-storage backend would compound risk rather than reduce it.
 
-**Exit criteria**: V1's P0/P1 tasks (docs/v1/TASKS.md) are complete: CI running, CORS fixed, secrets rotated, config centralized.
+**Exit criteria**: V1's P0/P1 tasks (docs/v1/TASKS.md) are complete: CI running, CORS fixed, secrets rotated, config centralized. — met.
 
-## Phase 1 — Foundation Re-platform (~4-6 sprints)
-Stand up the V2 data layer and service skeleton without changing user-facing behavior yet.
-- Polyglot persistence stood up (Postgres, Qdrant, Memgraph, Redis, MinIO, Redpanda) per `ARCHITECTURE.md`.
-- API Gateway restructured into the service-oriented shape (`BACKEND.md`), with `/api/v1/*` continuing to serve V1's exact contract, now backed by the new persistence layer instead of in-memory storage.
-- Auth Service introduced; all endpoints require authentication (closing V1's biggest security gap).
-- Model Router introduced as a drop-in generalization of `genai_client.py`, initially routing 100% of traffic to the existing Gemini integration (no behavior change, just the new indirection layer in place).
-- Observability stack (OpenTelemetry, Langfuse, Prometheus/Grafana) wired to every new service from day one.
+## Phase 1 — Foundation Re-platform (~4-6 sprints) — ✅ Complete (pragmatic slice)
+Stand up the V2 data layer and service skeleton without changing user-facing behavior yet. **Delivered scope** (approved via an explicit scoping decision — see `docs/v2/TASKS.md` for the item-by-item breakdown): Postgres + Redis (not the full 6-store polyglot stack — Qdrant/Memgraph/Redpanda/MinIO deferred to Phase 3 when RAG/KG need them), org-scoped API-key auth default-off (not full user/role/session auth — no login UI exists yet), a Model Router pass-through wrapper, and document persistence replacing the in-memory dict. **Not delivered**: OpenTelemetry/Langfuse/Prometheus/Grafana, Kubernetes/Terraform/Helm, the monorepo restructure, and an actual API Gateway service boundary (still one FastAPI process) — all deliberately deferred, not abandoned.
 
-**Exit criteria**: V1 feature parity, now running on the V2 data/service foundation, authenticated, observable, with zero in-memory-only state.
+**Exit criteria**: V1 feature parity, now running on the V2 data/service foundation, authenticated (capability exists, off by default), observable via structured logging (not yet full tracing), with zero in-memory-only state. — met at the reduced scope above.
 
-## Phase 2 — Core AI Pipeline Buildout (~6-10 sprints)
-Build the pipelines that turn flat text into structured understanding.
-- CV pipeline (`COMPUTER_VISION.md`): layout analysis, table extraction, quality triage — extending, not replacing, PyMuPDF/python-docx.
-- NLP pipeline (`NLP.md`): segmentation, NER, coreference, deontic tagging, clause classification — producing the canonical `ClauseObject`.
-- First open-weight models deployed via vLLM (Tier 1); Model Router begins routing rewrite/Q&A tasks to open-weight models per the task table in `AI_STACK.md`, with Gemini as Tier 2 fallback.
-- Eval harness stood up (Ragas + CUAD/ContractNLI-based suite); CI eval-gating begins for any prompt/model change from this point forward.
+## Phase 2 — Core AI Pipeline Buildout (~6-10 sprints) — ✅ Complete (CPU-only slice; GPU-dependent items moved to new Phase 7)
+Build the pipelines that turn flat text into structured understanding. **Scope note**: this was re-planned mid-phase once hardware reality was checked — the dev machine has no discrete GPU (Intel integrated graphics, ~7.75GB RAM), which rules out vLLM, LayoutLMv3, Donut, Table Transformer, YOLOv8, and any fine-tuning. Rather than skip Phase 2, every stage was implemented as a genuine, tested, CPU-only equivalent, and the originally-scoped GPU versions became **Phase 7 (GPU Upgrade)**, targeting an RTX 4050 (6GB VRAM) — confirmed sufficient for everything except full-precision 8B+ LLM serving.
+- CV pipeline (`COMPUTER_VISION.md`): quality triage (OpenCV blur/skew, not a trained model) and redaction detection (geometric heuristic, not a trained model) — layout analysis/table extraction/signature detection deferred to Phase 7.
+- NLP pipeline (`NLP.md`): segmentation, defined-term extraction (doing double duty as party/entity identification), cross-references, regex-based money/jurisdiction entities, rule-based deontic tagging with optional Gemini escalation, dateparser-based temporal normalization, keyword-taxonomy clause classification with optional Gemini escalation, ambiguity detection, and a heuristic (explicitly-not-real) coreference stand-in — all producing the canonical `ClauseObject`. Fine-tuned NER/classifier/deontic models and real coreference (fastcoref) deferred to Phase 7.
+- Model Router: no open-weight model deployed yet (needs Phase 7's GPU); all traffic still routes to Gemini as before.
+- Eval harness: a lightweight custom harness (not Ragas) against a 15-example hand-curated gold set, wired as a CI-gating pytest test — real Ragas + CUAD/ContractNLI integration is separate future work.
 
-**Exit criteria**: every uploaded document produces a structured `ClauseObject` graph, not just flat text; at least one production task fully served by an open-weight model with eval scores at or above the prior Gemini-only baseline.
+**Exit criteria**: every uploaded document produces a structured `ClauseObject` graph, not just flat text — met. "At least one production task fully served by an open-weight model" — deferred to Phase 7 (no open-weight model runs on this hardware yet; the rule-based/Gemini-escalation split is the interim answer to the same underlying goal of not paying for a frontier model call on every task).
 
 ## Phase 3 — Knowledge Graph & GraphRAG (~6-8 sprints)
 - Knowledge Graph Service and Memgraph deployed (`KNOWLEDGE_GRAPH.md`); entity resolution and relation extraction pipelines running on newly ingested documents.
@@ -59,6 +54,17 @@ Build the pipelines that turn flat text into structured understanding.
 - V1's `/api/v1/*` deprecation timeline finalized and communicated, once `/api/v2/*` has full parity plus the new capabilities.
 
 **Exit criteria**: at least one production customer running each deployment profile; compliance program formally underway; V1 API sunset scheduled.
+
+## Phase 7 — GPU Upgrade (runs once GPU hardware is available)
+Replaces the CPU-only stand-ins from Phase 2 with their originally-scoped, GPU-dependent versions. This is explicitly the **last** phase in this roadmap by design (not because the work is low-priority, but because every capability it upgrades already has a working, tested, production CPU-only equivalent from Phase 2 — nothing is *blocked* waiting on this phase, it's a quality/capability upgrade, not an unblock). Target hardware: RTX 4050 (6GB VRAM), confirmed sufficient for LayoutLMv3, Donut, Table Transformer, YOLOv8, and fine-tuning BERT-scale models (InLegalBERT/LegalBERT); a full-precision 8B+ LLM needs ~16GB+ VRAM, so self-hosted LLM serving here means either a 4-bit-quantized 8B model or a smaller model (Llama 3.2 3B / Phi-3-mini) at full precision, both of which fit the 6GB budget.
+
+- Computer vision: LayoutLMv3 (layout analysis), Donut (OCR-free scan understanding), Table Transformer (real table structure), a trained signature/stamp detector (YOLOv8 — needs labeled data collection, not just GPU access), and a trained redaction detector to replace/validate against the geometric heuristic.
+- NLP: fine-tuned InLegalBERT/LegalBERT NER, GLiNER for zero-shot entity types, fastcoref for real coreference resolution (replacing `app/services/nlp/coref.py`'s heuristic), the weak-supervision-then-distill pipeline for the deontic tagger, and a fine-tuned clause/contract-type classifier evaluated against real CUAD.
+- Model serving: vLLM deployed serving a quantized/smaller open-weight model; Model Router begins routing rewrite/Q&A tasks to it, A/B tested against the Gemini-only baseline already in production — this is the same milestone Phase 2 originally targeted, just reached with real hardware instead of skipped.
+- Eval harness: real Ragas + CUAD/ContractNLI integration, extending (not replacing) the hand-curated gold set from Phase 2, which stays as a fast pre-merge smoke check.
+- Explicit re-evaluation step for each upgraded component: compare the new model's eval score against the CPU-only baseline it replaces before making it the default — a fine-tuned model is not automatically better for this domain than a well-tuned rule base, and this phase should prove it, not assume it.
+
+**Exit criteria**: at least one task is served by a self-hosted open-weight model in production with eval scores at or above the Gemini baseline (closing Phase 2's original, deferred exit criterion); LayoutLMv3/Donut/Table Transformer integrated and measurably improving extraction quality on scanned/complex documents versus the Phase 2 CV heuristics.
 
 ## Cross-cutting, all phases
 - **Nothing merges without the eval gate** (from Phase 2 onward) and, for anything touching a sensitive-tier code path, a security review.

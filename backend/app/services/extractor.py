@@ -23,6 +23,9 @@ except ImportError:
     Image = None
     pytesseract = None
 
+from .cv.quality import assess_image_quality
+from .cv.utils import pixmap_to_array
+
 PDF_MIME = "application/pdf"
 TXT_MIME = "text/plain"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -56,6 +59,7 @@ def _extract_pdf(file_bytes: bytes) -> Dict[str, Any]:
 
     blocks: List[Dict[str, Any]] = []
     full_text_parts: List[str] = []
+    page_quality_reports: List[Dict[str, Any]] = []
     block_id = 1
 
     doc = fitz.open(stream=file_bytes, filetype="pdf")
@@ -63,15 +67,32 @@ def _extract_pdf(file_bytes: bytes) -> Dict[str, Any]:
         page = doc[page_idx]
         page_num = page_idx + 1
         page_text = page.get_text("text") or ""
-        
-        # Fallback to OCR if page text is empty and pytesseract is available
-        if not page_text.strip() and pytesseract is not None and Image is not None:
+
+        # Empty text layer usually means a scanned page. Render it once and
+        # (a) run a lightweight CV quality check (blur/skew/resolution — see
+        # services/cv/quality.py) so extraction confidence is visible, and
+        # (b) OCR it if pytesseract is available.
+        if not page_text.strip():
+            pix = None
             try:
                 pix = page.get_pixmap()
-                img = Image.open(io.BytesIO(pix.tobytes()))
-                page_text = pytesseract.image_to_string(img) or ""
             except Exception:
                 pass
+
+            if pix is not None:
+                try:
+                    quality = assess_image_quality(pixmap_to_array(pix))
+                    quality["page"] = page_num
+                    page_quality_reports.append(quality)
+                except Exception:
+                    pass
+
+                if pytesseract is not None and Image is not None:
+                    try:
+                        img = Image.open(io.BytesIO(pix.tobytes()))
+                        page_text = pytesseract.image_to_string(img) or ""
+                    except Exception:
+                        pass
 
         cleaned_page_text = _cleanup_text(page_text)
         if cleaned_page_text:
@@ -95,7 +116,14 @@ def _extract_pdf(file_bytes: bytes) -> Dict[str, Any]:
 
     doc.close()
     full_text = "\n\n".join(full_text_parts)
-    return {"full_text": full_text, "blocks": blocks}
+    result: Dict[str, Any] = {"full_text": full_text, "blocks": blocks}
+    if page_quality_reports:
+        result["quality"] = {
+            "pages_assessed": len(page_quality_reports),
+            "low_quality_pages": [q["page"] for q in page_quality_reports if q["is_low_quality"]],
+            "pages": page_quality_reports,
+        }
+    return result
 
 def _extract_docx(file_bytes: bytes) -> Dict[str, Any]:
     if docx is None:
