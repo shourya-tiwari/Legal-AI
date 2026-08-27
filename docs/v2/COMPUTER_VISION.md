@@ -20,15 +20,17 @@ Uploaded file
 Cheap, fast checks (blur estimation, skew angle, resolution) run first to decide the processing path: a clean digital PDF goes straight to text-layer extraction (as V1 already does via PyMuPDF); a low-quality scan is routed to the heavier OCR-free understanding path below, and flagged in the UI so the user knows extraction confidence may be lower.
 
 ### 2. Layout analysis
-**LayoutLMv3** (Microsoft, open weights) determines reading order, section/heading boundaries, and table/figure regions from the page image + text jointly — this is what lets the NLP pipeline's segmentation stage (`NLP.md`) respect actual document structure instead of guessing from whitespace, as V1's `_simple_paragraph_split` regex does.
+**Docling** (IBM, MIT) is the primary PDF/DOCX → structured-document pipeline: reading order, section/heading boundaries, tables, and a clean document model that maps directly onto `Clause` segmentation (`NLP.md`). For image-only pages, **PaddleOCR PP-StructureV3** (Apache-2.0) or **Qwen2.5-VL** (open VLM) determine layout from the page image + text jointly. LayoutLMv3 remains a documented option for a fine-tuned layout head. This is what lets the NLP pipeline respect actual document structure instead of guessing from whitespace, as V1's `_simple_paragraph_split` regex does. (`MODEL_STACK.md` — OCR & document parsing.)
 
 ### 3. OCR
-- **Baseline**: Tesseract (open source), kept from V1, for straightforward scans.
-- **OCR-free understanding**: **Donut** (open weights, OCR-free document understanding transformer) for degraded scans or complex layouts where traditional OCR-then-parse pipelines degrade badly.
-- **Confidence-gated commercial fallback**: only when both open-source paths report low confidence does the pipeline escalate to a commercial Document AI-class API (e.g., Google Document AI or Azure Document Intelligence) for that specific page — a bounded, cost-justified use of a commercial service, not a default dependency. This is the concrete implementation of the platform's "commercial only when it provides a clear advantage" principle for the CV layer specifically.
+- **Baseline**: Tesseract 5 (Apache-2.0), kept from V1, for clean scans — zero licence risk, the floor everything improves on.
+- **Layout + multilingual OCR**: **PaddleOCR PP-OCRv4** (Apache-2.0) — mature, CPU-acceptable, layout + table + formula.
+- **OCR-free / hard-scan understanding**: **olmOCR** (AllenAI, Apache-2.0) or the standard open VLM (**Qwen2.5-VL**) for degraded scans, rotations, handwritten annotations, and complex layouts where OCR-then-parse degrades badly.
+- **Confidence-gated escalation is between open models**: clean PDF → Docling; image page with a usable scan → PaddleOCR; page both flag low-confidence → olmOCR / Qwen2.5-VL. Every stage records `extraction_confidence` and which engine ran.
+- **Commercial Document AI (Google / Azure)** is an **optional Class C plugin only** — available for the cloud SaaS profile where a customer specifically wants it, **never installed in on-prem/air-gapped builds, and never the default even in cloud**. The open stack above is the product.
 
 ### 4. Table extraction
-**Table Transformer** (Microsoft, open weights) for detecting and structuring tables in digital PDFs (payment schedules, pricing tables, exhibit lists) — a capability V1 has none of; PyMuPDF's block extraction currently treats table cells as arbitrary text blocks with no row/column structure.
+**Table Transformer** (Microsoft, open weights) or **PaddleOCR PP-Structure** for detecting and structuring tables in digital PDFs (payment schedules, pricing tables, exhibit lists) — a capability V1 has none of; PyMuPDF's block extraction currently treats table cells as arbitrary text blocks with no row/column structure. Qwen2.5-VL handles table structure directly for the hard-scan path.
 
 ### 5. Signature & stamp detection
 A fine-tuned open-source object detector (YOLOv8-family) trained to localize signature blocks, initials, notary stamps, and seals — used to (a) verify a contract page is actually executed vs. a draft, and (b) locate where in a document the parties' identifying marks are, useful for the Ingestion & Triage agent's document-status determination (`AGENTS.md`).
@@ -52,8 +54,12 @@ CVOutput {
     signatures_detected: bool
   }],
   extraction_confidence: float,
-  ocr_engine_used: tesseract|donut|commercial_fallback
+  ocr_engine_used: docling|tesseract|paddleocr|olmocr|qwen-vl|commercial_plugin
 }
 ```
 
-`extraction_confidence` and `ocr_engine_used` are surfaced to the user (closing a gap in V1, where OCR fallback happens silently with no visibility into extraction quality) and are logged for the observability stack (`ARCHITECTURE.md`).
+`extraction_confidence` and `ocr_engine_used` are surfaced to the user (closing a gap in V1, where OCR fallback happens silently with no visibility into extraction quality) and are logged for the observability stack (`ARCHITECTURE.md`). `commercial_plugin` only ever appears in a cloud deployment that has opted into the optional Class C OCR connector; it is impossible in on-prem/air-gapped builds.
+
+## Phasing
+
+Phase 2 shipped the CPU-only slice: OpenCV quality triage (Laplacian blur + Hough skew) and a geometric redaction-detection heuristic, wired into `extractor.py`'s PDF path. Docling, the VLM/OCR escalation stack, Table Transformer, and a trained signature detector land in **Phase 6** (`ROADMAP.md`), each re-evaluated against the Phase 2 heuristic it replaces before becoming the default.

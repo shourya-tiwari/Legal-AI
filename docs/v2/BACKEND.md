@@ -9,18 +9,27 @@ V1's backend is one FastAPI app with six routers, each calling one service funct
 | **API Gateway** (FastAPI) | Public REST API, WebSocket endpoints, OpenAPI schema | Auth Service, Orchestration Service, Ingestion Service, Postgres |
 | **Auth Service** | Internal auth/session validation | Postgres, Redis |
 | **Ingestion Service** | `POST /documents` (internal) | CV Pipeline, NLP Pipeline, MinIO, Redpanda (emits `document.ingested`) |
-| **Agent Orchestration Service** | Internal workflow trigger API | Temporal, Model Router, RAG Service, KG Service, Memory Service |
-| **RAG Service** | Internal retrieval API | Qdrant, Memgraph (for GraphRAG traversal), BM25 index |
-| **Knowledge Graph Service** | Internal graph query/write API, limited GraphQL for the frontend's KG Explorer | Memgraph |
-| **Memory Service** | Internal memory read/write API | Qdrant, Postgres, Redis |
-| **Model Router** | Internal `generate()` / `embed()` / `rerank()` calls | vLLM-served open-weight models, commercial frontier APIs (opt-in tier) |
+| **Agent Orchestration Service** | Internal workflow trigger API | Durable-execution engine (DBOS / Hatchet / Temporal — pluggable), Model Router, RAG Service, KG Service, Memory Service |
+| **RAG Service** | Internal retrieval API | Vector store (Qdrant / pgvector / LanceDB), graph store (for GraphRAG traversal), BM25 index, self-hosted embed/rerank via the Model Router |
+| **Knowledge Graph Service** | Internal graph query/write API, limited GraphQL for the frontend's KG Explorer | Graph store (Memgraph / Neo4j CE / Apache AGE / KùzuDB) |
+| **Memory Service** | Internal memory read/write API | Vector store, Postgres, Redis |
+| **Model Router** | Internal `generate()` / `generate_structured()` / `embed()` / `rerank()` / `transcribe()` / `synthesize()` calls, resolved by a declarative policy | `legalai-providers-core` (self-hosted: vLLM/SGLang, TEI/Infinity, faster-whisper, Kokoro) — always; `legalai-providers-external` (commercial APIs) — optional plugin, absent in on-prem/air-gapped builds |
 | **Notification/Webhook Service** | Outbound webhooks, in-app notifications | Redpanda (consumes job-completion events) |
+
+## Provider adapter layer (the Model Router's internals)
+
+`AI_STACK.md` owns the design; the backend-relevant facts:
+
+- Every model backend implements one `ModelProvider` interface. Adapters live only in `services/model_router/providers/`. An **import-linter CI contract** fails the build if any other module imports a model-provider SDK (`google.genai`, `openai`, `anthropic`, `vllm`, …). This is the mechanical guarantee that no service is vendor-coupled.
+- Adapters are packaged in two installs: `legalai-providers-core` (self-hosted, always present) and `legalai-providers-external` (commercial, optional, excluded from on-prem/air-gapped builds and verified absent by the SBOM allowlist — `ARCHITECTURE.md`).
+- A declarative routing policy (`packages/policies/routing.yaml`, versioned + eval-gated) maps `task × sensitivity × required-capabilities × budget` to a `(provider, model)` binding. The Router is the only place that reads it.
+- Every call logs `{task, sensitivity, provider, model, policy_version, reason}` to the trace store, joined to `eval_runs` for regression attribution.
 
 ## Communication patterns
 
 - **Synchronous (REST/gRPC)** between the API Gateway and services for request/response calls that must complete within the HTTP lifecycle (auth checks, quick lookups, starting a workflow).
 - **Asynchronous (Redpanda events)** for anything that fans out or doesn't need to block a client: `document.ingested` → triggers CV/NLP pipeline; `extraction.completed` → triggers KG write + triggers the Agent Orchestration Service; `agent.step.completed` → pushed to the session WebSocket for the frontend.
-- **Durable workflows (Temporal)** for the actual multi-agent execution graphs (`AGENTS.md`). This is the direct fix for V1's biggest scalability gap: a route in V1 blocks an HTTP worker thread on a single Gemini call; in V2, starting an analysis returns immediately with a workflow ID, and the client subscribes to progress over WebSocket. A crashed worker resumes the workflow from its last completed step instead of losing the request.
+- **Durable workflows** for the actual multi-agent execution graphs (`AGENTS.md`). This is the direct fix for V1's biggest scalability gap: a route in V1 blocks an HTTP worker thread on a single Gemini call; in V2, starting an analysis returns immediately with a workflow ID, and the client subscribes to progress over WebSocket. A crashed worker resumes the workflow from its last completed step instead of losing the request. The engine is **pluggable** (`MODEL_STACK.md`): **DBOS** (library, Postgres-backed, no extra service) is the default for on-prem/air-gapped and mid-scale; **Hatchet** for larger self-hosted; **Temporal** only where the multi-tenant cloud profile justifies operating a dedicated cluster. Phase 4 runs the graph synchronously in-request (acceptable at seconds-long runtimes); the durable engine lands in Phase 7.
 
 ## API versioning and migration
 
@@ -42,9 +51,9 @@ V1's backend is one FastAPI app with six routers, each calling one service funct
 
 ## Rate limiting and quotas
 
-Per-org and per-API-key quotas enforced at the API Gateway (token-bucket in Redis), with separate budgets for open-weight-tier calls (cheap, generous default) and commercial frontier-tier calls (metered, org-configurable cap) — directly addressing V1's complete absence of abuse protection (`docs/v1/FEATURES.md`).
+Per-org and per-API-key quotas enforced at the API Gateway (token-bucket in Redis), with separate budgets for **Class B self-hosted** calls (bounded by our own infrastructure — generous default) and **Class C external-provider** calls (metered, hard org-configurable cap, every call itemized in the audit log with the routing reason) — directly addressing V1's complete absence of abuse protection (`docs/v1/FEATURES.md`). In on-prem/air-gapped builds there is no Class C budget because there is no Class C provider.
 
 ## Error handling and resilience
 
-- Temporal workflows retry individual agent steps with backoff on transient model-provider failures, distinguishing (as V1's `genai_client.py` already started doing) between retryable errors (429/timeout) and terminal errors (404/bad config) — that classification logic is preserved and reused inside the Model Router.
-- Circuit breakers around the commercial frontier tier so a provider outage degrades to the open-weight tier automatically for tasks where that's an acceptable fallback, rather than failing the whole request.
+- The durable-execution engine retries individual agent steps with backoff on transient model-provider failures, distinguishing (as V1's `genai_client.py` already started doing) between retryable errors (429/timeout) and terminal errors (404/bad config) — that classification logic is preserved and reused inside every provider adapter.
+- Circuit breakers around **each provider**. A self-hosted (Class B) model-serving outage degrades to a smaller self-hosted model, then to a Class A approximation with a surfaced confidence warning — the `fallback_chain` is `[B, A]` and **never silently falls through to Class C**. Failing over to an external provider on a Class B outage requires a separate, explicit `emergency_class_c` opt-in per org, and even then only for `Public`/`Internal` documents.

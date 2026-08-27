@@ -29,21 +29,23 @@ Resolves internal references ("as described in Section 4.2", "subject to Clause 
 
 ### 4. Named entity recognition (NER)
 Domain-specific entity types: parties/roles, monetary amounts, dates/durations, jurisdictions, statute citations, defined terms.
-- **Base model**: fine-tuned **InLegalBERT** or **LegalBERT** (open-source, BERT-family models pretrained on legal corpora) with a token-classification head.
-- **Zero-shot fallback**: **GLiNER** (open-source zero-shot NER) for entity types not covered by the fine-tuned model's label set, so new entity categories don't require a full retrain to support.
-- **General-purpose scaffolding**: spaCy pipelines for tokenization, sentence boundaries, and as the integration framework tying the above together.
+- **Primary (configurable, no retrain)**: **GLiNER** (Apache-2.0 zero-shot NER) — one model, entity types specified at inference. Covers the full list above and lets new entity categories ship without a training run. This is the default (`MODEL_STACK.md`).
+- **Fine-tuned head (accuracy on the fixed label set)**: a token-classification head on **InLegalBERT / Legal-BERT / ModernBERT** (BERT-family, legal-pretrained or current-best permissive encoder), trained per `DEEP_LEARNING.md` — used where GLiNER's zero-shot quality on a high-volume entity type isn't enough. Compared against GLiNER on eval before it becomes primary for that type, not assumed better.
+- **Structured field extraction**: **NuExtract 2.0** (small template-driven model) for "fill this JSON schema from the clause" cases too fine-grained for a span model.
+- **General-purpose scaffolding**: spaCy for tokenization, sentence boundaries, and as the integration framework.
+- **CPU-only interim (shipped in Phase 2)**: regex for money/jurisdiction, defined-term extraction for parties — genuinely reliable for this domain, replaced/augmented by the above in Phase 6.
 
 ### 5. Coreference resolution
-Resolves pronouns and role references ("it", "the Company", "either party") to their entities, using an open-source coreference model (e.g., `fastcoref`) as the default, with structured LLM-based coreference (via the Model Router's Tier 0/1 models) as a fallback for cases the statistical model handles poorly (long-range, cross-section references common in contracts).
+Resolves pronouns and role references ("it", "the Company", "either party") to their entities, using an open-source coreference model — **maverick-coref** as the default (better document-length context than `fastcoref`, still CPU-serveable), `fastcoref` as the fast fallback — with structured LLM-based coreference (a self-hosted Class A/B model via the Model Router) as an escalation for cases the statistical model handles poorly (long-range, cross-section references common in contracts). Phase 2 ships a clearly-labelled heuristic stand-in (`app/services/nlp/coref.py`); the real resolver lands in Phase 6.
 
 ### 6. Deontic modality tagging
-Classifies each clause (or sub-clause) by its **deontic modality** — is it an obligation ("shall"), a permission ("may"), a prohibition ("shall not"), or discretionary ("in its sole discretion")? This is an established area of legal NLP research applied here as engineering, not a novel contribution in itself (see `NOVELTY.md` for where deontic tagging becomes an input to genuinely novel downstream analysis). Modeled as sequence tagging: initially bootstrapped via weak supervision (frontier-LLM labeling of a seed set), then distilled into a small, fast BERT-sized tagger for production latency/cost (`DEEP_LEARNING.md`).
+Classifies each clause (or sub-clause) by its **deontic modality** — is it an obligation ("shall"), a permission ("may"), a prohibition ("shall not"), or discretionary ("in its sole discretion")? This is an established area of legal NLP research applied here as engineering, not a novel contribution in itself (see `NOVELTY.md` for where deontic tagging becomes an input to genuinely novel downstream analysis). Modeled as sequence tagging: initially bootstrapped via weak supervision (a **self-hosted teacher model** labelling a seed set — not a commercial API; `DEEP_LEARNING.md`), then distilled into a small, fast BERT-sized tagger for production latency/cost. Phase 2 ships a modal-verb regex Tier-0 tagger (eval-gated, 100% gold-set recall) that becomes the permanent fast pre-filter and the distillation bootstrap.
 
 ### 7. Temporal expression normalization
 Normalizes relative and absolute date/duration expressions ("within 30 days of the Effective Date", "on or before January 1, 2027") into machine-comparable representations, feeding both the Timeline feature (V1 lineage) and the Simulation Agent (`AGENTS.md`, `NOVELTY.md` #2).
 
 ### 8. Clause type classification
-A learned classifier (extending V1's static risky-term list into a real taxonomy: indemnification, limitation of liability, termination, confidentiality, assignment, governing law, dispute resolution, force majeure, IP ownership, payment terms, etc.) — trained per `DEEP_LEARNING.md`, evaluated against **CUAD**'s labeled clause-type categories, which cover a materially overlapping taxonomy.
+A learned classifier (extending V1's static risky-term list into a real taxonomy: indemnification, limitation of liability, termination, confidentiality, assignment, governing law, dispute resolution, force majeure, IP ownership, payment terms, etc.) — a fine-tuned head on a **ModernBERT / DeBERTa-v3 / Legal-BERT** base, trained per `DEEP_LEARNING.md`, evaluated against **CUAD**'s labeled clause-type categories. Phase 2 ships a keyword-taxonomy rule base + optional LLM escalation as the CPU-only interim, kept as a Tier-0 pre-filter once the learned model lands.
 
 ### 9. Ambiguity/vagueness detection
 Flags clauses containing known vague standards ("best efforts," "reasonable efforts," "commercially reasonable," "material adverse change" — several of which V1's `rules.py` already lists as risky terms) and elevates them for the Risk & Compliance Agent, now with a learned confidence score rather than a flat keyword hit.
@@ -69,7 +71,8 @@ This object is the single canonical unit that RAG chunking (`AI_STACK.md`), know
 
 ## Evaluation
 
-- **Clause type classification** and **NER** evaluated against **CUAD**'s labeled categories and span annotations.
+- Housed in the **Inspect AI** suite (`ARCHITECTURE.md`), CI-gated.
+- **Clause type classification** and **NER** evaluated against **CUAD**'s labeled categories and span annotations, plus relevant **LegalBench** tasks.
 - **Entailment/consistency tasks** (does this clause imply/contradict another) evaluated against **ContractNLI**.
 - **Deontic tagging** evaluated via an internally curated gold set (no large public deontic-tagged legal corpus exists at the scale needed — bootstrapped and expanded via the active learning loop in `DEEP_LEARNING.md`).
 - Target: inter-annotator agreement on the internal gold set tracked over time as the tagging model improves, not just a static accuracy number — legal text annotation genuinely has disagreement among human experts, and the eval should reflect that rather than assume ground truth is unambiguous.

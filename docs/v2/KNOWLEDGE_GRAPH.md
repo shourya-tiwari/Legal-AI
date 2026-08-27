@@ -4,7 +4,16 @@ V1 has no cross-document memory of any kind — every clause is analyzed in isol
 
 ## Storage
 
-**Memgraph** (open source, in-memory, Cypher-compatible) is the primary graph database, chosen for query latency suited to interactive agent tool calls; **Neo4j Community Edition** is a documented alternative for deployments that prefer its tooling ecosystem. Both speak Cypher, so the query layer is portable between them.
+**Memgraph** (in-memory, Cypher) is the primary graph database, chosen for query latency suited to interactive agent tool calls. The graph store is **profile-selectable** (`MODEL_STACK.md`, `ARCHITECTURE.md`), and the query layer is written against openCypher so it is portable across all four options:
+
+| Option | When |
+|---|---|
+| **Memgraph** / **Neo4j Community** (Cypher) | Standard profile — interactive agent traversals |
+| **FalkorDB** (Redis module) | Where per-query GraphRAG traversal latency dominates and colocating with the existing Redis is attractive — benchmark against Memgraph on real retrieval traffic |
+| **Apache AGE** (Postgres extension) | Reduced-infra on-prem — openCypher inside the Postgres already running; acceptable at single-org portfolio scale |
+| **KùzuDB** (embedded, in-process) | Air-gapped-laptop / research profile — no server at all; pin versions (community-maintained) |
+
+Verify the current licence of Memgraph against the deployment model before committing; Neo4j CE (GPLv3) and Apache AGE (Apache-2.0) are the licence-clean alternatives.
 
 ## Schema
 
@@ -51,8 +60,8 @@ NLP pipeline output (ClauseObject) + CV pipeline output
   → 5. Portfolio linking        — connect newly ingested document to related documents in the org's graph
 ```
 
-1. **Entity resolution**: combines embedding-based clustering (using the Legal Clause Embedding Model, `DEEP_LEARNING.md`) with LLM-assisted disambiguation (Model Router Tier 0/1) for ambiguous cases — e.g., recognizing "ABC Corp," "the Company," and "ABC Corporation" as the same `Party` node across a document and across a portfolio.
-2. **Relation extraction**: a fine-tuned relation classifier (extending the deontic tagger's output, `NLP.md`) handles common patterns (`OBLIGATES`, `DEFINES`, `USES_TERM`, `REFERENCES`) directly from structural cues; an LLM-assisted pass handles lower-confidence or novel relation types, with results logged for eventual distillation into the classifier (`DEEP_LEARNING.md`'s active learning loop).
+1. **Entity resolution**: combines embedding-based clustering (using the Legal Clause Embedding Model, `DEEP_LEARNING.md`) with LLM-assisted disambiguation (a self-hosted Class A/B model via the Model Router) for ambiguous cases — e.g., recognizing "ABC Corp," "the Company," and "ABC Corporation" as the same `Party` node across a document and across a portfolio. Phase 3 ships a `difflib` context-similarity heuristic as the interim; the embedding-clustering version lands with the Legal Clause Embedding Model in Phase 8.
+2. **Relation extraction**: a fine-tuned relation classifier (extending the deontic tagger's output, `NLP.md`) handles common patterns (`OBLIGATES`, `DEFINES`, `USES_TERM`, `REFERENCES`) directly from structural cues; a self-hosted LLM-assisted pass handles lower-confidence or novel relation types, with results logged for eventual distillation into the classifier (`DEEP_LEARNING.md`'s active learning loop). Phase 3 derives relations directly from Phase 2's structured `ClauseObject` fields — no separate model needed yet.
 3. **Graph write**: idempotent upserts, versioned by `document_versions.id` so re-analyzing an amended document doesn't silently overwrite the graph state of the prior version — both are retained (see temporal modeling below).
 4. **Schema validation**: structural constraints (an `Obligation` must have an `actor`; a `CONFLICTS_WITH` edge must connect two `Clause` nodes with overlapping subject matter) plus **deontic logic consistency checks** — e.g., flagging a `Party` that is both obligated and prohibited from the same action under the same condition, a direct, mechanical use of the deontic tags from `NLP.md`.
 5. **Portfolio linking**: new documents are checked against the org's existing graph for shared parties, defined terms, and referenced documents, building the cross-document connectivity that portfolio-level analysis depends on.
@@ -80,5 +89,5 @@ The graph is **bitemporal**: every node/edge carries both a *valid time* (when t
 ## Storage and performance
 
 - Per-org graph partitioning for multi-tenant isolation and independent scaling (`ARCHITECTURE.md`).
-- Periodic snapshotting of the in-memory Memgraph state to object storage (MinIO) for durability and disaster recovery, since Memgraph's primary storage model is in-memory.
+- Periodic snapshotting of the in-memory Memgraph state to object storage (MinIO, or a filesystem volume in the collapsed profile) for durability and disaster recovery, since Memgraph's primary storage model is in-memory. Apache AGE / KùzuDB deployments inherit Postgres / file-level durability and need no separate snapshot job.
 - Query templates used by agent tools (`AGENTS.md`) are pre-approved and parameterized, not free-form Cypher generated by an LLM — bounding both performance (no runaway queries) and security (no injection via a generated query string).

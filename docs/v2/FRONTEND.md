@@ -20,6 +20,8 @@ V1's frontend is a single static HTML page with vanilla JS and no build step —
 
 No commercial frontend SaaS (analytics, session replay, etc.) is assumed by default; self-hostable equivalents (e.g., Plausible for analytics) are used if needed, to keep the sensitivity-tiering story in `ARCHITECTURE.md` intact end-to-end — a third-party JS analytics snippet on a page displaying `Privileged`-tier contract text would otherwise be a real leak vector.
 
+**Offline / air-gapped build.** The SPA builds with every asset vendored — fonts self-hosted (no Google Fonts CDN), no runtime CDN scripts, no external telemetry — so the same bundle serves the cloud and the air-gapped profile. The build is reproducible and shipped inside the Zarf artifact (`ARCHITECTURE.md`). A strict Content Security Policy with no external origins is the default, not a hardening step.
+
 ## Application modules
 
 | Module | Purpose | Key V1 lineage |
@@ -30,10 +32,12 @@ No commercial frontend SaaS (analytics, session replay, etc.) is assumed by defa
 | **Risk Dashboard** | Spider/radar chart of risk categories, drill-down to clause-level explanations with counterfactual attribution | Closes the gap flagged in V1's `FEATURES.md` (README promised, never built) |
 | **Contextualizer** | Role/tone-personalized explanation, now citing real retrieved sources instead of a static list | Evolves "Contextualizer" section |
 | **Negotiation Studio** | Redline suggestions, accept/reject, collaborative multi-reviewer editing, playbook-driven suggestions | New |
-| **Agent Trace Viewer** | Step-by-step view of what each agent did, what it retrieved, what it verified — the explainability surface for `AGENTS.md`'s audit trail | New |
+| **Agent Trace Viewer** | Step-by-step view of what each agent did, what it retrieved, what it verified, and **which provider/model served each step** — the explainability surface for `AGENTS.md`'s audit trail | New |
 | **Knowledge Graph Explorer** | Visual traversal of entities/obligations/contradictions across a user's document portfolio | New |
 | **Chat** | True multi-turn assistant backed by session memory (`AGENTS.md`), not V1's stateless per-message call | Evolves "Chatbot" widget |
-| **Admin/Org Settings** | Sensitivity policy, model-tier defaults, user/role management, audit log export | New |
+| **Admin/Org Settings** | Sensitivity policy, **routing-policy view + per-task/per-tier Class C toggles**, user/role management, audit log export, **Class C egress log** | New |
+| **Provider & Model Admin** | Which self-hosted model serves which task, the eval scores behind the routing policy, and the self-hosted-vs-external delta report (`AI_STACK.md`) — so enabling an external provider for a task is an informed, reversible decision | New |
+| **Model Status Panel** | Health, queue depth, and latency of the self-hosted model-serving fleet (vLLM/TEI/…) — the operator's view of their own inference layer | New |
 
 ## Real-time architecture
 
@@ -42,7 +46,7 @@ A single **session WebSocket** carries all live events for an active analysis se
 ## Security at the frontend layer
 
 - **Content Security Policy** strict by default; no third-party script origins beyond what's explicitly allowlisted (Google Fonts equivalent self-hosted where possible).
-- **Sensitivity-aware rendering**: documents tagged `Privileged` render with a persistent visual indicator and disable any client-side feature that would call a commercial-tier endpoint (mirrors the Model Router's server-side enforcement — defense in depth, not just a UI hint).
+- **Sensitivity-aware rendering**: documents tagged `Privileged` render with a persistent visual indicator and disable any client-side control that could trigger a Class C (external-provider) call (mirrors the Model Router's server-side enforcement — defense in depth, not just a UI hint). In on-prem/air-gapped builds these controls are absent entirely, since no external provider exists.
 - **Sandboxed document preview**: uploaded file rendering happens through PDF.js in a sandboxed iframe/worker so a malicious PDF cannot execute script in the parent app context.
 
 ## What's explicitly *not* changing

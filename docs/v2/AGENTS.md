@@ -4,7 +4,11 @@ V1 has no agency: each route makes exactly one LLM call and returns whatever com
 
 ## Orchestration framework
 
-**LangGraph** (open source) implements each workflow as an explicit state graph rather than a free-form agent loop — a deliberate choice for a legal domain where **determinism and auditability matter more than open-ended autonomy**. Every node transition, tool call, and intermediate state is recorded. Long-running graphs execute as **Temporal** workflows (`BACKEND.md`), so a multi-step analysis survives process restarts and individual step failures retry without re-running the whole graph.
+**LangGraph** (MIT) implements each workflow as an explicit state graph rather than a free-form agent loop — a deliberate choice for a legal domain where **determinism and auditability matter more than open-ended autonomy**. Every node transition, tool call, and intermediate state is recorded. Already shipped in Phase 4 as a fixed pipeline.
+
+Long-running graphs execute on a **durable-execution engine** (`BACKEND.md`, `MODEL_STACK.md`) so a multi-step analysis survives process restarts and individual step failures retry without re-running the whole graph. The engine is **pluggable and not a vendor commitment**: **DBOS** (a library, Postgres-backed — no extra service) is the default for on-prem/air-gapped and mid-scale; **Hatchet** for larger self-hosted; **Temporal** only where the multi-tenant cloud profile's scale justifies operating it. The `app/agents/graph.py` abstraction stays engine-agnostic. Phase 4 runs synchronously in-request; the durable engine lands in Phase 7.
+
+Every model call an agent makes goes through the **provider-agnostic Model Router** (`AI_STACK.md`) — agents name a *task*, never a model or vendor. In the on-prem and air-gapped profiles every agent runs entirely on self-hosted models (Class A/B); no agent has a hard dependency on a commercial API.
 
 All agents read and write a shared **Case State** object (the LangGraph state), which is the structured successor to V1's pattern of re-sending raw text on every call:
 
@@ -26,7 +30,7 @@ CaseState {
 
 | Agent | Role | Key tools | Escalates to |
 |---|---|---|---|
-| **Orchestrator/Planner** | Decomposes a user request into a task graph, decides which specialist agents run and in what order | Case-state read/write, agent-dispatch | — |
+| **Orchestrator/Planner** | Decomposes a user request into a task graph, decides which specialist agents run and in what order (Phase 7 — Phase 4 ships a fixed sequence instead) | Case-state read/write, agent-dispatch | — |
 | **Ingestion & Triage** | Classifies document type and sensitivity tier, routes to the right pipeline configuration | CV/NLP pipeline triggers, sensitivity classifier (`DEEP_LEARNING.md`) | Human review if sensitivity is ambiguous |
 | **Extraction** | Wraps the NLP/CV pipelines' output into structured clauses, entities, and timeline events | NLP pipeline, CV pipeline, date/calendar tool | Verifier |
 | **Risk & Compliance** | Runs keyword + learned risk scoring (`DEEP_LEARNING.md`), checks flags against KG-known statutory rules | Risk scorer, KG query tool, statute lookup tool | Verifier |
@@ -43,7 +47,7 @@ For high-value/high-risk documents, an optional **Red Agent / Blue Agent** pair 
 
 ## Tool interface
 
-Every tool is a typed, JSON-schema-validated function — agents cannot execute arbitrary code or make unbounded network calls (`ARCHITECTURE.md` prompt-injection defense). Representative tools:
+Every tool is a typed, JSON-schema-validated function — agents cannot execute arbitrary code or make unbounded network calls (`ARCHITECTURE.md` prompt-injection defense). Structured tool calls are enforced at the decoding layer via grammar-constrained generation (xgrammar / Outlines — `MODEL_STACK.md`), so a malformed tool call is impossible, not merely caught. Phase 4 calls the backing services as plain Python functions; the formal typed-tool layer lands in Phase 7 with the dynamic Planner. Representative tools:
 
 | Tool | Signature (conceptual) | Backing service |
 |---|---|---|
@@ -59,7 +63,7 @@ Every tool is a typed, JSON-schema-validated function — agents cannot execute 
 Every agent output that will reach a user passes through the Verifier before release:
 
 1. **Citation check** — every factual claim must reference a retrieved chunk or KG fact; unreferenced claims are rejected or flagged.
-2. **NLI faithfulness check** — an open-source entailment model checks that the claim is actually entailed by its cited source (not just topically related).
+2. **NLI faithfulness check** — a **local, self-hosted entailment model** (DeBERTa/ModernBERT NLI head, Class A — `MODEL_STACK.md`) checks that the claim is actually entailed by its cited source, not just topically related. This is a safety gate, so it must be deterministic and run inside the perimeter — it is never a generation call and never a commercial API. Phase 4 ships a lexical-overlap stand-in, honestly labelled as such; the real head lands in Phase 6.
 3. **KG consistency check** — claims about obligations/dates are cross-checked against the structured KG representation of the same document, catching a category of error pure text generation is prone to (e.g., misstating a deadline that's already been extracted with higher precision elsewhere).
 4. **Confidence-gated human review** — anything failing 1-3, or falling below a calibrated confidence threshold, or touching a `Privileged`-tier document, routes to the human review queue in the frontend rather than being silently returned, which is a strict improvement over V1's pattern of returning an LLM's output as-is regardless of confidence.
 
@@ -70,8 +74,8 @@ Four memory tiers, all backed by the Memory Service (`BACKEND.md`):
 | Tier | Scope | Storage | Example |
 |---|---|---|---|
 | **Short-term (session)** | Current analysis session | Redis, TTL-bound | The last N chat turns, currently-open document's clause state |
-| **Episodic** | Per-document, across sessions | Postgres (structured) + Qdrant (embedded summaries) | "Last time this document was analyzed, these 3 risks were flagged and dismissed by the user" |
-| **Semantic (long-term)** | Per-org, cross-document | Qdrant + Knowledge Graph | Facts and patterns the org has established as reliably true for their context (e.g., "this org's leases are always California-governed") |
+| **Episodic** | Per-document, across sessions | Postgres (structured) + the vector store (embedded summaries) | "Last time this document was analyzed, these 3 risks were flagged and dismissed by the user" |
+| **Semantic (long-term)** | Per-org, cross-document | Vector store + Knowledge Graph | Facts and patterns the org has established as reliably true for their context (e.g., "this org's leases are always California-governed") |
 | **Procedural** | Per-org, learned behavior | A trained preference/policy representation (`DEEP_LEARNING.md`, `NOVELTY.md` #4) | "This org typically negotiates indemnification caps down to 12 months; suggest that stance by default" |
 
 **Consolidation**: a scheduled background worker (`BACKEND.md`) summarizes short-term/episodic memory into semantic memory, with an explicit **privacy-tier gate** — content from `Privileged`-tier documents is never promoted into cross-document semantic memory without explicit org opt-in, since semantic memory is, by definition, information that could surface in a *different* document's analysis.

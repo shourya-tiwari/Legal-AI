@@ -1,193 +1,272 @@
 # Tasks
 
-Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by architecture layer. This is a planning checklist, not a sprint-committed schedule — sizing and sequencing within a phase is left to the team executing it.
+Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by architecture layer. A planning checklist, not a sprint-committed schedule.
 
-## Phase 0 — V1 Hardening (prerequisite)
+**Status legend**: `[x]` done · `[~]` partially done (annotation says what) · `[ ]` not started. Phases 0-4 record what actually shipped (a pragmatic slice — see annotations and `LEARNING_LOG.md`). Phases 5-9 are the forward plan under the revised, self-hosted-first architecture.
+
+**Roadmap renumbering**: the previous "Phase 7 — GPU Upgrade" is now **Phase 6**; the previous "Phase 5 — Portfolio Intelligence" is now **Phase 8**; the previous "Phase 6 — Scale/Hardening" is now **Phase 9**. New **Phase 5** (Provider Abstraction Hardening) and **Phase 7** (Deployment Profiles) are inserted. See `ROADMAP.md`'s mapping table.
+
+---
+
+## Phase 0 — V1 Hardening (prerequisite) — ✅ Complete
 
 - [x] Complete all P0 items in `docs/v1/TASKS.md` (secrets rotation, CORS fix, malformed HTML, dead code, model-default consistency)
 - [x] Complete P1 testing/CI items in `docs/v1/TASKS.md` (pytest suite, GitHub Actions, structured logging, config centralization)
 
-## Phase 1 — Foundation Re-platform
+## Phase 1 — Foundation Re-platform — ✅ Complete (pragmatic slice)
 
 **Data layer**
-- [x] Stand up Postgres with the core schema sketch in `ARCHITECTURE.md` (`organizations`, `api_keys`, `documents`, `audit_log` — `users`/`sessions` tables deferred, see Backend notes below)
-- [ ] Stand up Qdrant, Memgraph, Redis, MinIO, Redpanda (docker-compose for local dev, Helm charts for cloud) — **scoped down**: only Postgres + Redis stood up (approved pragmatic-slice decision); Qdrant/Memgraph/Redpanda/MinIO deferred to Phase 3 when RAG/KG actually need them
-- [x] Migrate V1's `document_storage` in-memory dict usage to Postgres-backed document records
+- [x] Stand up Postgres with the core schema sketch (`organizations`, `api_keys`, `documents`, `audit_log`; `users`/`sessions` deferred)
+- [~] Stand up the polyglot data layer — **Postgres + Redis only**; Qdrant/Memgraph/Redpanda/MinIO deferred to the phases that need them (Memgraph landed in Phase 3)
+- [x] Migrate V1's `document_storage` in-memory dict to Postgres-backed document records
 
 **Backend**
-- [ ] Introduce API Gateway service boundary; move routing/auth concerns out of the monolithic `main.py` pattern — not done; still one FastAPI process (cross-cutting concerns centralized via `app/guard.py` instead, which is the right amount of separation before an actual microservice split is justified)
-- [x] Build Auth Service (users, orgs, roles, API keys, session tokens) — **scoped down**: org-scoped API keys only (`app/auth.py`); no per-user login/roles/session tokens yet since there's no login UI
-- [x] Require authentication on every endpoint (close V1's open-access gap) — enforced via `app/guard.py`'s `api_guard` dependency; **default OFF** (`AUTH_REQUIRED=false`) by deliberate choice so the live public frontend keeps working until keys are issued
-- [x] Build the Model Router as a generalization of `genai_client.py`; route 100% of traffic to Gemini initially (no behavior change) — `app/services/model_router.py`
-- [ ] Re-implement `/api/v1/*` endpoints on top of the new persistence/auth layer, preserving exact V1 response contracts — persistence/auth layer is live under the existing unversioned `/api/*` paths; the `/api/v1/*` prefix itself hasn't been introduced (no `/api/v2/*` exists yet to need versioning against)
+- [~] Introduce API Gateway service boundary — not done; still one FastAPI process, cross-cutting concerns centralized via `app/guard.py` (the right amount of separation before a real service split is justified)
+- [x] Build Auth Service — **scoped down**: org-scoped API keys only (`app/auth.py`); no per-user login/roles/session tokens (no login UI yet)
+- [x] Require authentication on every endpoint — `app/guard.py`'s `api_guard`; **default OFF** (`AUTH_REQUIRED=false`) so the live public frontend keeps working
+- [x] Build the Model Router as a generalization of `genai_client.py` — `app/services/model_router.py`. **Re-scoped**: this is the provider-agnostic seam (`AI_STACK.md`), currently with one provider (Gemini). Phase 5 makes it real.
+- [~] Re-implement `/api/v1/*` endpoints on the new persistence/auth layer — persistence/auth is live under the existing unversioned `/api/*`; the `/api/v1/*` prefix itself not introduced (nothing needs versioning against yet)
 
-**Observability** — not started; deferred by approved scope decision (no OpenTelemetry/Langfuse/Prometheus/Grafana yet, structured `logging` from Phase 0 only)
-- [ ] Wire OpenTelemetry tracing into every new service
-- [ ] Deploy Langfuse for LLM-call tracing
-- [ ] Deploy Prometheus + Grafana dashboards (latency, error rate, cost)
+**Observability** — [ ] not started; deferred (structured `logging` from Phase 0 only). OpenTelemetry / Langfuse / Prometheus / Grafana → Phase 5+.
 
 **Developer workflow**
-- [ ] Set up monorepo structure (`apps/frontend`, `services/*`, `packages/schemas`, `packages/prompts`, `infra/`) — not done, still the original `backend/`+`frontend/` split
-- [ ] Terraform + Helm skeletons for dev/staging/prod environments — not done, deferred (still deploying to Render)
-- [x] `docker-compose` local-dev profile — **scoped down**: Postgres + Redis only (`docker-compose.yml`), not the full data layer or an open-weight model (no GPU on this dev machine — see the new GPU Upgrade phase at the end of this file)
+- [ ] Monorepo restructure (`apps/`, `services/*`, `packages/*`, `infra/`) — not done; still `backend/` + `frontend/`
+- [ ] OpenTofu + Helm skeletons — not done (still deploying to Render)
+- [x] `docker-compose` local-dev profile — **scoped down**: Postgres + Redis (+ Memgraph from Phase 3), not the full data layer or a served model
 
-## Phase 2 — Core AI Pipeline Buildout
-
-**Scope note**: this dev machine has no discrete GPU (Intel integrated graphics only, ~7.75GB RAM) and cannot run vLLM/LayoutLMv3/Donut/Table Transformer/YOLOv8 or any fine-tuning. By approved decision, everything GPU-dependent below is **deferred to the new GPU Upgrade phase** at the end of this file (target: RTX 4050, 6GB VRAM), and every other Phase 2 item was implemented as a genuine, tested, CPU-only equivalent instead of a stub — see `LEARNING_LOG.md` entry for this phase for the full reasoning.
+## Phase 2 — Structured Understanding: CPU Pipeline — ✅ Complete (CPU slice; GPU items → Phase 6)
 
 **Computer vision (`COMPUTER_VISION.md`)**
-- [x] Document quality triage (blur/skew/resolution scoring) — **delivered via OpenCV, not a trained model**: Laplacian-variance blur score + Hough-line skew estimate (`app/services/cv/quality.py`), wired into `extractor.py`'s PDF path and surfaced additively in `/api/upload`'s response
-- [ ] Integrate LayoutLMv3 for layout analysis → **GPU Upgrade phase**
-- [ ] Integrate Donut for OCR-free scan understanding; wire confidence-gated commercial OCR fallback → **GPU Upgrade phase**
-- [ ] Integrate Table Transformer for table extraction → **GPU Upgrade phase**
-- [ ] Train/integrate signature & stamp detector (YOLOv8-family) → **GPU Upgrade phase** (also needs labeled training data, not just a GPU)
-- [x] Redaction-region detection — **delivered as a geometric heuristic, not a trained model**: solid-black-rectangle contour detection (`app/services/cv/redaction.py`); real learned redaction detection is still a GPU Upgrade phase item
+- [x] Document quality triage — OpenCV Laplacian-variance blur + Hough-line skew (`app/services/cv/quality.py`), not a trained model
+- [ ] Layout analysis (Docling / LayoutLMv3 / Qwen2.5-VL) → **Phase 6**
+- [ ] OCR-free scan understanding (olmOCR / Qwen2.5-VL) + confidence-gated escalation → **Phase 6**
+- [ ] Table extraction (Table Transformer / PP-Structure) → **Phase 6**
+- [ ] Signature & stamp detector (YOLOv8-family) → **Phase 6** (also needs labelled data)
+- [x] Redaction-region detection — geometric solid-black-rectangle contour heuristic (`app/services/cv/redaction.py`), not a trained model
 
 **NLP (`NLP.md`)**
-- [x] Clause/sentence segmentation using CV layout hints — paragraph + sentence-boundary regex (`app/services/nlp/segmentation.py`); "CV layout hints" specifically not used since LayoutLMv3 is deferred
-- [x] Defined-term extraction & resolution — regex-based (`app/services/nlp/defined_terms.py`); also does double duty as party/entity identification (see NER note below)
-- [x] Cross-reference resolution — regex-based (`app/services/nlp/cross_references.py`)
-- [ ] Fine-tune NER model (InLegalBERT/LegalBERT base) for parties/dates/money/jurisdictions → **GPU Upgrade phase** for the fine-tuned model. Functional substitute shipped now: parties via defined-term extraction, money/jurisdiction via regex (`app/services/nlp/entities.py`) — genuinely reliable for this domain, not just a placeholder (see `defined_terms.py`'s docstring for why)
-- [ ] Integrate GLiNER for zero-shot entity types → **GPU Upgrade phase**
-- [ ] Integrate coreference resolution (fastcoref, with LLM fallback) → **GPU Upgrade phase** for the real resolver. A clearly-labeled heuristic stand-in shipped now (`app/services/nlp/coref.py` — explicitly documented as NOT real coreference resolution)
-- [x] Weak-supervise + distill the deontic modality tagger — **scoped down**: modal-verb regex tagger (Tier 0) shipped and eval-gated (100% recall on the gold set); optional Gemini escalation for clauses no rule matches (`app/services/nlp/deontic.py`). The weak-supervision-then-distill *training pipeline* itself (`DEEP_LEARNING.md`) is separate future work requiring labeled data collection
-- [x] Temporal expression normalization — `dateparser` for absolute dates; durations ("30 days") deliberately left unresolved rather than misresolved against wall-clock "now" (`app/services/nlp/temporal.py`)
-- [ ] Fine-tune clause/contract type classifier (eval against CUAD) → **GPU Upgrade phase** for the fine-tuned model + real CUAD eval. Functional substitute shipped now: keyword-taxonomy rule base + optional Gemini escalation (`app/services/nlp/clause_classifier.py`), eval-gated against a hand-curated gold set (see AI stack notes below)
-- [x] Ambiguity/vagueness detection scoring — extends V1's vague-term list (`app/services/nlp/ambiguity.py`)
-- [x] Define and ship the canonical `ClauseObject` schema — `app/services/nlp/schema.py` (not a separate `packages/schemas` package yet — still one FastAPI app, not a monorepo)
+- [x] Clause/sentence segmentation — paragraph + sentence-boundary regex (`app/services/nlp/segmentation.py`); CV layout hints not used (LayoutLMv3 deferred)
+- [x] Defined-term extraction & resolution — regex (`app/services/nlp/defined_terms.py`); doubles as party/entity ID
+- [x] Cross-reference resolution — regex (`app/services/nlp/cross_references.py`)
+- [ ] Fine-tuned NER (InLegalBERT/ModernBERT base) → **Phase 6**. CPU substitute shipped: parties via defined-term extraction, money/jurisdiction via regex (`app/services/nlp/entities.py`)
+- [ ] GLiNER zero-shot entity types → **Phase 6**
+- [ ] Real coreference (maverick-coref / fastcoref, LLM fallback) → **Phase 6**. Clearly-labelled heuristic stand-in shipped (`app/services/nlp/coref.py`)
+- [x] Deontic modality tagger — **scoped down**: modal-verb regex Tier-0, eval-gated (100% gold-set recall), optional LLM escalation (`app/services/nlp/deontic.py`). The weak-supervise-then-distill *training pipeline* → Phase 6/8
+- [x] Temporal expression normalization — `dateparser` for absolute dates; durations left unresolved deliberately (`app/services/nlp/temporal.py`)
+- [ ] Fine-tuned clause/contract-type classifier + real CUAD eval → **Phase 6**. CPU substitute shipped: keyword-taxonomy rule base + optional LLM escalation (`app/services/nlp/clause_classifier.py`), eval-gated against a hand-curated gold set
+- [x] Ambiguity/vagueness detection — extends V1's vague-term list (`app/services/nlp/ambiguity.py`)
+- [x] Canonical `ClauseObject` schema — `app/services/nlp/schema.py` (not a `packages/schemas` package yet)
 
 **Model Router / AI stack (`AI_STACK.md`)**
-- [ ] Deploy vLLM serving for at least one open-weight model (Llama 3.1 8B to start) → **GPU Upgrade phase**
-- [ ] Route plain-English rewrite task to open-weight Tier 1 model; A/B against Gemini baseline → **GPU Upgrade phase**
-- [ ] Route structure/timeline extraction to Qwen2.5-72B-Instruct; validate JSON-schema adherence rate → **GPU Upgrade phase**
-- [x] Stand up eval harness: Ragas integration + CUAD/ContractNLI-based gold set — **scoped down**: lightweight custom harness instead of Ragas (`app/eval/run_eval.py`) against a 15-example hand-curated gold set (`app/eval/gold_set.py`), reporting clause-type accuracy + deontic recall. Real Ragas + CUAD/ContractNLI integration is separate future work (downloading/curating an external dataset is real effort, not a config change)
-- [x] Wire CI eval-gating for any prompt/model/config change — **scoped to what's real today**: `tests/test_eval_gate.py` fails the (already-CI-wired) pytest suite if clause-type accuracy or deontic recall drops below the current gold-set baseline; full model/prompt-version-aware gating from `ARCHITECTURE.md` is future work once there's more than one model tier to gate between
+- [ ] Deploy vLLM serving an open-weight model → **Phase 6**
+- [ ] Route rewrite / extraction tasks to self-hosted models → **Phase 6**
+- [x] Stand up eval harness — **scoped down**: lightweight custom harness (`app/eval/run_eval.py`) against a 15-example gold set (`app/eval/gold_set.py`); Ragas/Inspect AI/CUAD integration → Phase 5/6
+- [x] CI eval-gating for prompt/model/config changes — `tests/test_eval_gate.py` fails the suite on clause-type-accuracy or deontic-recall regression; full provider/policy-aware gating → Phase 5
 
-## Phase 3 — Knowledge Graph & GraphRAG
-
-**Scope note**: Memgraph itself needs no GPU (a CPU/RAM graph database, like Postgres), so this phase's infra is fully real, not a stand-in. What's scoped down: entity resolution uses string-similarity (`difflib`), not embedding clustering; relation extraction is derived directly from Phase 2's `ClauseObject` output rather than a separate trained classifier; dense embeddings use Gemini's API (already integrated) rather than self-hosted BGE-M3; and Obligation nodes with resolved actor/action aren't modeled (Phase 2's deontic tagger doesn't resolve `actor`, so that graph would be guessing) — see `KNOWLEDGE_GRAPH.md`-equivalent scoping notes in `app/services/kg/schema.py`'s docstring.
+## Phase 3 — Knowledge Graph & Hybrid RAG — ✅ Complete (pragmatic slice)
 
 **Knowledge graph**
-- [x] Deploy Memgraph; implement schema (node/edge types) — `docker-compose.yml` (Memgraph 2.18.1) + `app/services/kg/schema.py`. Schema: `Document`/`Clause`/`DefinedTerm`/`CrossReferenceTarget` nodes, `PART_OF`/`DEFINES`/`USES_TERM`/`REFERENCES`/`SAME_AS` edges — narrower than the full docs/v2 vision (no `Obligation`/`Statute`/`Jurisdiction` nodes yet), honestly scoped to what Phase 2's output actually supports
-- [x] Build entity resolution pipeline — **scoped down**: `difflib.SequenceMatcher` context-similarity (`app/services/kg/builder.py`'s `should_link_terms`) instead of embedding clustering + LLM disambiguation; requires matching alias text AND similar defining context, specifically to avoid conflating two different parties who both call themselves "the Company" in unrelated contracts
-- [x] Build relation extraction pipeline — **scoped down**: derived directly from Phase 2's already-extracted `ClauseObject` fields (defined terms, cross-references, deontic tags) rather than a separate classifier; there was nothing left to classify since Phase 2 already produced the structured signal
-- [x] Implement schema validation + deontic consistency checks on graph write — **partial**: `find_potential_conflicts` in `app/services/kg/queries.py` flags candidate cross-document obligation/prohibition pairs sharing a defined term; explicitly a "candidate for review," not a confirmed conflict (no actor/action resolution yet to be certain they're about the same thing)
-- [x] Implement portfolio-linking on ingestion — `link_portfolio_terms` in `builder.py`, `POST /api/kg/ingest`
-- [ ] Implement bitemporal versioning (valid time / transaction time) — not done; every node just has whatever `created_at`-equivalent Memgraph gives by default. Real bitemporal modeling is deferred, not GPU-blocked -- just genuinely separate scope
-- [x] Backfill: re-process existing documents into the graph — `POST /api/kg/ingest` takes any existing `document_id` and is idempotent (MERGE throughout), so it doubles as the backfill mechanism; no separate batch script was needed
+- [x] Deploy Memgraph; implement schema — `docker-compose.yml` + `app/services/kg/schema.py`. Nodes: `Document`/`Clause`/`DefinedTerm`/`CrossReferenceTarget`; edges: `PART_OF`/`DEFINES`/`USES_TERM`/`REFERENCES`/`SAME_AS`. Narrower than the full vision (no `Obligation`/`Statute`/`Jurisdiction` nodes yet) — scoped to what Phase 2's output supports
+- [x] Entity resolution pipeline — **scoped down**: `difflib.SequenceMatcher` context-similarity (`should_link_terms` in `builder.py`), not embedding clustering + LLM disambiguation
+- [x] Relation extraction pipeline — **scoped down**: derived directly from Phase 2's `ClauseObject` fields, not a separate classifier
+- [~] Schema validation + deontic consistency checks — `find_potential_conflicts` flags candidate cross-document obligation/prohibition pairs sharing a term; explicitly "candidate for review", not confirmed (no actor/action resolution yet)
+- [x] Portfolio-linking on ingestion — `link_portfolio_terms` in `builder.py`, `POST /api/kg/ingest`
+- [ ] Bitemporal versioning (valid time / transaction time) — not done → **Phase 8** (needed for simulation)
+- [x] Backfill existing documents into the graph — `POST /api/kg/ingest` is idempotent (MERGE throughout), doubles as backfill
 
 **RAG**
-- [ ] Deploy BGE-M3 for dense embeddings; deploy bge-reranker-v2-m3 → **GPU Upgrade phase**. Dense retrieval today uses Gemini's embedding API (already integrated) — during this work, discovered and fixed a pre-existing bug: V1's `text-embedding-004` default had been silently 404ing (Gemini stopped serving it); updated to `gemini-embedding-001` across `genai_client.py`/`model_router.py`/`contextualizer/rag.py`
-- [x] Build BM25/SPLADE sparse index — **BM25 only** (`app/services/rag/bm25.py`, `rank_bm25`), not SPLADE (a learned sparse model, GPU-adjacent). BM25 is a legitimate permanent choice here, not just a placeholder — see the module's docstring
-- [x] Implement GraphRAG traversal tool over Memgraph — `find_clauses_using_term`/`find_potential_conflicts` in `app/services/kg/queries.py`, exposed via `POST /api/kg/query` and `/api/kg/conflicts`; not yet wired into the Contextualizer's retrieval itself (BM25 + dense only there for now — graph hits are a separate, not-yet-fused signal)
-- [x] Implement reciprocal rank fusion across dense/sparse/graph retrievers — **dense + sparse only** (`app/services/rag/hybrid.py`, standard RRF with k=60); graph fusion not wired in yet (see above)
-- [x] Ingest and cite a real statute/regulation corpus — **modest and judicious, not comprehensive**: extended V1's 27-entry hardcoded list into `app/services/rag/corpus.py` with an explicit `citation` field, populated ONLY where a specific statute/regulation is confidently and easily verifiable (e.g., Cal. Civ. Code § 1950.5, FLSA § 207, GDPR, CCPA); most entries remain `citation=None` (general common-law principles) rather than inventing a citation — see the module's docstring for why
-- [x] Migrate Contextualizer feature to real hybrid RAG with citations; remove the hardcoded 28-string list — done (`app/services/contextualizer/explainer.py` now calls `hybrid_search`)
-- [x] Implement citation-grounded generation prompt contract + citation validator — `templates.py` now asks for `[N]`-style inline citations against numbered hints; `app/services/rag/citation_validator.py` flags (doesn't silently fix) any citation number the model referenced but wasn't given. Does NOT verify the citation is actually *entailed* by the source (that needs an NLI faithfulness model, a `docs/v2/AGENTS.md` Phase 4+ concern) — only that it wasn't fabricated out of range
+- [ ] Deploy self-hosted embeddings + reranker → **Phase 5** (embeddings, CPU-feasible) / **Phase 6** (GPU-served). Dense retrieval today uses Gemini's embedding API. **Bug fixed during this phase**: `text-embedding-004` was silently 404ing; updated to `gemini-embedding-001`
+- [x] Sparse index — **BM25 only** (`app/services/rag/bm25.py`); SPLADE (learned sparse) → Phase 6. BM25 is a legitimate permanent choice, not a placeholder
+- [x] GraphRAG traversal tool over Memgraph — `find_clauses_using_term`/`find_potential_conflicts` in `app/services/kg/queries.py`; exposed via `/api/kg/query`, `/api/kg/conflicts`
+- [~] RRF fusion across dense/sparse/graph — **dense + sparse only** (`app/services/rag/hybrid.py`, k=60); graph fusion → **Phase 5**
+- [x] Ingest & cite a real statute/regulation corpus — **modest and judicious**: `app/services/rag/corpus.py` with a `citation` field populated only where confidently verifiable (Cal. Civ. Code § 1950.5, FLSA § 207, GDPR, CCPA); most entries `citation=None` (general principles) rather than inventing citations
+- [x] Migrate Contextualizer to hybrid RAG with citations; remove the hardcoded 28-string list — `explainer.py` now calls `hybrid_search`
+- [x] Citation-grounded generation prompt + citation validator — `templates.py` asks for `[N]` citations; `citation_validator.py` flags fabricated citation numbers (does NOT verify entailment — that's the NLI head, Phase 6)
 
-## Phase 4 — Agentic Orchestration MVP
+## Phase 4 — Agentic Orchestration MVP — ✅ Complete (backend MVP)
 
-**Scope note**: the agent graph itself, and every check the Verifier can actually run today, needs no GPU — confirmed by shipping it. Two deliberate scope reductions, neither GPU-related: (1) Temporal is not deployed — the graph runs synchronously within the FastAPI request, since a single-document analysis on the order of seconds doesn't yet justify durable-workflow complexity (see `app/agents/graph.py`'s docstring); (2) the Orchestrator/Planner is a fixed sequence (extract → risk → research → summarize → verify), not a dynamic agent deciding what to run.
+**Agents (`AGENTS.md`)**
+- [~] Deploy LangGraph + durable-execution runtime — **LangGraph done** (`app/agents/graph.py`); **durable engine not done**, runs synchronously in-request → **Phase 7**
+- [x] Define the shared `CaseState` schema — `app/agents/state.py`, scoped to what the fixed pipeline needs (no `memory_refs`/`sensitivity_tier` yet)
+- [ ] Orchestrator/Planner agent — **not implemented as a dynamic agent**; the fixed sequence stands in → **Phase 7**
+- [x] Extraction agent — `app/agents/extraction.py`, wraps Phase 2's `build_clause_objects`
+- [x] Risk & Compliance agent — `app/agents/risk_compliance.py`: keyword flags (`risk_radar/rules.py`) + KG candidate-conflict lookup. AI risk pass not invoked here (Tier-0 keyword sweep only)
+- [x] Clause Research agent — `app/agents/research.py`; only runs on already-flagged clauses
+- [~] Verifier/Critic agent — citation check (real, reuses `citation_validator.py`) + KG consistency check (real — a KG conflict forces `needs_human_review`) ship now; **NLI faithfulness check is a lexical-overlap stand-in** (`_lexical_overlap_faithfulness`), honestly labelled → real cross-encoder **Phase 6**
+- [ ] Typed tool interfaces (KG query, vector search, statute lookup, date math, clause diff, human-approval) — **not built as a formal typed-tool-calling layer**; agents call services as plain Python functions → **Phase 7** (when a real planner needs to choose tools)
+- [x] Persist full agent trace to `agent_traces` — new table in `db_models.py`; one row per step, verified live against Postgres
 
-**Agents (`AGENTS.md`)** — none of this needs a GPU; LangGraph is pure orchestration, and the agents themselves call Gemini (Tier 2, already integrated) or the existing CPU-only NLP/KG/RAG services, not a self-hosted model.
-- [ ] Deploy LangGraph + Temporal orchestration runtime — **LangGraph: done** (`app/agents/graph.py`). **Temporal: not done**, deliberately deferred (see scope note above), not GPU-related.
-- [x] Define the shared `CaseState` schema — `app/agents/state.py`, scoped to what the fixed pipeline needs (no `memory_refs`/`sensitivity_tier` yet — real future work, not implemented to look more complete than it is)
-- [ ] Implement Orchestrator/Planner agent — **not implemented as a separate dynamic agent**; the fixed sequence in `graph.py` stands in for it (see scope note)
-- [x] Implement Extraction agent (wraps CV/NLP pipeline outputs) — `app/agents/extraction.py`, wraps Phase 2's `build_clause_objects`
-- [x] Implement Risk & Compliance agent — `app/agents/risk_compliance.py`: keyword risk flags (reuses `risk_radar/rules.py`) + KG candidate-conflict lookup (reuses `kg/queries.py`). The AI risk pass (`risk_radar/detector.py`'s Gemini call) is deliberately not invoked here yet — Tier 0 keyword sweep only, matching the fast-first philosophy elsewhere
-- [x] Implement Clause Research agent (hybrid RAG) — `app/agents/research.py`; only runs on clauses already flagged by risk/ambiguity, not every clause (retrieval isn't free)
-- [x] Implement Verifier/Critic agent (citation check + NLI faithfulness check + KG consistency check) — citation check (real, reuses `citation_validator.py`) and KG consistency check (real — a KG conflict always forces `needs_human_review`) both ship now. The *NLI faithfulness check* is a **lexical-overlap heuristic stand-in** (`app/agents/verifier.py`'s `_lexical_overlap_faithfulness`), reported honestly as `faithfulness_ok`, not dressed up as real entailment checking — the real cross-encoder model → **GPU Upgrade phase**
-- [ ] Implement typed tool interfaces (KG query, vector search, statute lookup, date math, clause diff, human-approval request) — **not built as a formal typed-tool-calling layer**; agents call the underlying services (`kg.queries`, `rag.hybrid`) directly as plain Python functions. Worth formalizing once an agent needs to *decide* which tool to call (a real planner), which doesn't exist yet
-- [x] Persist full agent trace to `agent_traces` — new table in `db_models.py`; every run writes one row per step, verified live against real Postgres
+**Memory (`AGENTS.md`)** → all **Phase 7**
+- [ ] Memory Service: session tier (Redis)
+- [ ] Episodic tier (Postgres + vector store)
+- [ ] Memory consolidation worker (session/episodic → semantic, privacy-tier gated)
 
-**Memory (`AGENTS.md`)** — note: Qdrant itself needs no GPU (a CPU/RAM vector DB, like Memgraph/Postgres); deferring it is a "not needed yet" call, not a hardware limitation — don't conflate the two reasons.
-- [ ] Implement Memory Service: session tier (Redis)
-- [ ] Implement episodic tier (Postgres + Qdrant) — Qdrant deferred until something actually needs persisted vector search beyond what Phase 3's in-memory FAISS handles; not GPU-related
-- [ ] Implement memory consolidation worker (session/episodic → semantic, with privacy-tier gating)
+**Frontend (`FRONTEND.md`)** → all **Phase 7**
+- [ ] Scaffold Next.js + TypeScript; generate API client from OpenAPI
+- [ ] Workspace + Document Analyzer modules (V1 parity)
+- [ ] Agent Trace Viewer (real-time via session WebSocket)
+- [ ] Human-in-the-loop review queue UI
+- [ ] Feature-flag `/api/v2` usage per org
 
-**Frontend (`FRONTEND.md`)**
-- [ ] Scaffold Next.js + TypeScript app; generate API client from OpenAPI schema
-- [ ] Build Workspace and Document Analyzer modules (V1 parity)
-- [ ] Build Agent Trace Viewer (real-time via session WebSocket)
-- [ ] Build human-in-the-loop review queue UI
-- [ ] Feature-flag `/api/v2` usage per org for staged rollout
+**Backend** → **Phase 7**
+- [ ] `/api/v2/*` session/document-first endpoints
+- [ ] Notification/Webhook Service for async job completion
 
-**Backend**
-- [ ] Introduce `/api/v2/*` session/document-first endpoints
-- [ ] Implement Notification/Webhook Service for async job completion
+---
 
-## Phase 5 — Portfolio Intelligence & Research Features
+## Phase 5 — Provider Abstraction Hardening
 
-**Deep learning (`DEEP_LEARNING.md`)**
-- [ ] Curate training data (org corpora with consent + CUAD/ContractNLI)
-- [ ] Weak-supervision labeling pass (batch, offline frontier-model use)
-- [ ] Human legal-expert review of weak labels
-- [ ] Train Risk Scoring Model (LightGBM); integrate SHAP explainability — **not GPU-blocked**: gradient-boosted trees train fine on CPU. Blocked on labeled training data, not hardware.
-- [ ] Train/finalize Clause/Contract Type Classifier as a fine-tuned transformer, replacing the Phase 2 keyword rule base → **GPU Upgrade phase** (also listed there; same item)
-- [ ] Train Document Sensitivity Classifier — **not GPU-blocked if built as a classical text classifier** (e.g. TF-IDF + logistic regression, or a keyword-taxonomy Tier-0 like `risk_radar/rules.py`'s style); only GPU-blocked if this specifically needs to be a fine-tuned transformer, which isn't obviously required for a sensitivity-tier label. Try the CPU-only approach first.
-- [ ] Set up MLflow model registry + DVC data versioning
-- [ ] Wire eval-gated model promotion into CI/CD
+**Model Router → the real provider interface (`AI_STACK.md`)**
+- [ ] Define the `ModelProvider` protocol and provider-neutral request/response schemas (`generate`, `generate_structured`, `embed`, `rerank`, `transcribe`, `synthesize`, `describe`, `health`)
+- [ ] Split `legalai-providers-core` (self-hosted adapters) from `legalai-providers-external` (commercial adapters, may wrap LiteLLM); make `-external` an optional install / extras group
+- [ ] Add the **import-linter CI contract**: no model-provider SDK imported outside `services/model_router/providers/`
+- [ ] Build the declarative routing-policy engine (`packages/policies/routing.yaml`): task × sensitivity × capability × budget → `(provider, model)`; self-hosted-only fallback chains; separate opt-in `emergency_class_c`
+- [ ] Log `{task, sensitivity, provider, model, policy_version, reason}` on every call; join to `eval_runs`
+- [ ] Re-express hosting as Class A / B / C throughout config and code (retire "Tier 2 — commercial frontier")
+- [ ] Move the existing Gemini path behind `-external` + a Class C policy rule; confirm the product still runs with `-external` uninstalled (using the Ollama dev model) — this is the phase's acceptance test
 
-**Portfolio agents (`AGENTS.md`, `KNOWLEDGE_GRAPH.md`)**
-- [ ] Implement Cross-Document Consistency agent (rule-based/embedding-similarity baseline first)
-- [ ] Implement Simulation agent (deterministic discrete-event baseline first)
-- [ ] Implement Negotiation/Drafting agent with static, org-configured preferences (no learned playbook yet)
-- [ ] Ship Negotiation Studio frontend module with Yjs-based collaborative editing
-- [ ] Ship Risk Dashboard spider/radar chart (closes the V1 README promise gap)
+**Self-host everything that isn't a large LLM**
+- [ ] Deploy TEI / Infinity serving a self-hosted embedding model (EmbeddingGemma-300M or Qwen3-Embedding-0.6B on CPU; BGE-M3 batch on ingest)
+- [ ] **Remove the Gemini embedding dependency from the RAG path** (`genai_client.py` / `model_router.py` / `contextualizer/rag.py`) — the single most important deliverable
+- [ ] Deploy a self-hosted reranker (bge-reranker-base, CPU); wire into RRF fusion
+- [ ] Fuse GraphRAG hits into the Contextualizer's hybrid retrieval (the Phase 3 gap)
+- [ ] Add faster-whisper (ASR) and Kokoro/Piper (TTS) providers, CPU-served, for accessibility/audio features
+- [ ] Ship an Ollama-served Qwen3-4B as the docker-compose / local-dev default LLM; document "run the whole product with zero credentials"
 
-**Research track (`NOVELTY.md`) — each item independently gated**
-- [ ] Idea #1 (Deontic GAT conflict detection): literature/patent search and architecture design don't need a GPU; **training the GNN → GPU Upgrade phase**
-- [ ] Idea #2 (Temporal obligation simulation): not GPU-blocked — discrete-event simulation over extracted conditional logic is plain CPU work; prototype auto-constructed simulation from extracted conditional logic → validate against manually-modeled scenarios
-- [ ] Idea #3 (Legal-semantic fingerprinting): hard-negative training-pair construction doesn't need a GPU; **training the contrastive embedding model → GPU Upgrade phase**
-- [ ] Idea #4 (Adaptive negotiation playbook): the counterfactual fingerprint-delta attribution logic is CPU-only; whether the downstream Redline Acceptance Predictor needs a GPU depends on whether it ends up as a fine-tuned transformer or a classical model over structured+lexical features — try the classical approach first (same reasoning as the Document Sensitivity Classifier above) before assuming GPU is required
-- [ ] Idea #5 (Deontic-structure-aware ablation): not GPU-blocked — the perturbation/attribution method runs against whatever risk-scoring model already exists (LightGBM, CPU-only) and doesn't itself require training a new model
-- [ ] For any idea advancing past prototype: commission formal prior-art search via qualified patent counsel before further investment or disclosure
+**Observability & eval**
+- [ ] Wire OpenTelemetry (GenAI semantic conventions) into every service
+- [ ] Deploy Langfuse (agent/LLM tracing) + Arize Phoenix (RAG/eval debugging), self-hosted
+- [ ] Deploy Prometheus + Grafana (or SigNoz) dashboards: latency, cost-per-request by hosting class, queue depth, eval score over time, egress volume
+- [ ] Adopt Inspect AI as the eval-suite backbone; keep the hand-curated gold set as a fast pre-merge check; add promptfoo for prompt regression
+- [ ] Point every eval judge model at a self-hosted model
+- [ ] Build the **self-hosted-vs-external delta report** (per task: what would Class C add?) — gates every future decision to enable Class C
+- [ ] Extend the CI eval gate to fail on routing-policy and provider changes, not just prompt/model changes
 
-## Phase 6 — Scale, Memory Maturity & Enterprise Hardening
+**Exit criteria**: Router is provider-agnostic and passes the import-linter contract; embeddings/rerank/ASR/TTS self-hosted; the only task routed to a commercial API by default is large-LLM generation; the product runs end-to-end locally with no credentials.
 
-- [ ] Implement semantic memory tier (cross-document, per-org) with privacy-tier gating — not GPU-blocked (uses Gemini embeddings + Postgres/KG, same as Phase 3's RAG)
-- [ ] Implement procedural memory tier (Redline Acceptance Predictor productionized) — see NOVELTY.md Idea #4's note: GPU-blocked only if this ends up as a fine-tuned transformer, not if a classical model over structured features is adequate
-- [ ] Validate hybrid VPC deployment profile with a pilot customer
-- [ ] Validate on-prem/air-gapped deployment profile with a pilot customer
-- [ ] Begin SOC 2 Type II readiness program
-- [ ] Implement GDPR data-subject export/delete workflows
-- [ ] Full cost/latency review of Model Router tier allocation using a quarter of production data
-- [ ] Publish `/api/v1` deprecation timeline
-
-## Phase 7 — GPU Upgrade (replace CPU-only stand-ins with their originally-scoped versions)
-
-Runs once GPU hardware is available (target: RTX 4050, 6GB VRAM — confirmed sufficient for everything in this phase except full-precision 8B+ LLM serving, which needs quantization or a smaller model; see `LEARNING_LOG.md`'s Phase 2 entry for the sizing breakdown). Every item here has a working CPU-only equivalent already shipped and in production use (Phase 2) — this phase upgrades quality/capability, it does not unblock anything that's currently missing entirely.
-
-**Computer vision**
-- [ ] Replace OpenCV heuristic quality triage with LayoutLMv3-based layout analysis (reading order, section/table region detection) — `docs/v2/COMPUTER_VISION.md`
-- [ ] Integrate Donut for OCR-free understanding of degraded scans; keep the existing Tesseract/quality-triage path as the fallback for clean digital PDFs, not a replacement
-- [ ] Integrate Table Transformer for real table structure extraction (rows/columns), replacing the current "tables are just text blocks" behavior
-- [ ] Collect/label a signature & stamp training set; train a YOLOv8-family detector (replaces: nothing currently — this capability doesn't exist yet even as a stand-in)
-- [ ] Replace the solid-black-rectangle redaction heuristic (`app/services/cv/redaction.py`) with a trained redaction detector, or validate the heuristic's precision/recall well enough to justify keeping it
-
-**NLP / deep learning**
-- [ ] Fine-tune InLegalBERT/LegalBERT for NER (parties/dates/money/jurisdictions), replacing/augmenting the regex + defined-term approach in `app/services/nlp/entities.py` and `defined_terms.py` — compare against the current approach's accuracy before assuming the fine-tuned model is strictly better for this domain
-- [ ] Integrate GLiNER for zero-shot entity types not covered by the fine-tuned NER model's label set
-- [ ] Integrate fastcoref for real coreference resolution, replacing the heuristic in `app/services/nlp/coref.py`
-- [ ] Run the weak-supervision-then-distill pipeline for the deontic tagger (`app/services/nlp/deontic.py`'s rule-based Tier 0 becomes the bootstrap/comparison baseline, not a throwaway)
-- [ ] Fine-tune the clause/contract type classifier and eval it against real CUAD, replacing the keyword-taxonomy rule base in `app/services/nlp/clause_classifier.py` as the primary classifier (keep the rule base as a fast Tier-0 pre-filter)
-- [ ] Verifier agent's real NLI faithfulness check (`docs/v2/AGENTS.md`) — a cross-encoder entailment model, replacing Phase 4's lexical-overlap stand-in (`app/agents/verifier.py`)
-- [ ] Training component of NOVELTY.md Idea #1 (Deontic Graph Attention Network) — training a GNN is the GPU-heavy part; the literature/prior-art search and architecture design don't need one
-- [ ] Training component of NOVELTY.md Idea #3 (legal-semantic fingerprinting) — contrastive embedding training is the GPU-heavy part; corpus/hard-negative-pair construction doesn't need one
-
-**Correction — these do NOT belong in a GPU-blocked list** (moved back to Phase 5, since it's inaccurate to call them GPU-limited): LightGBM (the Risk Scoring Model) trains fine on CPU — gradient-boosted trees aren't a GPU workload the way transformer fine-tuning is. Same for a Document Sensitivity Classifier if built as a classical text classifier rather than a fine-tuned transformer. Both are blocked on labeled training data, not hardware — see Phase 5.
+## Phase 6 — Self-Hosted LLM Generation: the GPU unlock
 
 **Model serving**
-- [ ] Deploy vLLM; serve a quantized Llama 3.1 8B (or a smaller open-weight model, e.g. Llama 3.2 3B/Phi-3-mini, at full precision) within the 6GB VRAM budget
-- [ ] Route rewrite/Q&A tasks to the self-hosted model via the Model Router; A/B against the current Gemini-only baseline before making it the default
-- [ ] Re-evaluate whether GLiNER/fastcoref/the fine-tuned classifiers above are worth the added serving complexity vs. staying on their CPU equivalents, using real eval numbers, not assumption
+- [ ] Deploy vLLM on the GPU pool; evaluate SGLang for the agent prefix-cache workload
+- [ ] Serve Qwen3-32B (AWQ/GPTQ 4-bit) as the default generation model; Qwen3-4B for the constrained profile
+- [ ] Serve a reasoning model (DeepSeek-R1-Distill-32B / QwQ-32B) for flagged-hard tasks (multi-hop Q&A, portfolio risk)
+- [ ] Serve Qwen2.5-VL-7B/32B for scanned-document understanding
+- [ ] Move self-hosted embeddings/reranker to GPU-served (TEI on GPU) for latency
+- [ ] Add multi-LoRA serving (vLLM / LoRAX) for per-task and per-org adapters
 
-**Eval harness**
-- [ ] Integrate real Ragas + CUAD/ContractNLI, replacing/extending the hand-curated 15-example gold set (`app/eval/gold_set.py`) — keep the hand-curated set too, as a fast pre-merge smoke check before the fuller suite runs
+**Progressive task cutover — each A/B-gated against the Gemini baseline before becoming default**
+- [ ] Plain-English rewrite → Qwen3-8B/32B
+- [ ] Structure/timeline extraction → Qwen3-32B with grammar-constrained JSON (xgrammar)
+- [ ] Q&A / chat → Qwen3-32B + RAG; reasoning model for multi-hop
+- [ ] Risk analysis AI pass → Qwen3-32B
+- [ ] Contextualizer advisory → Qwen3-32B + RAG
+- [ ] Deontic / clause-classifier LLM escalation → self-hosted
+- [ ] Remove Gemini from the default routing policy once all of the above pass; keep it only as opt-in Class C for `Public`/`Internal`
+
+**GPU-dependent CV / NLP models**
+- [ ] Replace OpenCV quality triage + "tables are text blocks" with Docling + Qwen2.5-VL + Table Transformer / PP-Structure; keep Tesseract + quality-triage as the clean-PDF fast path
+- [ ] Add olmOCR / Qwen2.5-VL as the confidence-gated OCR escalation (replaces the planned commercial Document AI fallback as the default; commercial OCR stays an optional Class C plugin only)
+- [ ] Fine-tune InLegalBERT/ModernBERT NER (via Unsloth); compare against the regex+defined-term baseline before making it primary
+- [ ] Integrate GLiNER (zero-shot entity types) and maverick-coref (real coreference, replacing `app/services/nlp/coref.py`)
+- [ ] Run the weak-supervision-then-distill pipeline for the deontic tagger — **teacher is a self-hosted Qwen3-235B/32B via distilabel, not a frontier API**; student is a fast CPU tagger
+- [ ] Fine-tune the clause/contract-type classifier; eval against real CUAD; keep the rule base as a Tier-0 pre-filter
+
+**Verifier**
+- [ ] Ship the real NLI faithfulness head (local DeBERTa/ModernBERT entailment model, Class A), replacing Phase 4's lexical-overlap stand-in (`app/agents/verifier.py`)
+
+**Eval**
+- [ ] Integrate LegalBench / CUAD / ContractNLI / MAUD into the Inspect AI suite; track the self-hosted default continuously
+- [ ] Enforce: a self-hosted model becomes default for a task only after meeting or beating the Gemini baseline on that task's eval
+- [ ] Explicit re-evaluation step per upgraded component (fine-tuned model vs. the rule-based baseline it replaces) — prove the upgrade, don't assume it
+
+**Exit criteria**: every core task served by a self-hosted model at or above the previous Gemini baseline; Gemini removed from the default routing policy; the product runs end-to-end with no external API call.
+
+## Phase 7 — Deployment Profiles: On-Prem & Air-Gapped
+
+**Build & supply chain**
+- [ ] Produce on-prem/air-gapped builds with `legalai-providers-external` excluded; enforce with an SBOM allowlist that fails the build on any commercial-provider SDK (or outbound-calling transitive dependency)
+- [ ] Zarf packaging of the full application (images + charts + manifests + model weights + seed corpus) into one installable artifact
+- [ ] Model weights as signed KitOps ModelKit OCI artifacts via Harbor; no `pip` / `huggingface-cli` on the target
+- [ ] OpenTofu for all IaC (migrate off any Terraform); Helm + Kustomize overlays per profile; k3s single-node target
+- [ ] cosign signing + Syft SBOM + Trivy/Grype scanning for every image and model artifact
+- [ ] Egress proxy / network policy for the hybrid profile: deny all outbound except configured provider endpoints; log every byte (`audit_log.egress_target`, payload hash, task, policy version, opt-in reference)
+
+**Collapsed data layer**
+- [ ] Support pgvector + pgvectorscale as a Qdrant substitute (Helm-value-selected)
+- [ ] Support Apache AGE or KùzuDB as a Memgraph substitute
+- [ ] Support LanceDB embedded + filesystem object storage + Postgres-backed event queue for the laptop profile
+- [ ] Verify the same application code runs against either data-layer profile
+
+**Durable execution & Memory Service**
+- [ ] Introduce a durable-execution engine — DBOS (library, Postgres-backed) default; Hatchet mid-scale; Temporal only for large multi-tenant cloud. Keep `app/agents/graph.py` engine-agnostic
+- [ ] Memory Service: session tier (Redis), episodic tier (Postgres + vector store), consolidation worker with the privacy-tier gate
+- [ ] Dynamic Orchestrator/Planner agent, replacing the fixed Phase 4 sequence
+- [ ] Formalize typed tool interfaces (JSON-schema-validated) now that a planner chooses tools
+
+**Frontend SPA**
+- [ ] Scaffold Next.js + TypeScript; generate the API client from the OpenAPI schema
+- [ ] Workspace + Document Analyzer (V1 parity); Agent Trace Viewer (real-time via session WebSocket); human-in-the-loop review queue UI
+- [ ] Provider & Model admin: which models serve which tasks, the eval scores behind the policy, the delta report, per-task/tier Class C toggles
+- [ ] Model status panel: self-hosted model health / queue depth / latency
+- [ ] Fully self-hosted frontend assets (fonts, Plausible analytics); strict CSP; sandboxed PDF.js preview
+- [ ] Sensitivity-aware rendering: `Privileged` documents show a persistent indicator and disable any control that would trigger a Class C call
+- [ ] Introduce `/api/v2/*` session/document-first endpoints; feature-flag per org
+- [ ] Notification/Webhook Service for async job completion
+
+**Exit criteria**: an air-gapped install (Zarf → disconnected k3s → working product, verified offline) validated with a pilot; a collapsed-data-layer on-prem install validated; the SPA at V1 parity plus the Agent Trace Viewer.
+
+## Phase 8 — Portfolio Intelligence & Research Features
+
+**In-house models (`DEEP_LEARNING.md`)**
+- [ ] Curate training data (org corpora with consent + CUAD/ContractNLI)
+- [ ] Weak-supervision labelling pass via distilabel with a **self-hosted teacher** (batch/offline)
+- [ ] Legal-expert review of weak labels in Argilla
+- [ ] Train the Risk Scoring Model (LightGBM, CPU — blocked on labelled data, not hardware); integrate SHAP
+- [ ] Finalize the fine-tuned clause/contract-type classifier and NER head; eval-gate promotion
+- [ ] Document Sensitivity Classifier — classical (TF-IDF + linear) first; fine-tune a transformer only if that underperforms
+- [ ] Legal Clause Embedding Model — contrastive fine-tune (`NOVELTY.md` #3) with hard-negative mining (GPU training step uses Phase 6 infra)
+- [ ] Redline Acceptance Predictor — per-org, DPO/classifier over redline history (opt-in, org-scoped, never pooled)
+- [ ] MLflow registry + DVC data versioning; eval-gated model promotion in CI/CD
+- [ ] Model cards for every trained model (intended use, data provenance, jurisdictions/contract types covered, eval scores, limitations)
+
+**Portfolio agents (`AGENTS.md`, `KNOWLEDGE_GRAPH.md`)**
+- [ ] Bitemporal graph versioning (valid time / transaction time) — the Phase 3 gap
+- [ ] Cross-Document Consistency agent (embedding-similarity baseline → learned `NOVELTY.md` #1)
+- [ ] Simulation agent (deterministic discrete-event baseline → Monte-Carlo `NOVELTY.md` #2)
+- [ ] Negotiation/Drafting agent — static org-configured preferences first; learned playbook (`NOVELTY.md` #4) once redline history exists
+- [ ] Negotiation Studio frontend (Yjs collaborative editing)
+- [ ] Risk Dashboard spider/radar chart (closes the V1 README promise)
+- [ ] Knowledge Graph Explorer frontend (Cytoscape.js)
+
+**Research track (`NOVELTY.md`) — each item independently gated**
+- [ ] Idea #1 (Deontic GAT conflict detection): literature/patent search + architecture design (CPU); GNN training uses Phase 6 GPU
+- [ ] Idea #2 (Temporal obligation simulation): CPU-only — prototype auto-constructed simulation, validate against manually-modelled scenarios
+- [ ] Idea #3 (Legal-semantic fingerprinting): hard-negative pair construction (CPU); contrastive training uses Phase 6 GPU
+- [ ] Idea #4 (Adaptive negotiation playbook): counterfactual fingerprint-delta attribution (CPU); Redline Acceptance Predictor — classical model first
+- [ ] Idea #5 (Deontic-structure-aware ablation): CPU-only — runs against the existing LightGBM risk model
+- [ ] For any idea advancing past prototype: commission a formal prior-art search via qualified patent counsel before further investment or disclosure
+- [ ] For any idea that validates: target a benchmark contribution and/or a workshop paper (NLLP @ *ACL, JURIX, ICAIL) — see `NOVELTY.md`'s publication strategy
+
+**Exit criteria**: portfolio-level contradiction detection and obligation simulation live (established-technique first, novel-mechanism after its gate); ≥1 in-house model in production at/above its baseline; ≥1 `NOVELTY.md` idea with a validated benchmarked prototype.
+
+## Phase 9 — Scale, Memory Maturity & Enterprise Hardening
+
+- [ ] Semantic memory tier (cross-document, per-org) with privacy-tier gating
+- [ ] Procedural memory tier (Redline Acceptance Predictor productionized, per-org isolation)
+- [ ] Multi-tenant cloud scale: Qdrant sharding, per-org graph partitioning, GPU autoscale on queue depth, Postgres read replicas
+- [ ] Adopt Temporal for the cloud profile if DBOS/Hatchet hit a ceiling
+- [ ] Validate hybrid VPC deployment with a pilot customer
+- [ ] Validate on-prem and air-gapped deployments with pilot customers (one each)
+- [ ] SOC 2 Type II readiness program
+- [ ] GDPR data-subject export/delete workflows
+- [ ] Full cost/latency review of the routing policy using a quarter of production data; right-size the model fleet; tune quantization / speculative decoding / batching
+- [ ] Publish the `/api/v1` deprecation timeline once `/api/v2` has full parity
 
 ## Continuous / cross-cutting (all phases)
 
-- [ ] Every prompt/model/config change passes the eval gate before merge (from Phase 2 onward)
-- [ ] Every sensitive-tier code path change gets a security review before merge
+- [ ] Every prompt/model/provider/routing-policy change passes the eval gate before merge (from Phase 2; policy/provider from Phase 5)
+- [ ] The import-linter contract stays green: no vendor SDK outside the provider package (from Phase 5)
+- [ ] Every sensitive-tier code-path change gets a security review, with extra scrutiny on Class C egress
 - [ ] Model cards maintained for every trained model (`DEEP_LEARNING.md`)
 - [ ] Quarterly drift-monitoring review of production eval scores against the gold benchmark
+- [ ] Keep flagging, per item, *why* something is deferred: "GPU", "no training data yet", "not needed yet", "separate scope" are four different reasons with four different follow-ups
