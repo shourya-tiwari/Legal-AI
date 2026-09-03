@@ -9,27 +9,27 @@ Every phase moves inference *toward* the organization's own hardware and *away* 
 ```
 V1:        100% Gemini, no fallback
 Phase 1-4: Gemini for generation; local rules/classical-ML for structure
-Phase 5:   Provider-agnostic Router; embeddings/rerank self-hosted ON A REAL TEI/GPU  ← WE ARE HERE
-           deployment; Ollama (Qwen3-8B) serving generation; Gemini optional plugin
-Phase 6:   Self-hosted LLM generation is the default (GPU big enough for the 32B class);
-           Gemini removed from the default path
+Phase 5:   Provider-agnostic Router; embeddings/rerank self-hosted (TEI); Ollama
+           (Qwen3-8B) serving config'd; Gemini an optional plugin
+Phase 6:   Self-hosted generation = Qwen3-8B/14B (one 16 GB card is the ceiling);   ← WE ARE HERE
+           cut over per task where it beats the Gemini baseline, Gemini kept for the rest
 Phase 7:   On-prem + air-gapped builds; commercial-provider package excludable entirely
-Phase 8+:  Portfolio intelligence, in-house trained models, research track — all on self-hosted infra
+Phase 8+:  Portfolio intelligence, in-house trained heads (CPU-served), research track
 ```
 
-The old roadmap put "GPU Upgrade" *last*, as a quality top-up on a Gemini-based product. **That is inverted here.** Self-hosting is the spine. GPU acquisition (Phase 6) is the pivotal unlock — the point at which the strongest model for every task becomes one we run — not an optional epilogue.
+The old roadmap put "GPU Upgrade" *last*, as a quality top-up on a Gemini product. **That is inverted here** — self-hosting is the spine. But the "GPU unlock" is now **bounded**: the project has one RTX A4000 (16 GB), often borrowed, and no plan to buy or rent a bigger card. So Phase 6 targets **Qwen3-8B/14B**, and the domain quality comes from RAG + KG + fine-tuned heads, not model scale (which the design always argued anyway — `MODEL_STACK.md`).
 
 ## GPU requirement by phase
 
-**One GPU acquisition (Phase 6) unlocks everything downstream — it is not an escalating requirement, and it can be rented rather than owned.**
+**Hardware reality: one RTX A4000 (16 GB), often borrowed; the owner's own machine is CPU-only (Core i5 + 4 GB integrated). No 24 GB+ card, owned or rented, is planned.** Nothing in the plan *requires* a GPU to run (Class-A fallbacks keep every path working); a GPU improves generation and trains the small heads.
 
 | Phase | GPU on *our* side? | Notes |
 |---|---|---|
-| **0–5** | **No** (a GPU helps but isn't required) | CPU rules / classical ML / hashing embeddings; generation via an external plugin or a small served model. **Update:** the dev box now has an RTX A4000 (16 GB), so Phase 5's serving layer is real — Ollama Qwen3-8B + TEI bge-m3 / bge-reranker-v2-m3 on the GPU. The *architecture* stays GPU-free (Class-A fallbacks keep every path working with nothing served). |
-| **6 — Self-hosted LLM generation** | **Yes — a bigger GPU than the current 16 GB** | The A4000 (16 GB) already serves the constrained profile (Qwen3-8B, 4-bit 14B) **and** every fine-tune in the plan (Legal-BERT, small-LLM LoRA via Unsloth). Serving the **32B-class default** via vLLM needs ~24 GB (one 3090/4090/A5000/A6000, or a rented GPU box). Until that, the Qwen3-8B serve + the Phase 5 interim stand. A **cloud/rented GPU** fully satisfies this phase. |
-| **7 — On-prem / air-gapped deployment** | **No** | Packaging (Zarf/OpenTofu/Harbor/SBOM), collapsed data layer, durable execution, Memory Service, frontend SPA — all CPU/infra. A *customer* running air-gapped supplies their own GPU for self-hosted generation, or accepts the constrained-profile CPU small-model quality; that is their hardware, not the platform team's. |
-| **8 — Portfolio intelligence & research** | **Partially — reuses the Phase 6 GPU** | CPU: Risk Scoring (LightGBM), Document Sensitivity (classical), the Simulation agent, portfolio-agent baselines, bitemporal graph, `NOVELTY.md` #2 and #5. Same GPU as Phase 6: the fine-tuned clause classifier, the Legal Clause Embedding contrastive fine-tune, and the training steps for `NOVELTY.md` #1 and #3. |
-| **9 — Scale & enterprise hardening** | **No new need** | SOC 2, GDPR workflows, cost/latency tuning, multi-tenant scale. "GPU autoscaling" here means *operating* the Phase 6 pool, not acquiring more. |
+| **0–5** | **No** | CPU rules / classical ML / hashing embeddings; generation via Gemini or a small served model. The `gpu` compose profile (Ollama Qwen3-8B + TEI) is configured; run it on the A4000 when available. |
+| **6 — Self-hosted generation (16 GB ceiling)** | **The A4000 helps; not required** | Target = **Qwen3-8B** (+ 14B-AWQ escalation) via Ollama/vLLM, fits 16 GB alongside bge-m3 + bge-reranker + the NLI head. The A4000 also trains every small head in the plan (Legal-BERT / ModernBERT LoRA — minutes) which then serve on **CPU**. **Deferred to future scope**: Qwen3-32B / 235B, reasoning models, 7B VLM — all need 24 GB+. Cut over per-task: self-hosted where the gate says it beats Gemini, Gemini (tier-permitting) / human review otherwise. |
+| **7 — On-prem / air-gapped deployment** | **No** | Packaging, collapsed data layer, durable execution, Memory Service, frontend SPA — all CPU/infra. A *customer* supplies their own GPU or accepts the 8-14 B / CPU small-model quality. |
+| **8 — Portfolio intelligence & research** | **A4000 for one-off training; CPU for everything else** | CPU: Risk Scoring (LightGBM), Document Sensitivity (classical), Cross-Document Consistency + Simulation agents (similarity / discrete-event baselines), bitemporal graph, `NOVELTY.md` #2 / #5. A4000 (or a one-off cloud rental): the fine-tuned clause classifier, the Legal Clause Embedding contrastive fine-tune, `NOVELTY.md` #1 / #3 training — then served on CPU. |
+| **9 — Scale & enterprise hardening** | **No** | SOC 2, GDPR workflows, cost/latency tuning, multi-tenant scale. |
 
 ## Phase mapping from the previous roadmap
 
@@ -133,30 +133,29 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 
 **Exit criteria**: the Model Router is provider-agnostic and passes the import-linter contract ✅; embeddings and reranking are self-hosted on a real TEI/GPU deployment ✅; ASR/TTS N/A; the *only* task routed to a commercial API by default is large-LLM text generation ✅; a contributor can run the entire product locally with zero credentials ✅. Remaining: an observability collector wired to the OTel scaffold; promptfoo.
 
-**Can the product run after Phase 5 with no GPU and no external API?** Yes — end to end. Every task has a working model: structure/RAG/KG/agents are CPU-fine already (Phases 2–4), and embeddings/rerank/ASR/TTS become CPU-served here. LLM generation falls to a CPU-served small model (Qwen3-4B via Ollama/llama.cpp). The honest caveat is *quality and latency*, not capability: CPU-served 4B generation is noticeably weaker and slower than a GPU-served 32B or Gemini. So there are two ways to run between Phase 5 and Phase 6 — (a) keep Gemini as an opt-in Class C plugin for generation quality (cloud/hybrid profiles), or (b) accept the CPU small-model quality for a genuinely disconnected pilot. Nothing is *blocked*; Phase 6 is a quality/latency upgrade on the generative path, and the point at which the disconnected profile reaches production-grade generation.
+**Can the product run with no GPU and no external API?** Yes — end to end, at a quality caveat. Structure/RAG/KG/agents/sensitivity are CPU-fine (Phases 2–7); embeddings/rerank run CPU-served (bge-small) or on the A4000 (bge-m3 via TEI); the NLI verifier runs on CPU (slow) or the A4000. LLM generation is the weak point without a GPU: a CPU-served 3B model is usable for dev only. So the running modes are (a) **cloud/hybrid** — Gemini for generation quality on `public`/`internal` docs; (b) **A4000 available** — Qwen3-8B/14B served locally; (c) **disconnected, no GPU** — a CPU 3B model, dev-grade. Nothing is *blocked*; generation quality tracks the hardware.
 
-## Phase 6 — Self-Hosted LLM Generation: the GPU unlock (~8-12 sprints)
+## Phase 6 — Self-Hosted Generation on one 16 GB card (~6-10 sprints)
 
-**The pivotal phase.** GPU hardware becomes available and self-hosted generation becomes the default for every task. **Partly underway:** the dev box has an RTX A4000 (16 GB), which already runs the Phase 5 serving layer (Ollama Qwen3-8B + TEI bge-m3 / bge-reranker-v2-m3) — that covers the *constrained profile* and every fine-tune in the plan. The remaining Phase 6 hardware ask is a larger / rented GPU (1–2× 24–48 GB) to serve the **32 B default**. A quantized Qwen3-32B (AWQ/GPTQ 4-bit) fits ~24 GB.
+**Bounded, not "the unlock".** The project's GPU is one RTX A4000 (16 GB), often borrowed, with **no plan to buy or rent a bigger card**. So the self-hosted generation target is **Qwen3-8B** (default) + **Qwen3-14B-AWQ** (the `hard=` escalation) — fits 16 GB alongside bge-m3 + bge-reranker + the NLI head. Qwen3-32B, reasoning models, and the 7B VLM are **moved to future scope** (they need 24 GB+). The domain quality comes from RAG + KG + fine-tuned heads + the verifier — the design always said so.
 
-**Model serving**
-- [ ] Deploy **vLLM** (and evaluate **SGLang** for the agent prefix-cache workload) on the GPU pool.
-- [~] Serve **Qwen3-32B** (quantized) as the default generation model — **Qwen3-8B is served now** via Ollama (constrained profile); the 32 B default and a reasoning model (**DeepSeek-R1-Distill-32B** / **QwQ-32B**) for flagged-hard tasks need the bigger GPU.
-- [ ] Serve **Qwen2.5-VL-7B/32B** for scanned-document understanding.
-- [x] Move the self-hosted embedding/reranker to GPU-served (**TEI on GPU**) for latency — landed in the Phase 5 bootstrap.
+**Model serving (fits the 16 GB card)**
+- [~] Serve **Qwen3-8B** via Ollama (configured, not yet run — Docker/Ollama is an ops step). Evaluate **vLLM** with Qwen3-8B/14B-AWQ for throughput + grammar-constrained JSON.
+- [x] Self-hosted embeddings/reranker via **TEI** (bge-m3, bge-reranker-v2-m3) — configured in the Phase 5 bootstrap.
+- **Future scope** (need 24 GB+, revisit only if a bigger/rented GPU appears): Qwen3-32B / 235B as the default; a reasoning model for multi-hop; Qwen2.5-VL for scanned docs; multi-LoRA serving.
 
 **Progressive task cutover — each A/B-gated against the Gemini baseline before it becomes default**
 - [x] The **gate mechanism** — `app/eval/cutover_gate.py`: runs a task's graded eval bound to the Gemini baseline vs the self-hosted candidate, `passed = cand ≥ base × ratio`, writes `eval_runs`. A task cuts over only on ✅ PASS. `qa` is wired to a graded `legalbench_qa` eval; the other tasks need a curated gold set (follow-up).
 - [x] The **escalation ladder** — `hard=True` on a generate call prepends `local-llm-large` (`LLM_LARGE_MODEL`, e.g. Qwen3-14B) via the policy's `escalate_to`; `services/rewriter.py` sets it for long input, `services/chatbot.py` for multi-hop-looking questions.
-- [ ] Actually cut each task over (rewrite / extraction / Q&A / risk / contextualize) once its gate passes — **blocked** on a served `local-llm` (Ollama up) + a bigger GPU for the 32 B quality.
+- [ ] Actually cut each task over once its gate passes — blocked on a served `local-llm` (Ollama/vLLM up). **Expected**: Qwen3-8B/14B passes on rewrite, structure/timeline extraction (grammar-constrained), simple grounded Q&A; loses to Gemini on multi-hop reasoning and nuanced risk. Resulting policy: self-hosted default where it passes, Gemini (tier-permitting) / human review otherwise — with the per-task delta documented, not glossed over.
 - [ ] Structure/timeline extraction → grammar-constrained JSON (xgrammar) once on vLLM.
 
-**GPU-dependent CV/NLP models** (from Phase 2's deferral list)
-- [ ] Replace OpenCV quality triage + "tables are text blocks" with **Docling** + **Qwen2.5-VL** + **Table Transformer** (or PaddleOCR PP-Structure) for real layout/table extraction; keep Tesseract/quality-triage as the clean-PDF fast path.
-- [ ] Add **olmOCR / Qwen2.5-VL** as the confidence-gated OCR escalation (replaces the previously-planned commercial Document AI fallback as the *default*).
-- [x] Integrate **GLiNER** for zero-shot entity types — `providers/gliner_local.py` (`local-ner` / `ner_extract`), merged with the regex floor in `nlp/entities.py`. **maverick-coref** for real coreference: still a follow-up.
-- [~] Fine-tune the clause/contract-type classifier + the **weak-supervision-then-distill** deontic tagger — **scaffolded** in `backend/training/` (data-prep from LegalBench + gold set + rule/LLM weak supervision, LoRA training scripts, configs, model-card template). **Not trained**; the rule base stays the Tier-0 pre-filter until a head beats it on the eval gate.
-- [ ] Fine-tune **InLegalBERT/ModernBERT** NER (a full head, beyond GLiNER's zero-shot) — deferred with the classifier training runs.
+**CV/NLP models — trainable on the A4000, then CPU-served**
+- [x] Integrate **GLiNER** for zero-shot entity types — `providers/gliner_local.py` (`local-ner` / `ner_extract`), merged with the regex floor.
+- [ ] **Run the fine-tunes** (`backend/training/`): the clause/contract-type classifier and the **weak-supervision-then-distill** deontic tagger — QLoRA on ModernBERT/Legal-BERT, **minutes each on the A4000**, then the small head serves on CPU. Highest-value GPU task; do it while the card is available. Blocked only on data curation.
+- [ ] Fine-tune an **InLegalBERT/ModernBERT NER** head (same story).
+- [ ] **maverick-coref** — blocked by a *software* issue (transformers 5 refuses `torch.load` on torch < 2.6, CVE-2025-32434), not GPU.
+- [ ] Layout/table extraction (**Docling** / **PaddleOCR PP-Structure**) — mostly CPU; the clean-PDF fast path (Tesseract + quality triage) stays. **olmOCR / Qwen2.5-VL** OCR escalation → future scope (VLM needs more VRAM).
 
 **Verifier**
 - [x] Ship the real **NLI faithfulness head** — `providers/nli_local.py` (`local-nli` / `verify_nli`, Class A, in-process DeBERTa-v3-MNLI, 0.91 acc on MNLI, 8/8 on `FAITHFULNESS_GOLD` vs lexical's 6/8). `app/agents/verifier.py` checks each summary claim by entailment; `faithfulness_method` surfaces `nli` vs `lexical_fallback`.
@@ -165,9 +164,9 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 - [x] Integrate **LegalBench** (cuad_* / contract_nli_* subtasks) + **MNLI** into a graded harness — `app/eval/{datasets,metrics,tasks,cutover_gate}.py` + Inspect-AI wrappers + the `eval_runs` table. (The script-based CUAD/ContractNLI/MAUD datasets are dead on `datasets`≥3; LegalBench is the maintained path.)
 - [x] For every cutover: the self-hosted model must meet or beat the Gemini baseline on the task's eval — enforced by `cutover_gate.py` (reports "cannot evaluate", never a false PASS, when a provider is missing).
 
-**Exit criteria**: every core task (rewrite, extraction, Q&A, risk, contextualize, verify) is served by a **self-hosted model at or above the previous Gemini baseline**. Gemini is removed from the *default* routing policy entirely — it remains only as an optional Class C escalation an org can enable for `Public`/`Internal` documents, and the delta report shows what that escalation is worth. The product now runs end-to-end with no external API call.
+**Exit criteria (revised for the 16 GB ceiling)**: Qwen3-8B/14B is served and cut over for every task where the gate shows parity-or-better vs Gemini; for the rest, the policy documents the delta and routes to Gemini (tier-permitting) or human review. The **air-gapped profile** runs end-to-end with no external call at the 8-14 B quality level. The fine-tuned clause/deontic heads are trained and eval-gate-promoted.
 
-**Progress:** the **verify** task is done (real Class-A NLI head). NER gained a zero-shot GLiNER layer. The **cutover gate + escalation ladder + graded eval harness** — the machinery that lets the rewrite/extraction/Q&A/risk/contextualize cutovers happen safely — is built and tested. What's left is genuinely GPU-gated: a served `local-llm` (Ollama running) to run the gate against, and a 24 GB+ GPU for the 32 B quality the cutovers need. The clause/deontic fine-tunes are scaffolded, not run.
+**Progress:** verify is done (real Class-A NLI head); NER gained a GLiNER layer; the **cutover gate + escalation ladder + graded eval harness** are built and tested. What's left: install Ollama/vLLM on the A4000 and run the cutovers (a served `local-llm`, not more hardware); train the clause/deontic heads (minutes on the A4000, blocked on data curation). The 32B/reasoning/VLM ambitions are retired to future scope.
 
 ## Phase 7 — Deployment Profiles: On-Prem & Air-Gapped (~10-14 sprints) — 🟡 started (the CPU-only agent/API bits)
 
@@ -209,7 +208,7 @@ The rest of the phase — packaging, collapsed data layer, durable execution, Me
 
 ## Phase 8 — Portfolio Intelligence & Research Features (~10-14 sprints, research-gated)
 
-Now that self-hosted training and serving infra exists (Phase 6), the in-house models and research track become tractable.
+The in-house models are the main lever on quality now that the served LLM is capped at 8-14 B. Training runs are minutes-to-hours on the A4000 (or a one-off cloud rental); the resulting BERT-scale heads and the LightGBM risk model serve on **CPU**. The `distilabel` weak-supervision *teacher* is a served self-hosted model (Qwen3-8B here, not the 235B the doc assumes) or, for a batch offline pass, a one-off rented larger model.
 
 **In-house models** (`DEEP_LEARNING.md`)
 - [ ] Curate training data (org corpora with consent + CUAD/ContractNLI); **distilabel** weak-supervision pass with a **self-hosted teacher**; legal-expert review in **Argilla**.

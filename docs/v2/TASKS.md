@@ -8,11 +8,13 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 **Running now, no external anything**: FastAPI backend with 11 route modules; org-scoped auth (default-off) + rate limiting + audit log; Postgres/SQLite persistence with an interim column-migration shim; provider-agnostic **Model Router** (`generate`/`embed`/`rerank`/`entail`/`ner` capabilities, declarative policy, Class-A offline fallbacks for every task, import-linter contract); the full **NLP pipeline** (rule-based) + **CV triage**; **Knowledge Graph** + **hybrid RAG** (dense+sparse+graph, RRF, rerank); a **planner-driven agent pipeline** (extraction → planner → dispatch → verifier) with a **real Class-A NLI faithfulness head**; **GLiNER** zero-shot NER; **document sensitivity tiering** enforced end-to-end (confidential/privileged never leave the perimeter); a **graded eval harness** (LegalBench/MNLI) + **cutover gate** + `model_calls`/`eval_runs` telemetry; the **`/api/v2` document-first API** (first slice); a **fine-tuning scaffold** (not run). Test suite: **179 pass + 2 skip**.
 
-**Configured but not stood up** (ops, not code): Docker Compose + Ollama + TEI on the dev box — the `gpu` compose profile and `scripts/bootstrap_selfhosted.sh` exist; run them to serve Qwen3-8B + bge-m3 + bge-reranker.
+**Hardware ceiling (project decision)**: the only GPU is **one RTX A4000 (16 GB)**, often borrowed; the owner's own machine is CPU-only (Core i5 + 4 GB integrated). **No 24 GB+ card, owned or rented, is planned.** So the self-hosted generation target is **Qwen3-8B** (+ 14B-AWQ escalation), not 32B. Qwen3-32B / reasoning models / 7B VLM are moved to future scope (Phase 6 "Deferred — beyond the hardware ceiling").
 
-**Blocked**: the LLM task cutovers (need a served `local-llm` + a 24 GB+ GPU for 32B-class quality); vLLM / VLM / Docling (GPU); the clause/deontic fine-tune *runs* (GPU + labelled data); real coreference (`fastcoref` hits a transformers-5/torch-<2.6 CVE guard).
+**Configured but not stood up** (ops, not code): Docker Compose + Ollama + TEI — the `gpu` compose profile and `scripts/bootstrap_selfhosted.sh` exist; run them to serve Qwen3-8B + bge-m3 + bge-reranker.
 
-**Not started**: on-prem packaging (Zarf/SBOM/Harbor), the collapsed data layer, durable execution, the Memory Service, the frontend SPA, Phase 8 portfolio features.
+**Blocked**: the LLM task cutovers (need a served `local-llm` — expect 8B/14B to pass on easy tasks, lose to Gemini on hard reasoning); real coreference (`fastcoref` hits a transformers-5/torch-<2.6 CVE guard); the clause/deontic fine-tune *runs* (need data curation — the GPU cost is minutes on the A4000).
+
+**Not started**: on-prem packaging (Zarf/SBOM/Harbor), the collapsed data layer, durable execution, the Memory Service, the frontend SPA, Phase 8 portfolio features. All CPU/code — none need a GPU.
 
 **Roadmap renumbering**: previous "Phase 7 — GPU Upgrade" → **Phase 6**; previous "Phase 5 — Portfolio Intelligence" → **Phase 8**; previous "Phase 6 — Scale/Hardening" → **Phase 9**. New **Phase 5** (Provider Abstraction) + **Phase 7** (Deployment Profiles) inserted. See `ROADMAP.md`.
 
@@ -143,7 +145,7 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [x] Self-hosted reranker + wired into RRF fusion — `rag/hybrid.py`'s rerank step (behind `RERANKER_ENABLED`) now routes to `local-rerank-remote` (TEI serving **BAAI/bge-reranker-v2-m3** on the GPU, `:8081`, native `/rerank`) → in-process cross-encoder → `LexicalReranker` (Class A). New `OpenAICompatProvider` `role="rerank"`
 - [x] Fuse GraphRAG hits into hybrid retrieval — `rag/graph_retrieval.py` + `hybrid_search(..., graph_hits=...)`; wired into the Clause Research agent (`agents/research.py`), fail-soft when Memgraph is down. Contextualizer route wiring: follow-up (needs org context threaded to `explainer`)
 - [ ] faster-whisper (ASR) / Kokoro-Piper (TTS) providers → **deferred**: no ASR/TTS feature exists in the product yet; premature to add the providers
-- [x] Ollama-served small LLM as the local default — `ollama` service in `docker-compose.yml` (`gpu` profile) + `scripts/bootstrap_selfhosted.sh` pulls **qwen3:8b**. `.env.example` wires `LLM_BASE_URL`/`LLM_MODEL`. (Qwen3-8B is the *constrained-profile* serve — the 32 B default in `MODEL_STACK.md` needs a bigger / rented GPU; that's Phase 6.)
+- [x] Ollama-served small LLM as the local default — `ollama` service in `docker-compose.yml` (`gpu` profile) + `scripts/bootstrap_selfhosted.sh` pulls **qwen3:8b**. `.env.example` wires `LLM_BASE_URL`/`LLM_MODEL`. Qwen3-8B (with 14 B-AWQ as the `hard=` escalation) is **the self-hosted generation target for this project** — see the Phase 6 hardware-ceiling note.
 
 **Observability & eval** — 🟡 initial setup shipped, backends still to stand up:
 - [~] OpenTelemetry scaffold — `app/observability.py` (`OTEL_ENABLED` + `OTEL_EXPORTER_OTLP_ENDPOINT`, fail-soft) + `model_calls` routing-decision persistence (`app/db_models.py`, `model_router/telemetry.py`). Langfuse / Phoenix / Grafana LGTM / SigNoz as the actual collector: follow-up (a `docker-compose.observability.yml`)
@@ -153,31 +155,39 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 **Exit criteria**: Router is provider-agnostic and passes the import-linter contract ✅; embeddings/rerank self-hosted by default — **now on a real TEI/GPU deployment**, not just the interface ✅; ASR/TTS N/A; the only task routed to a commercial API by default is large-LLM generation ✅; the product runs end-to-end with no credentials and no `google-genai` ✅. Remaining: an actual observability collector wired to the OTel scaffold; promptfoo.
 
-## Phase 6 — Self-Hosted LLM Generation: the GPU unlock — 🟡 In progress
+## Phase 6 — Self-Hosted Generation on one 16 GB card (Qwen3-8B target) — 🟡 In progress
 
-**Scope note**: the non-LLM Phase 6 work landed (`LEARNING_LOG.md` #21) — the real **NLI faithfulness head** (Verifier), **GLiNER** zero-shot NER, the **graded eval harness + cutover gate + `eval_runs`**, the **small→large escalation ladder**, and the **fine-tuning scaffold** (`backend/training/`, not run). The LLM *serving* cutover (Qwen3-32B, vLLM) and the fine-tune runs stay `⛔` blocked on a bigger GPU + a served `local-llm` + labelled data.
+**Hardware ceiling (project decision)**: the only GPU available is **one RTX A4000 (16 GB)** — often borrowed, sometimes not present at all (the owner's machine is a Core-i5 + 4 GB integrated GPU, i.e. CPU-only). **No 24 GB+ card, owned or rented, is planned.** So Phase 6's self-hosted generation target is **Qwen3-8B** (default) + **Qwen3-14B-AWQ** (the `hard=` escalation), *not* the 32 B / reasoning models the original roadmap assumed. Everything needing more than 16 GB is moved to "Deferred — beyond the hardware ceiling" below and to future scope.
 
-**Model serving**  (dev box: 1× RTX A4000, 16 GB — fits 7–14 B; the 32 B default needs a larger / rented GPU)
-- [~] Self-hosted generation server — **Ollama serving Qwen3-8B** is up (`docker-compose.yml` `gpu` profile, Phase 5 bootstrap). vLLM / SGLang and a 4-bit Qwen3-32B: still to do (needs the bigger GPU)
-- [ ] Serve Qwen3-32B (AWQ/GPTQ 4-bit) as the default generation model; Qwen3-4B/8B for the constrained profile ← **8B constrained serve done**
-- [ ] Serve a reasoning model (DeepSeek-R1-Distill-32B / QwQ-32B) for flagged-hard tasks (multi-hop Q&A, portfolio risk)
-- [ ] Serve Qwen2.5-VL-7B/32B for scanned-document understanding
-- [x] Self-hosted embeddings/reranker GPU-served via **TEI on GPU** (bge-m3 `:8080`, bge-reranker-v2-m3 `:8081`) — landed in the Phase 5 bootstrap
-- [ ] Add multi-LoRA serving (vLLM / LoRAX) for per-task and per-org adapters
+This is a coherent choice: the docs' own thesis is that legal-domain quality comes from **RAG + KG + fine-tuned heads + the NLI verifier**, not raw model scale (`MODEL_STACK.md` "Legal-domain note"). An 8-14 B model + strong retrieval + fine-tuned classifiers is the product; Gemini (Class C) stays available for `public`/`internal` documents in the cloud profile where it measurably wins.
+
+**Shipped (non-LLM Phase 6, `LEARNING_LOG.md` #21)**: the real **NLI faithfulness head** (Verifier), **GLiNER** zero-shot NER, the **graded eval harness + cutover gate + `eval_runs`**, the **8B→14B escalation ladder**, the **fine-tuning scaffold** (`backend/training/`).
+
+**Model serving (fits 16 GB, together: 8B ~6 GB + bge-m3 ~2.3 + bge-reranker ~2.3 + NLI ~1 GB)**
+- [~] Self-hosted generation — **Ollama serving Qwen3-8B** is configured (`gpu` compose profile + `scripts/bootstrap_selfhosted.sh`); **not yet actually run** (Docker Compose + Ollama aren't installed — an ops step, not code).
+- [ ] Evaluate **vLLM** serving Qwen3-8B or 14B-AWQ instead of Ollama (higher throughput, grammar-constrained JSON via xgrammar) — fits 16 GB, worth doing while the A4000 is available.
+- [x] Self-hosted embeddings/reranker via **TEI** (bge-m3, bge-reranker-v2-m3) — configured in the Phase 5 bootstrap.
+- [~] NLI head + GLiNER — coded as in-process providers; run on the A4000 or (slowly) on CPU.
 
 **Progressive task cutover — each A/B-gated against the Gemini baseline before becoming default**
-- [x] The gate — `app/eval/cutover_gate.py` (`python -m app.eval.cutover_gate --task qa`): baseline-vs-candidate on a task's graded eval, PASS ⇒ safe to cut over, writes `eval_runs`. `qa` wired to `legalbench_qa`; other tasks need a gold set (follow-up)
-- [x] The escalation ladder — `hard=True` → policy `escalate_to: [local-llm-large]` (`LLM_LARGE_MODEL`); wired into `rewriter.py` (long input) + `chatbot.py` (multi-hop heuristic)
-- [ ] Run the cutovers (rewrite / extraction / Q&A / risk / contextualize) — blocked on a served `local-llm` + the 32 B GPU
-- [ ] Structure/timeline extraction → grammar-constrained JSON (xgrammar) once on vLLM
-- [ ] Remove Gemini from the default policy once all cutovers pass
+- [x] The gate — `app/eval/cutover_gate.py`: baseline-vs-candidate on a task's graded eval, PASS ⇒ cut over, writes `eval_runs`.
+- [x] The 8B→14B escalation ladder — `hard=True` → policy `escalate_to: [local-llm-large]`; wired into `rewriter.py` + `chatbot.py`.
+- [ ] Actually run the cutovers once Ollama/vLLM is up. **Expected outcome, stated honestly**: Qwen3-8B/14B likely *passes* on rewrite, structure/timeline extraction (with grammar constraints), and simple grounded Q&A; likely *fails* Gemini on multi-hop reasoning and nuanced risk analysis. The resulting policy: self-hosted default for the tasks that pass; Gemini-preferred (where the tier allows) for the rest; human review otherwise. Document the per-task delta — don't pretend an 8B ties a 32B.
+- [ ] Curate gold sets for `clause_rewrite` / `risk_analysis` / `contextualize` so the gate covers them (only `qa`/`legalbench_qa` is wired now).
 
-**GPU-dependent CV / NLP models**
-- [ ] Replace OpenCV quality triage + "tables are text blocks" with Docling + Qwen2.5-VL + Table Transformer / PP-Structure; keep Tesseract + quality-triage as the clean-PDF fast path
-- [ ] Add olmOCR / Qwen2.5-VL as the confidence-gated OCR escalation
-- [x] Integrate GLiNER (zero-shot entity types) — `providers/gliner_local.py` (`local-ner`/`ner_extract`), merged with the regex floor in `nlp/entities.py`, fail-soft. **maverick-coref** (real coref): follow-up
-- [~] Weak-supervision-then-distill deontic tagger + clause classifier fine-tune — **scaffolded** in `backend/training/` (`prepare_*_data.py` from LegalBench + gold + rule/LLM teacher; `train_*.py` LoRA + `--dry-run`/`--smoke`; configs; model-card template). Not trained; rule base stays Tier-0
-- [ ] Fine-tune InLegalBERT/ModernBERT NER (a full head beyond GLiNER zero-shot) — deferred with the training runs
+**CV / NLP models — on the A4000 while it's available**
+- [x] GLiNER zero-shot NER — `providers/gliner_local.py`, merged with the regex floor, fail-soft.
+- [ ] **Run the fine-tunes** (`backend/training/`): the clause/contract-type classifier and the deontic tagger, QLoRA on ModernBERT/Legal-BERT — **minutes each on the A4000**, then the resulting small head serves on CPU forever. This is the highest-value GPU task; do it while the card is here. Blocked only on data curation (LegalBench + gold + weak-supervision prep exists).
+- [ ] Fine-tune an InLegalBERT/ModernBERT NER head (same story).
+- [ ] **maverick-coref** — blocked by a *software* issue (transformers 5 refuses `torch.load` on torch < 2.6, CVE-2025-32434), not GPU. Needs a safetensors coref checkpoint or a torch bump.
+- [ ] Docling / PaddleOCR layout + table extraction — mostly CPU; the clean-PDF fast path (Tesseract + quality triage) stays.
+
+**Deferred — beyond the 16 GB hardware ceiling → future scope**
+- ⛔ Qwen3-32B / Qwen3-235B-A22B as the generation default (needs 24 GB+).
+- ⛔ A dedicated reasoning model (DeepSeek-R1-Distill-32B / QwQ-32B) for multi-hop — 14B does its best, else Class C / human review.
+- ⛔ Qwen2.5-VL-7B/32B + olmOCR for scanned-document understanding (7B VLM is ~16 GB fp16 — tight even alone; 32B out).
+- ⛔ Multi-LoRA serving (vLLM / LoRAX) — deprioritised; per-task adapters can be merged into a single served base instead.
+- Revisit all of the above only if a bigger card or a rented cloud GPU box actually appears.
 
 **Verifier**
 - [x] Ship the real NLI faithfulness head — `providers/nli_local.py` (`local-nli`/`verify_nli`, Class A, in-process DeBERTa-v3-MNLI). `verifier.py` entailment-checks each summary claim; `_lexical_overlap_faithfulness` kept as the labelled fallback. 0.91 MNLI acc, 8/8 on `FAITHFULNESS_GOLD` vs lexical 6/8
@@ -187,7 +197,7 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [x] Enforce meet/beat-baseline before default — `cutover_gate.py`; never a false PASS on a missing provider
 - [x] Per-component re-eval — `tests/test_nli_faithfulness.py` gates "NLI head beats the lexical stand-in"; `test_eval_metrics.py` locks the scorers
 
-**Exit criteria**: every core task served by a self-hosted model at or above the previous Gemini baseline; Gemini removed from the default routing policy; the product runs end-to-end with no external API call.
+**Exit criteria (revised for the 16 GB ceiling)**: Qwen3-8B/14B is served and cut over for every task where the gate shows it meets or beats the Gemini baseline; for the tasks where it doesn't, the routing policy documents the delta and routes to Gemini (tier-permitting) or human review. The **air-gapped profile** runs end-to-end with no external call at the 8-14 B quality level — the honest caveat is quality on hard reasoning, not capability. The fine-tuned clause/deontic heads are trained (on the A4000) and eval-gate-promoted.
 
 ## Phase 7 — Deployment Profiles: On-Prem & Air-Gapped — 🟡 Started (the CPU-only agent/API/security bits)
 

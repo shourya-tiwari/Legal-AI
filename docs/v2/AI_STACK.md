@@ -148,6 +148,8 @@ fallback_chain: [B, A]     # if the B provider is unhealthy, degrade; never auto
 
 This table is a starting point. **The eval harness decides whether a model meets the bar for a task** — any change is justified by an eval run (`ARCHITECTURE.md`), not by preference or a vendor benchmark.
 
+**Hardware reality (this deployment):** the served generation model is **Qwen3-8B** (default) / **Qwen3-14B-AWQ** (the `hard=` escalation), not the 32B/235B/reasoning models above — one 16 GB card is the ceiling (`ROADMAP.md` Phase 6). Where the cutover gate shows 8B/14B doesn't meet the Gemini baseline for a task, that task keeps routing to Gemini (for `public`/`internal` tiers) or to human review; the routing policy documents the per-task delta.
+
 ### Escalation without a bigger vendor
 
 V1 escalated to Gemini. V2's default escalation ladder is entirely self-hosted:

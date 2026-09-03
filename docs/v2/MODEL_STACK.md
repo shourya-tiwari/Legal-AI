@@ -11,6 +11,8 @@ The strongest open-source option for each component of V2, with reasoning. This 
 
 Sizes are given as **standard profile** (single 24–80 GB GPU or small GPU node) and **constrained profile** (≤ 8 GB VRAM / CPU-only / air-gapped laptop).
 
+> **This deployment runs the constrained profile.** The only GPU is one RTX A4000 (16 GB), often borrowed; there is no plan for a 24 GB+ card. So wherever a row below says "standard: Qwen3-32B", read it as **Qwen3-8B (+ 14B-AWQ escalation)** for generation, **bge-m3 / bge-reranker-v2-m3** for retrieval, an in-process **DeBERTa-v3 NLI** head, **GLiNER**, and **BERT-scale fine-tunes trained on the A4000, served on CPU**. Standard-profile models (32B/235B, reasoning models, 7B+ VLMs) are future scope — revisit only if bigger/rented hardware appears. See `ROADMAP.md` Phase 6.
+
 ---
 
 ## Generative & semantic models
