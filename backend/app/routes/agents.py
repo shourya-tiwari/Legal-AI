@@ -7,6 +7,7 @@ from app.db import get_db
 from app.db_models import AgentTrace, Document
 from app.guard import api_guard
 from app.models import AgentAnalyzeRequest, AgentAnalyzeResponse
+from app.services.model_router import is_external_permitted
 
 router = APIRouter(tags=["agents"])
 
@@ -28,6 +29,7 @@ def run_and_persist_analysis(
         full_text=document.full_text,
         analysis_mode=analysis_mode,
         use_ai_planner=use_ai_planner,
+        sensitivity_tier=document.sensitivity_tier,
     )
 
     for step_no, step in enumerate(result.trace, start=1):
@@ -46,6 +48,8 @@ def run_and_persist_analysis(
     return AgentAnalyzeResponse(
         document_id=document.id,
         clause_count=len(result.clauses),
+        sensitivity_tier=result.sensitivity_tier,
+        external_providers_permitted=is_external_permitted(result.sensitivity_tier),
         plan=result.plan,
         plan_rationale=result.plan_rationale,
         risk_findings=result.risk_findings,

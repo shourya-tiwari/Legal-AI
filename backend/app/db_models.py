@@ -49,6 +49,16 @@ class Document(Base):
     blocks: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    # ---- sensitivity tiering (app/services/sensitivity/) ----
+    # `sensitivity_tier` (public|internal|confidential|privileged) is what the
+    # Model Router's Class-C gate keys on -- confidential/privileged documents
+    # never reach an external provider. `sensitivity_source` is "auto" (the
+    # rule classifier) or "override" (an org-admin set it via
+    # PUT /api/v2/documents/{id}/sensitivity).
+    sensitivity_tier: Mapped[str] = mapped_column(String(16), default="internal", server_default="internal")
+    sensitivity_source: Mapped[str] = mapped_column(String(16), default="auto", server_default="auto")
+    sensitivity_signals: Mapped[list] = mapped_column(JSON, default=list)
+
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
@@ -57,6 +67,9 @@ class AuditLog(Base):
     org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
     action: Mapped[str] = mapped_column(String(255))
     resource: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # free-text context for actions that need it (e.g. a sensitivity override
+    # reason). Nullable -- most audit rows are just method+path from guard.py.
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

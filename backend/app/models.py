@@ -131,6 +131,14 @@ class AgentAnalyzeRequest(BaseModel):
 class AgentAnalyzeResponse(BaseModel):
     document_id: int
     clause_count: int
+    sensitivity_tier: str = Field(
+        "internal",
+        description="The document's sensitivity tier. confidential/privileged documents are "
+        "never routed to an external provider during this analysis.",
+    )
+    external_providers_permitted: bool = Field(
+        True, description="False when the tier + settings forbid any Class C (external) routing."
+    )
     plan: List[str] = Field(
         default_factory=list,
         description="The ordered agent node ids the planner ran (ends with 'verifier').",
@@ -224,3 +232,24 @@ class V2DocumentResponse(BaseModel):
     full_text: str
     blocks: List[dict] = Field(default_factory=list)
     created_at: Optional[str] = None
+    sensitivity_tier: str = "internal"
+    sensitivity_source: str = "auto"
+
+
+# ----- Document sensitivity (/api/v2/documents/{id}/sensitivity) -----
+_SENSITIVITY_TIER_PATTERN = "^(public|internal|confidential|privileged)$"
+
+
+class SensitivityResponse(BaseModel):
+    document_id: int
+    tier: str
+    source: str = Field(description="'auto' (rule classifier) or 'override' (org-admin set it)")
+    signals: List[dict] = Field(default_factory=list, description="The phrases that drove the tier.")
+    rationale: str = ""
+    external_providers_permitted: bool = Field(
+        description="False => every model call for this document stays on self-hosted providers."
+    )
+
+class SensitivityOverrideRequest(BaseModel):
+    tier: str = Field(..., pattern=_SENSITIVITY_TIER_PATTERN)
+    reason: str = Field(..., min_length=1, max_length=500, description="Recorded in the audit log.")

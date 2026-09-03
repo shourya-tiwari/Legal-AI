@@ -89,9 +89,11 @@ def _parse_json_list(s: str) -> List[Dict[str, Any]]:
     except Exception:
         return []
 
-def _gen_json(prompt: str, context: str, temperature: float = 0.2) -> List[Dict[str, Any]]:
+def _gen_json(prompt: str, context: str, temperature: float = 0.2,
+              *, sensitivity: str = "internal") -> List[Dict[str, Any]]:
     full = f"{prompt}\n\nReturn only valid JSON array, no prose.\n\n<text>\n{context}\n</text>"
-    raw_text = generate_content(full, task="timeline_extract", temperature=temperature)
+    raw_text = generate_content(full, task="timeline_extract", sensitivity=sensitivity,
+                                temperature=temperature)
     return _parse_json_list(raw_text)
 
 def _dedupe_structure(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -129,9 +131,10 @@ def _dedupe_timeline(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         out.append({"date_description": dd, "event": ev})
     return out
 
-def generate_map(full_text: str) -> MapResponse:
+def generate_map(full_text: str, *, sensitivity: str = "internal") -> MapResponse:
     """
-    Extracts document structure and timeline events using Gemini and returns Pydantic models.
+    Extracts document structure and timeline events via the Model Router and
+    returns Pydantic models.
     """
     text = _clean(full_text)
     if not text:
@@ -151,8 +154,8 @@ def generate_map(full_text: str) -> MapResponse:
     time_raw: List[Dict[str, Any]] = []
 
     for ch in chunks:
-        struct_raw.extend(_gen_json(structure_prompt, ch))
-        time_raw.extend(_gen_json(timeline_prompt, ch))
+        struct_raw.extend(_gen_json(structure_prompt, ch, sensitivity=sensitivity))
+        time_raw.extend(_gen_json(timeline_prompt, ch, sensitivity=sensitivity))
 
     struct_norm = _dedupe_structure(struct_raw)
     time_norm = _dedupe_timeline(time_raw)

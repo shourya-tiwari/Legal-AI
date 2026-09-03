@@ -87,6 +87,24 @@ def test_ask_endpoint(client, monkeypatch):
     assert "30 days" in resp.json()["answer"]
 
 
+def test_v1_routes_classify_sensitivity_on_the_fly(client, monkeypatch):
+    """A V1 request has no persisted document -- the route classifies the
+    provided text and threads the tier into the service's generate call."""
+    captured = {}
+
+    def spy(prompt, **kwargs):
+        captured["sensitivity"] = kwargs.get("sensitivity")
+        return "The contract can be terminated with 30 days notice."
+
+    monkeypatch.setattr("app.services.chatbot.generate_content", spy)
+    resp = client.post("/api/ask", json={
+        "contract_text": "This memo is protected by the attorney-client privilege.",
+        "question": "What does this mean?",
+    })
+    assert resp.status_code == 200
+    assert captured["sensitivity"] == "privileged"
+
+
 def test_risk_scan_endpoint(client, monkeypatch):
     monkeypatch.setattr("app.services.risk_radar.detector.generate_content", fake_generate_content)
 

@@ -11,7 +11,7 @@ from .state import AgentStep, CaseState
 
 
 def run_extraction(state: CaseState) -> dict:
-    clauses = build_clause_objects(state.full_text)
+    clauses = build_clause_objects(state.full_text, sensitivity=state.sensitivity_tier)
 
     step = AgentStep(
         agent_name="extraction",

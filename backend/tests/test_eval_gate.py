@@ -13,6 +13,7 @@ from app.eval.run_eval import run_eval
 
 MIN_CLAUSE_TYPE_ACCURACY = 1.0
 MIN_DEONTIC_RECALL = 1.0
+MIN_SENSITIVITY_ACCURACY = 0.9
 
 
 def test_clause_type_accuracy_meets_baseline():
@@ -27,4 +28,16 @@ def test_deontic_recall_meets_baseline():
     result = run_eval()
     assert result.deontic_recall >= MIN_DEONTIC_RECALL, (
         f"Deontic tag recall {result.deontic_recall:.1%} dropped below baseline {MIN_DEONTIC_RECALL:.1%}"
+    )
+
+
+def test_sensitivity_classifier_meets_baseline():
+    from app.eval.gold_set import SENSITIVITY_GOLD
+    from app.services.sensitivity import classify_sensitivity
+
+    correct = sum(classify_sensitivity(ex["text"]).tier == ex["expected_tier"] for ex in SENSITIVITY_GOLD)
+    accuracy = correct / len(SENSITIVITY_GOLD)
+    assert accuracy >= MIN_SENSITIVITY_ACCURACY, (
+        f"Sensitivity classifier accuracy {accuracy:.1%} ({correct}/{len(SENSITIVITY_GOLD)}) "
+        f"dropped below baseline {MIN_SENSITIVITY_ACCURACY:.1%}"
     )

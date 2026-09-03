@@ -7,6 +7,7 @@ from app.auth import OrgContext
 from app.guard import api_guard
 from app.models import AskRequest, AskResponse
 from app.services.chatbot import answer_question
+from app.services.sensitivity import classify_sensitivity
 
 logger = logging.getLogger("legalai.routes.ask")
 
@@ -20,7 +21,8 @@ def ask_question_endpoint(request: AskRequest, org: OrgContext = Depends(api_gua
     """
     try:
         # Pass the exact fields: question + contract_text (as context)
-        return answer_question(question=request.question, context=request.contract_text)
+        return answer_question(question=request.question, context=request.contract_text,
+                               sensitivity=classify_sensitivity(request.contract_text).tier)
     except Exception as e:
         logger.exception("Chatbot service error")
         raise HTTPException(status_code=500, detail="Chatbot service error")

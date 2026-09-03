@@ -56,7 +56,7 @@ Rules:
 _HARD_CHUNK_CHARS = 4000
 
 
-def _rewrite_chunk(chunk: str) -> str:
+def _rewrite_chunk(chunk: str, sensitivity: str = "internal") -> str:
     prompt = f"""
 {SYSTEM_PROMPT}
 
@@ -67,6 +67,7 @@ Clause:
     result = generate_content(
         prompt,
         task="clause_rewrite",
+        sensitivity=sensitivity,
         temperature=0.3,
         hard=len(chunk) >= _HARD_CHUNK_CHARS,
     )
@@ -75,6 +76,8 @@ Clause:
 def rewrite_text(
     text: str,
     mode: str = "layman",
+    *,
+    sensitivity: str = "internal",
 ):
     start = time.time()
     cleaned = _clean(text)
@@ -89,7 +92,7 @@ def rewrite_text(
     outputs = []
 
     for chunk in chunks:
-        outputs.append(_rewrite_chunk(chunk))
+        outputs.append(_rewrite_chunk(chunk, sensitivity))
 
     rewritten = "\n\n".join(outputs).strip()
 

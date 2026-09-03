@@ -30,6 +30,7 @@ FORBIDDEN_ROOTS = {
     "sentence_transformers",
     "transformers",
     "gliner",
+    "fastcoref",          # not shipped (torch<2.6 / CVE blocker) -- guard is forward-looking
     "litellm",
     "ollama",
 }

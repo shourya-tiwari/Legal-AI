@@ -80,6 +80,7 @@ def run_case_analysis(
     *,
     analysis_mode: str = "full",
     use_ai_planner: bool = False,
+    sensitivity_tier: str = "internal",
 ) -> CaseState:
     initial_state = CaseState(
         document_id=document_id,
@@ -87,6 +88,7 @@ def run_case_analysis(
         full_text=full_text,
         analysis_mode=analysis_mode,
         use_ai_planner=use_ai_planner,
+        sensitivity_tier=sensitivity_tier,
     )
     result = _compiled_graph().invoke(initial_state)
     return CaseState(**result)

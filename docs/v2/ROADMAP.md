@@ -101,7 +101,7 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 
 ---
 
-## Phase 5 — Provider Abstraction Hardening (~4-6 sprints) — 🟢 Substantially complete
+## Phase 5 — Provider Abstraction Hardening (~4-6 sprints) — 🟢 Complete in code (serving stack is an ops step away)
 
 **This phase makes the architecture genuinely provider-agnostic and removes every external dependency *except* large-LLM generation quality.** The code core came first (no GPU needed); the serving layer landed once a GPU (RTX A4000, 16 GB) became available.
 
@@ -173,7 +173,12 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 
 With generation self-hosted (Phase 6), the product can now ship disconnected. This phase makes on-prem and air-gapped *supported profiles*, not heroics.
 
-**Done ahead of the deployment work** (they didn't need it): the **dynamic Orchestrator/Planner** (`app/agents/planner.py` — rule-based, LLM-optional, `analysis_mode` presets) replacing the fixed Phase 4 sequence, and the first slice of the **document-first `/api/v2/*` API** (`app/routes/v2.py` — `analyze`/`rewrite`/`map`/`ask`/`risk-scan`/`contextualize` by `document_id`). The rest of the phase — packaging, collapsed data layer, durable execution, Memory Service, frontend SPA — is genuinely deferred.
+**Done ahead of the deployment work** (they didn't need it):
+- the **dynamic Orchestrator/Planner** (`app/agents/planner.py` — rule-based, LLM-optional, `analysis_mode` presets) replacing the fixed Phase 4 sequence;
+- the first slice of the **document-first `/api/v2/*` API** (`app/routes/v2.py`);
+- **document sensitivity tiering, enforced end to end** (`app/services/sensitivity/` classifies on upload → `documents.sensitivity_tier` → every model call → `policy.candidates()` drops Class C for `confidential`/`privileged`, and `router._pick_and_call` fails closed as a last line). This is the enforcement half of the egress boundary: the Model Router's "Privileged never leaves the perimeter" guarantee was architecture-on-paper (every call site passed `sensitivity="internal"`); it now protects real documents. Org-admin override via `PUT /api/v2/documents/{id}/sensitivity` (audit-logged).
+
+The rest of the phase — packaging, collapsed data layer, durable execution, Memory Service, frontend SPA, per-user RBAC, the PII redaction gate — is genuinely deferred.
 
 **Build & supply chain**
 - [ ] Produce on-prem/air-gapped builds with `legalai-providers-external` **excluded**; enforce with an **SBOM allowlist** that fails the build if a commercial-provider SDK is present.
@@ -241,6 +246,6 @@ Now that self-hosted training and serving infra exists (Phase 6), the in-house m
 ## Cross-cutting, all phases
 
 - **Nothing merges without the eval gate** (from Phase 2 onward) — and, from Phase 5, that includes routing-policy and provider changes.
-- **Every sensitive-tier code path change gets a security review**, with special attention to anything touching Class C egress.
+- **Every sensitive-tier code path change gets a security review**, with special attention to anything touching Class C egress. The tier itself is now enforced (`app/services/sensitivity/` + the Model Router fail-closed guard, Phase 7).
 - **Every phase preserves V1's live traffic** — this is an additive migration.
 - **The import-linter contract** (from Phase 5) is a permanent CI gate: no vendor SDK outside the provider package, ever.

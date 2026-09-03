@@ -125,3 +125,73 @@ def test_v2_contextualize(client, document_id, monkeypatch):
     )
     assert resp.status_code == 200
     assert resp.json()["explanation"]
+
+
+# ---- sensitivity tiering ----
+
+PRIVILEGED_CONTRACT = (
+    "PRIVILEGED AND CONFIDENTIAL. This memorandum is protected by the attorney-client "
+    "privilege and was prepared in anticipation of litigation.\n\n"
+    "The Tenant shall indemnify the Landlord for any damages."
+)
+
+
+@pytest.fixture
+def privileged_document_id(client):
+    resp = client.post("/api/upload",
+                       files={"file": ("memo.txt", PRIVILEGED_CONTRACT.encode(), "text/plain")})
+    return resp.json()["document_id"]
+
+
+def test_upload_persists_the_sensitivity_tier(client):
+    body = client.post("/api/upload",
+                       files={"file": ("m.txt", PRIVILEGED_CONTRACT.encode(), "text/plain")}).json()
+    assert body["sensitivity"]["tier"] == "privileged"
+    assert body["sensitivity"]["external_providers_permitted"] is False
+    doc = client.get(f"/api/v2/documents/{body['document_id']}").json()
+    assert doc["sensitivity_tier"] == "privileged"
+    assert doc["sensitivity_source"] == "auto"
+
+
+def test_get_sensitivity_endpoint(client, privileged_document_id):
+    body = client.get(f"/api/v2/documents/{privileged_document_id}/sensitivity").json()
+    assert body["tier"] == "privileged"
+    assert body["external_providers_permitted"] is False
+    assert body["signals"]
+
+
+def test_put_sensitivity_override_writes_an_audit_row(client, db_session, privileged_document_id):
+    from app.db_models import AuditLog
+
+    before = db_session.query(AuditLog).filter(AuditLog.detail.isnot(None)).count()
+    resp = client.put(f"/api/v2/documents/{privileged_document_id}/sensitivity",
+                      json={"tier": "internal", "reason": "reviewed and cleared by GC"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["tier"] == "internal"
+    assert body["source"] == "override"
+    # the suite runs with EXTERNAL_PROVIDERS_ENABLED=false, so 'internal' still
+    # can't reach Class C -- but it's no longer *forbidden by tier*.
+    from app.services.model_router import is_external_permitted
+    assert body["external_providers_permitted"] == is_external_permitted("internal")
+
+    rows = db_session.query(AuditLog).filter(AuditLog.detail.isnot(None)).all()
+    assert len(rows) == before + 1
+    assert "privileged -> internal" in rows[-1].detail
+    assert "cleared by GC" in rows[-1].detail
+
+
+def test_put_sensitivity_rejects_a_bad_tier(client, privileged_document_id):
+    assert client.put(f"/api/v2/documents/{privileged_document_id}/sensitivity",
+                      json={"tier": "top-secret", "reason": "x"}).status_code == 422
+    assert client.put(f"/api/v2/documents/{privileged_document_id}/sensitivity",
+                      json={"tier": "internal"}).status_code == 422  # reason required
+
+
+def test_v2_analyze_surfaces_external_disabled_for_a_privileged_doc(client, privileged_document_id, monkeypatch):
+    monkeypatch.setattr("app.services.contextualizer.rag.embed_content", fake_embed_content)
+    resp = client.post(f"/api/v2/documents/{privileged_document_id}/analyze", json={"analysis_mode": "risk_only"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["sensitivity_tier"] == "privileged"
+    assert body["external_providers_permitted"] is False

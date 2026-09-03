@@ -6,6 +6,8 @@ from ..db import get_db
 from ..db_models import Document
 from ..guard import api_guard
 from ..services.extractor import extract_text_and_blocks
+from ..services.model_router import is_external_permitted
+from ..services.sensitivity import classify_sensitivity
 
 router = APIRouter()
 
@@ -32,12 +34,17 @@ async def upload_contract(
     # Normalize to clauses list expected by UI
     clauses = [{"id": b["id"], "text": b["text"], "rewritten": None} for b in result["blocks"]]
 
+    assessment = classify_sensitivity(result["full_text"], filename=file.filename)
+
     document = Document(
         org_id=org.id,
         filename=file.filename,
         content_type=file.content_type,
         full_text=result["full_text"],
         blocks=result["blocks"],
+        sensitivity_tier=assessment.tier,
+        sensitivity_source=assessment.source,
+        sensitivity_signals=[s.model_dump() for s in assessment.signals],
     )
     db.add(document)
     db.commit()
@@ -55,6 +62,12 @@ async def upload_contract(
         "full_text": result["full_text"],
         "clauses": clauses,
         "count": len(clauses),
+        "sensitivity": {
+            "tier": assessment.tier,
+            "source": assessment.source,
+            "rationale": assessment.rationale,
+            "external_providers_permitted": is_external_permitted(assessment.tier),
+        },
     }
     if "quality" in result:
         response["quality"] = result["quality"]

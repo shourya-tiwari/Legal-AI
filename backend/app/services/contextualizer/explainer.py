@@ -56,7 +56,8 @@ def get_rag_hints(contract_type: Optional[str], clause_text: str) -> List[LegalK
     return []
 
 
-def generate_contextualized_explanation(clause_text: str, ctx_dict: Dict) -> Dict:
+def generate_contextualized_explanation(clause_text: str, ctx_dict: Dict,
+                                        *, sensitivity: str = "internal") -> Dict:
     """Generate contextualized explanation using hybrid RAG, with citations
     traceable back to services/rag/corpus.py."""
     ctx = UserContext(
@@ -71,7 +72,7 @@ def generate_contextualized_explanation(clause_text: str, ctx_dict: Dict) -> Dic
     hint_texts = [e.text for e in entries]
 
     prompt = build_prompt(clause_text, ctx, hints=hint_texts)
-    text = generate_content(prompt, task="contextualize")
+    text = generate_content(prompt, task="contextualize", sensitivity=sensitivity)
 
     invalid_citations = find_invalid_citations(text, num_hints=len(hint_texts))
     if invalid_citations:

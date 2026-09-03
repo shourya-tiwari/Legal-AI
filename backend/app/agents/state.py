@@ -42,6 +42,10 @@ class CaseState(BaseModel):
     document_id: int
     org_id: int
     full_text: str = ""
+    # the document's sensitivity tier -- every generate call the agents make
+    # passes this to the Model Router, so a confidential/privileged document
+    # is never routed to an external provider (app/services/sensitivity/).
+    sensitivity_tier: str = "internal"
 
     # ---- planning (Phase 7 Orchestrator/Planner) ----
     # analysis_mode: a named preset the request asks for ("full" | "risk_only"

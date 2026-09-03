@@ -54,6 +54,26 @@ class Router:
             chain.append(provider)
         return chain
 
+    def _fail_closed_on_external(self, sensitivity: SensitivityTier, provider_name: str,
+                                 hclass, task: str) -> None:
+        """Defense in depth: the routing policy never chains a Class C provider
+        for a tier outside class_c_allowed_tiers, but if a future policy bug
+        did, refuse to dispatch rather than leak the document. This is the
+        last line before data leaves the perimeter."""
+        if hclass.value != "C":
+            return
+        allowed = get_policy().class_c_allowed_tiers
+        if sensitivity.value not in allowed:
+            logger.error(
+                "BLOCKED external route: task=%s provider=%s would send a '%s' document to a "
+                "Class C provider (allowed tiers: %s). Failing closed.",
+                task, provider_name, sensitivity.value, sorted(allowed),
+            )
+            raise ModelRouterError(
+                f"Routing to external provider '{provider_name}' is forbidden for a "
+                f"'{sensitivity.value}' document."
+            )
+
     def _pick_and_call(self, task: str, capability: str, sensitivity: SensitivityTier,
                        call, *, hard: bool = False):
         chain = self._resolve_chain(task, capability, sensitivity, hard=hard)
@@ -71,6 +91,11 @@ class Router:
             if not provider.is_available():
                 errors.append(f"{provider.name}: not available")
                 continue
+            # last check before the provider is invoked -- a Class C provider
+            # must never be handed a confidential/privileged document.
+            self._fail_closed_on_external(sensitivity, provider.name,
+                                          getattr(provider, "hosting_class", HostingClass.B), task)
+
             start = time.perf_counter()
             try:
                 result, model, hclass = call(provider)

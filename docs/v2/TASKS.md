@@ -2,9 +2,19 @@
 
 Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by architecture layer. A planning checklist, not a sprint-committed schedule.
 
-**Status legend**: `[x]` done · `[~]` partially done (annotation says what) · `[ ]` not started. Phases 0-4 record what actually shipped (a pragmatic slice — see annotations and `LEARNING_LOG.md`). Phases 5-9 are the forward plan under the revised, self-hosted-first architecture.
+**Status legend**: `[x]` done · `[~]` partially done (annotation says what) · `[ ]` not started · `⛔` blocked (annotation says on what).
 
-**Roadmap renumbering**: the previous "Phase 7 — GPU Upgrade" is now **Phase 6**; the previous "Phase 5 — Portfolio Intelligence" is now **Phase 8**; the previous "Phase 6 — Scale/Hardening" is now **Phase 9**. New **Phase 5** (Provider Abstraction Hardening) and **Phase 7** (Deployment Profiles) are inserted. See `ROADMAP.md`'s mapping table.
+## Reality check (current codebase)
+
+**Running now, no external anything**: FastAPI backend with 11 route modules; org-scoped auth (default-off) + rate limiting + audit log; Postgres/SQLite persistence with an interim column-migration shim; provider-agnostic **Model Router** (`generate`/`embed`/`rerank`/`entail`/`ner` capabilities, declarative policy, Class-A offline fallbacks for every task, import-linter contract); the full **NLP pipeline** (rule-based) + **CV triage**; **Knowledge Graph** + **hybrid RAG** (dense+sparse+graph, RRF, rerank); a **planner-driven agent pipeline** (extraction → planner → dispatch → verifier) with a **real Class-A NLI faithfulness head**; **GLiNER** zero-shot NER; **document sensitivity tiering** enforced end-to-end (confidential/privileged never leave the perimeter); a **graded eval harness** (LegalBench/MNLI) + **cutover gate** + `model_calls`/`eval_runs` telemetry; the **`/api/v2` document-first API** (first slice); a **fine-tuning scaffold** (not run). Test suite: **179 pass + 2 skip**.
+
+**Configured but not stood up** (ops, not code): Docker Compose + Ollama + TEI on the dev box — the `gpu` compose profile and `scripts/bootstrap_selfhosted.sh` exist; run them to serve Qwen3-8B + bge-m3 + bge-reranker.
+
+**Blocked**: the LLM task cutovers (need a served `local-llm` + a 24 GB+ GPU for 32B-class quality); vLLM / VLM / Docling (GPU); the clause/deontic fine-tune *runs* (GPU + labelled data); real coreference (`fastcoref` hits a transformers-5/torch-<2.6 CVE guard).
+
+**Not started**: on-prem packaging (Zarf/SBOM/Harbor), the collapsed data layer, durable execution, the Memory Service, the frontend SPA, Phase 8 portfolio features.
+
+**Roadmap renumbering**: previous "Phase 7 — GPU Upgrade" → **Phase 6**; previous "Phase 5 — Portfolio Intelligence" → **Phase 8**; previous "Phase 6 — Scale/Hardening" → **Phase 9**. New **Phase 5** (Provider Abstraction) + **Phase 7** (Deployment Profiles) inserted. See `ROADMAP.md`.
 
 ---
 
@@ -114,9 +124,9 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 ---
 
-## Phase 5 — Provider Abstraction Hardening — 🟢 Substantially complete
+## Phase 5 — Provider Abstraction Hardening — 🟢 Complete (in code)
 
-**Scope note**: the code core of this phase shipped first (provider interface, packaging split, policy engine, import-linter contract, Gemini removed from the RAG path — `LEARNING_LOG.md` #18). A GPU (RTX A4000, 16 GB) then became available and the **self-hosted serving layer was stood up** (`LEARNING_LOG.md` #19): a `gpu` docker-compose profile + `scripts/bootstrap_selfhosted.sh` running Ollama (Qwen3-8B), TEI bge-m3 embeddings, and TEI bge-reranker-v2-m3; a `local-rerank-remote` provider for TEI's `/rerank`; `GET /api/models/status`; `model_calls` routing-decision persistence + an OpenTelemetry scaffold; and the Inspect-AI / CUAD / delta-report eval seed. Full suite: 110 pass + 1 skip, still green with nothing served (Class-A fallbacks).
+**Scope note**: the provider interface, packaging split, policy engine, import-linter contract, and Gemini's removal from the RAG path shipped first (`LEARNING_LOG.md` #18). Then the **self-hosted serving layer** was written (`#19`): a `gpu` docker-compose profile + `scripts/bootstrap_selfhosted.sh` for Ollama (Qwen3-8B) + TEI (bge-m3, bge-reranker-v2-m3); a `local-rerank-remote` provider; `GET /api/models/status`; `model_calls` persistence + an OpenTelemetry scaffold; the Inspect-AI / LegalBench / delta-report eval seed. Everything that's left is **operational** (actually run the compose stack), not code — see the Reality check above.
 
 **Model Router → the real provider interface (`AI_STACK.md`)**
 - [x] Define the `ModelProvider` interface + provider-neutral request/response types — `app/services/model_router/{base,types}.py` (`generate`, `embed`, `rerank`, `describe`, `is_available`). `generate_structured`/`transcribe`/`synthesize` reserved in the design, not needed by any current feature
@@ -145,7 +155,7 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 ## Phase 6 — Self-Hosted LLM Generation: the GPU unlock — 🟡 In progress
 
-**Scope note**: the non-LLM Phase 6 work landed (`LEARNING_LOG.md` #21) — the real **NLI faithfulness head** (Verifier), **GLiNER** zero-shot NER, the **graded eval harness + cutover gate + `eval_runs`**, and the **small→large escalation ladder**. The LLM *serving* cutover (Qwen3-32B, vLLM) stays blocked on a bigger/rented GPU + Ollama running; the clause/deontic fine-tunes are **scaffolded, not trained**. Suite: 126 pass + 1 skip.
+**Scope note**: the non-LLM Phase 6 work landed (`LEARNING_LOG.md` #21) — the real **NLI faithfulness head** (Verifier), **GLiNER** zero-shot NER, the **graded eval harness + cutover gate + `eval_runs`**, the **small→large escalation ladder**, and the **fine-tuning scaffold** (`backend/training/`, not run). The LLM *serving* cutover (Qwen3-32B, vLLM) and the fine-tune runs stay `⛔` blocked on a bigger GPU + a served `local-llm` + labelled data.
 
 **Model serving**  (dev box: 1× RTX A4000, 16 GB — fits 7–14 B; the 32 B default needs a larger / rented GPU)
 - [~] Self-hosted generation server — **Ollama serving Qwen3-8B** is up (`docker-compose.yml` `gpu` profile, Phase 5 bootstrap). vLLM / SGLang and a 4-bit Qwen3-32B: still to do (needs the bigger GPU)
@@ -179,7 +189,17 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 **Exit criteria**: every core task served by a self-hosted model at or above the previous Gemini baseline; Gemini removed from the default routing policy; the product runs end-to-end with no external API call.
 
-## Phase 7 — Deployment Profiles: On-Prem & Air-Gapped
+## Phase 7 — Deployment Profiles: On-Prem & Air-Gapped — 🟡 Started (the CPU-only agent/API/security bits)
+
+**Done so far** (none needed the deployment machinery): the **dynamic Orchestrator/Planner** (`app/agents/planner.py`), the first **`/api/v2` document-first slice** (`app/routes/v2.py`), and **document sensitivity tiering enforced end-to-end** (`app/services/sensitivity/` + the Model Router fail-closed guard + `GET/PUT /api/v2/documents/{id}/sensitivity`). Everything below is genuinely deferred.
+
+**Security & sensitivity** (moved up from the ARCHITECTURE.md security section — it's the enforcement half of the egress boundary)
+- [x] Sensitivity classification at ingestion — `app/services/sensitivity/` (rule-based Tier-0: privilege / confidentiality-phrase / PII-density / SEC-marker → tier; `internal` default). Persisted on `documents.sensitivity_tier`; eval-gated (≥90% on `SENSITIVITY_GOLD`). Classical/transformer model → `DEEP_LEARNING.md` once labelled data exists
+- [x] Tier propagated through every model call — service fns take `sensitivity=`, `/api/v2` reads the persisted tier, V1 routes classify on the fly, agents carry `CaseState.sensitivity_tier`
+- [x] Router enforces the tier — `policy.candidates()` drops Class C for a disallowed tier; `router._pick_and_call` fails closed (raises + ERROR log) as the last line
+- [x] Org-admin override — `GET/PUT /api/v2/documents/{id}/sensitivity`, audit-logged (`audit_log.detail`); no per-user RBAC yet
+- [ ] Per-user RBAC (Admin/Editor/Viewer) so "override" is a privileged action, not any org caller
+- [ ] PII/PHI redaction gate before any Class C call (`ARCHITECTURE.md` §3)
 
 **Build & supply chain**
 - [ ] Produce on-prem/air-gapped builds with `legalai-providers-external` excluded; enforce with an SBOM allowlist that fails the build on any commercial-provider SDK (or outbound-calling transitive dependency)
@@ -262,8 +282,8 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 ## Continuous / cross-cutting (all phases)
 
-- [ ] Every prompt/model/provider/routing-policy change passes the eval gate before merge (from Phase 2; policy/provider from Phase 5)
-- [ ] The import-linter contract stays green: no vendor SDK outside the provider package (from Phase 5)
+- [~] Every prompt/model/provider/routing-policy change passes the eval gate before merge — `tests/test_eval_gate.py` (clause-type, deontic, sensitivity accuracy) + `test_model_router.py` + `test_provider_isolation.py` are CI-gated; the full `eval_runs`-joined regression gate is future work
+- [x] The import-linter contract stays green — `tests/test_provider_isolation.py` (AST scan) + `.importlinter`; forbidden roots now include `transformers`, `gliner`, `fastcoref`
 - [ ] Every sensitive-tier code-path change gets a security review, with extra scrutiny on Class C egress
 - [ ] Model cards maintained for every trained model (`DEEP_LEARNING.md`)
 - [ ] Quarterly drift-monitoring review of production eval scores against the gold benchmark

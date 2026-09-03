@@ -56,7 +56,8 @@ def run_summary(state: CaseState) -> dict:
     sources_block, all_sources = _build_sources_block(state)
 
     prompt = _PROMPT_TEMPLATE.format(findings_block="\n".join(findings_lines), sources_block=sources_block)
-    summary_text = generate_content(prompt, task="agent_summary", temperature=0.2)
+    summary_text = generate_content(prompt, task="agent_summary",
+                                    sensitivity=state.sensitivity_tier, temperature=0.2)
 
     step = AgentStep(
         agent_name="summary",

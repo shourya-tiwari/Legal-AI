@@ -49,7 +49,8 @@ def classify_clause_type_rule_based(clause_text: str) -> str | None:
     return best_type
 
 
-def classify_clause_type(clause_text: str, use_ai_escalation: bool = False) -> Tuple[str, str]:
+def classify_clause_type(clause_text: str, use_ai_escalation: bool = False,
+                         *, sensitivity: str = "internal") -> Tuple[str, str]:
     rule_result = classify_clause_type_rule_based(clause_text)
     if rule_result:
         return rule_result, "rule"
@@ -59,7 +60,7 @@ def classify_clause_type(clause_text: str, use_ai_escalation: bool = False) -> T
     try:
         prompt = _ESCALATION_PROMPT.format(categories=", ".join(CLAUSE_TYPE_KEYWORDS.keys()), clause=clause_text)
         raw = generate_content(
-            prompt, task="clause_type_escalation", temperature=0.0
+            prompt, task="clause_type_escalation", sensitivity=sensitivity, temperature=0.0
         ).strip().lower().replace(" ", "_").strip(".")
         if raw in CLAUSE_TYPE_KEYWORDS:
             return raw, "ai"

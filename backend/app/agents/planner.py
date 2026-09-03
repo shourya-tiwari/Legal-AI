@@ -104,7 +104,7 @@ def _ai_plan(state: CaseState) -> Tuple[List[str], str]:
         menu=menu, n_clauses=sig["clauses"], types=", ".join(types),
         keyword_hits=sig["keyword_hits"], ambiguous=sig["ambiguous_clauses"],
     )
-    raw = generate_content(prompt, task="agent_plan", sensitivity="internal",
+    raw = generate_content(prompt, task="agent_plan", sensitivity=state.sensitivity_tier,
                            temperature=0.0, max_output_tokens=60)  # may raise ModelRouterError
     match = re.search(r"\[.*?\]", raw, re.DOTALL)
     if not match:

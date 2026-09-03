@@ -26,7 +26,8 @@ SYSTEM_INSTRUCTIONS = (
     "Return a single concise sentence; do not repeat lines or include quoted echoes."
 )
 
-def answer_question(question: str, context: str, temperature: float = 0.2) -> AskResponse:
+def answer_question(question: str, context: str, temperature: float = 0.2,
+                    *, sensitivity: str = "internal") -> AskResponse:
     """
     Single-turn QA grounded on the given contract context.
     """
@@ -42,6 +43,6 @@ Question: {question}
 Answer:
 """.strip()
 
-    answer = generate_content(prompt, task="qa", temperature=temperature,
-                              hard=_looks_multihop(question))
+    answer = generate_content(prompt, task="qa", sensitivity=sensitivity,
+                              temperature=temperature, hard=_looks_multihop(question))
     return AskResponse(answer=answer)

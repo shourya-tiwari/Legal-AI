@@ -22,7 +22,8 @@ from .segmentation import segment_into_clauses
 from .temporal import extract_temporal_expressions
 
 
-def build_clause_objects(full_text: str, use_ai_escalation: bool = False) -> List[ClauseObject]:
+def build_clause_objects(full_text: str, use_ai_escalation: bool = False,
+                         *, sensitivity: str = "internal") -> List[ClauseObject]:
     defined_terms = extract_defined_terms(full_text)
     clause_texts = segment_into_clauses(full_text)
 
@@ -31,7 +32,8 @@ def build_clause_objects(full_text: str, use_ai_escalation: bool = False) -> Lis
 
     for i, text in enumerate(clause_texts, start=1):
         terms_used = find_term_usages(text, defined_terms)
-        clause_type, clause_type_source = classify_clause_type(text, use_ai_escalation=use_ai_escalation)
+        clause_type, clause_type_source = classify_clause_type(
+            text, use_ai_escalation=use_ai_escalation, sensitivity=sensitivity)
 
         clauses.append(
             ClauseObject(
@@ -42,7 +44,8 @@ def build_clause_objects(full_text: str, use_ai_escalation: bool = False) -> Lis
                 entities=extract_entities(text),
                 defined_terms_used=terms_used,
                 cross_references=find_cross_references(text),
-                deontic_tags=tag_deontic_modality(text, use_ai_escalation=use_ai_escalation),
+                deontic_tags=tag_deontic_modality(
+                    text, use_ai_escalation=use_ai_escalation, sensitivity=sensitivity),
                 temporal_expressions=extract_temporal_expressions(text),
                 ambiguity_flags=detect_ambiguity(text),
                 pronoun_candidates=resolve_pronoun_candidates(text, terms_used, preceding_terms),

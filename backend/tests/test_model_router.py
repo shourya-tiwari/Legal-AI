@@ -316,6 +316,82 @@ def test_hard_escalation_target_is_never_class_c(monkeypatch):
         assert escalated.index("gemini") == len(escalated) - 1
 
 
+# --------------------------------------------------------------------------
+# sensitivity enforcement (Class C never sees a confidential/privileged doc)
+# --------------------------------------------------------------------------
+
+def test_is_external_permitted_truth_table(monkeypatch):
+    from app.services.model_router import is_external_permitted
+
+    monkeypatch.setenv("EXTERNAL_PROVIDERS_ENABLED", "true")
+    monkeypatch.setenv("STRICT_LOCAL_ONLY", "false")
+    get_settings.cache_clear(); get_policy.cache_clear()
+    assert is_external_permitted("public") is True
+    assert is_external_permitted("internal") is True
+    assert is_external_permitted("confidential") is False
+    assert is_external_permitted("privileged") is False
+
+    monkeypatch.setenv("EXTERNAL_PROVIDERS_ENABLED", "false")
+    get_settings.cache_clear()
+    assert is_external_permitted("public") is False
+
+
+def test_privileged_document_never_reaches_gemini(monkeypatch):
+    monkeypatch.setenv("EXTERNAL_PROVIDERS_ENABLED", "true")
+    monkeypatch.setenv("LLM_BASE_URL", "")  # no self-hosted LLM
+    get_settings.cache_clear(); get_policy.cache_clear(); get_router.cache_clear()
+    reset_registry_cache()
+
+    registry = get_registry()
+    if "gemini" not in registry:
+        pytest.skip("providers-external not installed")
+
+    called = {"gemini": False}
+
+    def spy(req):
+        called["gemini"] = True
+        from app.services.model_router.types import GenerateResult
+        return GenerateResult(text="ok", provider="gemini", model="x", hosting_class=HostingClass.C)
+
+    monkeypatch.setattr(registry["gemini"], "generate", spy)
+    monkeypatch.setattr(registry["gemini"], "is_available", lambda: True)
+
+    # public -> gemini is reachable (the fallthrough); privileged -> it is not
+    generate_content("hi", task="qa", sensitivity="public")
+    assert called["gemini"] is True
+
+    called["gemini"] = False
+    with pytest.raises(ModelRouterError):
+        generate_content("hi", task="qa", sensitivity="privileged")
+    assert called["gemini"] is False
+
+
+def test_router_fails_closed_if_a_c_provider_is_somehow_chained(monkeypatch):
+    # Directly exercise the last-line guard with a synthetic Class C provider.
+    from app.services.model_router.base import ModelProvider
+    from app.services.model_router.router import Router
+    from app.services.model_router.types import (GenerateRequest, GenerateResult,
+                                                 ProviderCard, SensitivityTier)
+
+    class _FakeC(ModelProvider):
+        name = "fake-c"
+        hosting_class = HostingClass.C
+
+        def describe(self):
+            return ProviderCard(name=self.name, hosting_class=HostingClass.C,
+                                capabilities=["generate"], leaves_perimeter=True)
+
+        def generate(self, req):
+            return GenerateResult(text="leaked", provider=self.name, model="x",
+                                  hosting_class=HostingClass.C)
+
+    r = Router()
+    with pytest.raises(ModelRouterError, match="forbidden for a 'privileged'"):
+        r._fail_closed_on_external(SensitivityTier.PRIVILEGED, "fake-c", HostingClass.C, "qa")
+    # internal is fine
+    r._fail_closed_on_external(SensitivityTier.INTERNAL, "fake-c", HostingClass.C, "qa")
+
+
 def test_registry_runs_without_external_providers(monkeypatch):
     # Simulate the on-prem / air-gapped install: no gemini provider.
     import app.services.model_router.registry as reg

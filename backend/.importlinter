@@ -39,4 +39,5 @@ forbidden_modules =
     sentence_transformers
     transformers
     gliner
+    fastcoref
     litellm

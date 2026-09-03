@@ -48,6 +48,7 @@ __all__ = [
     "rerank",
     "entailment",
     "ner_extract",
+    "is_external_permitted",
     "get_router",
     "get_policy",
     "get_registry",
@@ -61,6 +62,20 @@ __all__ = [
     "EntailRequest",
     "NERRequest",
 ]
+
+
+def is_external_permitted(sensitivity: "str | SensitivityTier | None") -> bool:
+    """Would an external (Class C) provider ever be usable for a request at
+    this sensitivity tier, given the current settings + routing policy?
+    Routes use this to surface `external_providers_permitted` without making
+    a call. `confidential`/`privileged` always return False."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.EXTERNAL_PROVIDERS_ENABLED or settings.STRICT_LOCAL_ONLY:
+        return False
+    tier = SensitivityTier.coerce(sensitivity)
+    return tier.value in get_policy().class_c_allowed_tiers
 
 
 def generate_content(

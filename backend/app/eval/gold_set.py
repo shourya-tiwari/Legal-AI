@@ -155,3 +155,26 @@ FAITHFULNESS_GOLD: List[FaithfulnessExample] = [
         "is_faithful": True,
     },
 ]
+
+
+class SensitivityExample(TypedDict):
+    text: str
+    expected_tier: str           # public | internal | confidential | privileged
+
+
+# Hand-built cases for the document sensitivity classifier
+# (app/services/sensitivity/). The gate in tests/test_eval_gate.py holds the
+# rule base to >= 90% accuracy here -- raise it as the rules improve.
+SENSITIVITY_GOLD: List[SensitivityExample] = [
+    {"text": "This memorandum is protected by the attorney-client privilege.", "expected_tier": "privileged"},
+    {"text": "PRIVILEGED & CONFIDENTIAL work product prepared in anticipation of litigation.", "expected_tier": "privileged"},
+    {"text": "Legal advice memo — subject to the attorney-client privilege, do not forward.", "expected_tier": "privileged"},
+    {"text": "MUTUAL NON-DISCLOSURE AGREEMENT. The parties will exchange Confidential Information.", "expected_tier": "confidential"},
+    {"text": "The Receiving Party shall not disclose the Disclosing Party's trade secret information.", "expected_tier": "confidential"},
+    {"text": "Employee record: SSN 123-45-6789, DOB on file, passport number X1234567.", "expected_tier": "confidential"},
+    {"text": "FOR IMMEDIATE RELEASE — the Company announces its results, filed with the SEC on Form 8-K.", "expected_tier": "public"},
+    {"text": "This document is available to the general public via the EDGAR system.", "expected_tier": "public"},
+    {"text": "MASTER SERVICES AGREEMENT covering consulting deliverables, fees and a payment schedule.", "expected_tier": "internal"},
+    {"text": "5. Confidentiality. Each party will protect the other's confidential information with reasonable care.", "expected_tier": "internal"},
+    {"text": "Amendment No. 2 to the Lease, adjusting the rent and extending the term by one year.", "expected_tier": "internal"},
+]

@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth import OrgContext
 from app.db import get_db
-from app.db_models import Document
+from app.db_models import AuditLog, Document
 from app.guard import api_guard
 from app.models import (
     AgentAnalyzeResponse,
@@ -27,6 +27,8 @@ from app.models import (
     MapResponse,
     RewriteResponse,
     RiskScanResponse,
+    SensitivityOverrideRequest,
+    SensitivityResponse,
     V2AnalyzeRequest,
     V2AskRequest,
     V2ContextualizeRequest,
@@ -37,8 +39,10 @@ from app.models import (
 from app.routes.agents import run_and_persist_analysis
 from app.services.chatbot import answer_question
 from app.services.contextualizer.explainer import generate_contextualized_explanation
+from app.services.model_router import is_external_permitted
 from app.services.risk_radar.detector import generate_risk_radar_response
 from app.services.rewriter import rewrite_text
+from app.services.sensitivity import classify_sensitivity
 from app.services.timeline import generate_map
 
 logger = logging.getLogger("legalai.routes.v2")
@@ -77,6 +81,59 @@ def get_document(
         full_text=doc.full_text,
         blocks=doc.blocks or [],
         created_at=doc.created_at.isoformat() if doc.created_at else None,
+        sensitivity_tier=doc.sensitivity_tier,
+        sensitivity_source=doc.sensitivity_source,
+    )
+
+
+@router.get("/documents/{document_id}/sensitivity", response_model=SensitivityResponse,
+            summary="Get a document's sensitivity tier and why")
+def get_sensitivity(
+    document_id: int,
+    org: OrgContext = Depends(api_guard),
+    db: Session = Depends(get_db),
+) -> SensitivityResponse:
+    doc = _load_doc(document_id, org, db)
+    return SensitivityResponse(
+        document_id=doc.id,
+        tier=doc.sensitivity_tier,
+        source=doc.sensitivity_source,
+        signals=list(doc.sensitivity_signals or []),
+        rationale=classify_sensitivity(doc.full_text, filename=doc.filename).rationale
+        if doc.sensitivity_source == "auto" else "set by org-admin override",
+        external_providers_permitted=is_external_permitted(doc.sensitivity_tier),
+    )
+
+
+@router.put("/documents/{document_id}/sensitivity", response_model=SensitivityResponse,
+            summary="Override a document's sensitivity tier (org-admin)")
+def override_sensitivity(
+    document_id: int,
+    body: SensitivityOverrideRequest,
+    request: Request,
+    org: OrgContext = Depends(api_guard),
+    db: Session = Depends(get_db),
+) -> SensitivityResponse:
+    # No per-user RBAC yet -- any authenticated caller for the org can override.
+    doc = _load_doc(document_id, org, db)
+    old = doc.sensitivity_tier
+    doc.sensitivity_tier = body.tier
+    doc.sensitivity_source = "override"
+    doc.sensitivity_signals = ([{"tier": body.tier, "phrase": body.reason, "category": "override"}]
+                               + list(doc.sensitivity_signals or []))
+    db.add(AuditLog(
+        org_id=org.id, action="PUT", resource=str(request.url.path),
+        detail=f"sensitivity {old} -> {body.tier}: {body.reason}",
+    ))
+    db.commit()
+    db.refresh(doc)
+    return SensitivityResponse(
+        document_id=doc.id,
+        tier=doc.sensitivity_tier,
+        source=doc.sensitivity_source,
+        signals=list(doc.sensitivity_signals or []),
+        rationale=f"overridden from {old} by org-admin: {body.reason}",
+        external_providers_permitted=is_external_permitted(doc.sensitivity_tier),
     )
 
 
@@ -105,7 +162,8 @@ def rewrite(
     db: Session = Depends(get_db),
 ) -> RewriteResponse:
     doc = _load_doc(document_id, org, db)
-    out, meta = rewrite_text(_block_text(doc, body.block_id), body.mode)
+    out, meta = rewrite_text(_block_text(doc, body.block_id), body.mode,
+                             sensitivity=doc.sensitivity_tier)
     return RewriteResponse(rewritten_text=out, meta=meta)
 
 
@@ -117,7 +175,7 @@ def contract_map(
     db: Session = Depends(get_db),
 ) -> MapResponse:
     doc = _load_doc(document_id, org, db)
-    return generate_map(doc.full_text)
+    return generate_map(doc.full_text, sensitivity=doc.sensitivity_tier)
 
 
 @router.post("/documents/{document_id}/ask", response_model=AskResponse,
@@ -129,7 +187,8 @@ def ask(
     db: Session = Depends(get_db),
 ) -> AskResponse:
     doc = _load_doc(document_id, org, db)
-    return answer_question(question=body.question, context=doc.full_text)
+    return answer_question(question=body.question, context=doc.full_text,
+                           sensitivity=doc.sensitivity_tier)
 
 
 @router.post("/documents/{document_id}/risk-scan", response_model=RiskScanResponse,
@@ -141,7 +200,8 @@ def risk_scan(
     db: Session = Depends(get_db),
 ) -> RiskScanResponse:
     doc = _load_doc(document_id, org, db)
-    return generate_risk_radar_response(_block_text(doc, body.block_id))
+    return generate_risk_radar_response(_block_text(doc, body.block_id),
+                                        sensitivity=doc.sensitivity_tier)
 
 
 @router.post("/documents/{document_id}/contextualize", response_model=ContextualizerResponse,
@@ -153,5 +213,6 @@ def contextualize(
     db: Session = Depends(get_db),
 ) -> ContextualizerResponse:
     doc = _load_doc(document_id, org, db)
-    result = generate_contextualized_explanation(_block_text(doc, body.block_id), body.context)
+    result = generate_contextualized_explanation(_block_text(doc, body.block_id), body.context,
+                                                 sensitivity=doc.sensitivity_tier)
     return ContextualizerResponse(**result)

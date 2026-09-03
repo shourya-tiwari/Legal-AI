@@ -70,7 +70,8 @@ def tag_deontic_modality_rule_based(clause_text: str) -> List[DeonticTag]:
     return tags
 
 
-def tag_deontic_modality(clause_text: str, use_ai_escalation: bool = False) -> List[DeonticTag]:
+def tag_deontic_modality(clause_text: str, use_ai_escalation: bool = False,
+                         *, sensitivity: str = "internal") -> List[DeonticTag]:
     tags = tag_deontic_modality_rule_based(clause_text)
     if tags or not use_ai_escalation:
         return tags
@@ -79,6 +80,7 @@ def tag_deontic_modality(clause_text: str, use_ai_escalation: bool = False) -> L
         raw = generate_content(
             _AI_PROMPT_TEMPLATE.format(clause=clause_text),
             task="deontic_escalation",
+            sensitivity=sensitivity,
             temperature=0.0,
         )
         data = parse_json_safely(raw)

@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     STRICT_LOCAL_ONLY: bool = False
     ROUTING_POLICY_PATH: str = ""
 
+    # Document sensitivity classification (app/services/sensitivity/). The tier
+    # a document gets is what the Class C gate keys on -- confidential/privileged
+    # documents are never routed to an external provider. Disabled => every
+    # document is treated as DEFAULT_SENSITIVITY_TIER.
+    SENSITIVITY_ENABLED: bool = True
+    DEFAULT_SENSITIVITY_TIER: str = "internal"
+
     # Commercial provider credentials (Class C -- only used when the matching
     # provider is installed and enabled).
     GOOGLE_API_KEY: str = ""
