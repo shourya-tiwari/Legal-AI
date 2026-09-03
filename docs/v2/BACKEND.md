@@ -13,7 +13,7 @@ V1's backend is one FastAPI app with six routers, each calling one service funct
 | **RAG Service** | Internal retrieval API | Vector store (Qdrant / pgvector / LanceDB), graph store (for GraphRAG traversal), BM25 index, self-hosted embed/rerank via the Model Router |
 | **Knowledge Graph Service** | Internal graph query/write API, limited GraphQL for the frontend's KG Explorer | Graph store (Memgraph / Neo4j CE / Apache AGE / KùzuDB) |
 | **Memory Service** | Internal memory read/write API | Vector store, Postgres, Redis |
-| **Model Router** | Internal `generate()` / `generate_structured()` / `embed()` / `rerank()` / `transcribe()` / `synthesize()` calls, resolved by a declarative policy | `legalai-providers-core` (self-hosted: vLLM/SGLang, TEI/Infinity, faster-whisper, Kokoro) — always; `legalai-providers-external` (commercial APIs) — optional plugin, absent in on-prem/air-gapped builds |
+| **Model Router** | Internal `generate()` / `embed()` / `rerank()` / `entail()` / `extract_entities()` calls (shipped), `generate_structured()` / `transcribe()` / `synthesize()` reserved, resolved by a declarative policy | `legalai-providers-core` (self-hosted: OpenAI-compat/Ollama/vLLM, TEI, in-process transformers NLI + GLiNER) — always; `legalai-providers-external` (Gemini, …) — optional plugin, absent in on-prem/air-gapped builds |
 | **Notification/Webhook Service** | Outbound webhooks, in-app notifications | Redpanda (consumes job-completion events) |
 
 ## Provider adapter layer (the Model Router's internals)
@@ -23,7 +23,9 @@ V1's backend is one FastAPI app with six routers, each calling one service funct
 - Every model backend implements one `ModelProvider` interface. Adapters live only in `services/model_router/providers/`. An **import-linter CI contract** fails the build if any other module imports a model-provider SDK (`google.genai`, `openai`, `anthropic`, `vllm`, …). This is the mechanical guarantee that no service is vendor-coupled.
 - Adapters are packaged in two installs: `legalai-providers-core` (self-hosted, always present) and `legalai-providers-external` (commercial, optional, excluded from on-prem/air-gapped builds and verified absent by the SBOM allowlist — `ARCHITECTURE.md`).
 - A declarative routing policy (`packages/policies/routing.yaml`, versioned + eval-gated) maps `task × sensitivity × required-capabilities × budget` to a `(provider, model)` binding. The Router is the only place that reads it.
-- Every call logs `{task, sensitivity, provider, model, policy_version, reason}` to the trace store, joined to `eval_runs` for regression attribution.
+- Every call logs `{task, sensitivity, provider, model, reason, candidates}` — **shipped**: `router.py` at INFO (Class C at WARNING) and, fail-soft via `model_router/telemetry.py`, one row to the `model_calls` table + an OTel span. `eval_runs` (from `app/eval/`) is the join partner for regression attribution.
+- **Shipped capabilities beyond generate/embed/rerank** (Phase 6): `entail` — a Class-A local NLI head (`local-nli`, `verify_nli` task) for the Verifier's faithfulness gate; `ner` — GLiNER zero-shot entity extraction (`local-ner`). Both local-only chains (no Class C), both optional (`requirements-local.txt`), both fail-soft to a rule/lexical path.
+- **Escalation**: a generate task carries an `escalate_to` in the policy; `generate_content(..., hard=True)` prepends it (a bigger *self-hosted* model, `local-llm-large`), never a Class C target.
 
 ## Communication patterns
 

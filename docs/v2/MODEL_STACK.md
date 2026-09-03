@@ -80,12 +80,13 @@ Coding models are **not** on the contract-analysis critical path — they suppor
 | Task | Recommendation | Why |
 |---|---|---|
 | Framework / tokenization / sentence split | **spaCy** (MIT) | The integration scaffold; not the intelligence. |
-| Zero-shot / configurable NER | **GLiNER** family (Apache-2.0) — `gliner-multi`, `gliner_large-v2.1` | One model, arbitrary entity types specified at inference. Covers "party", "governing-law jurisdiction", "monetary amount", "defined term", "statute citation" without a fine-tune, and new entity types don't need a retrain. This is the NER default. |
+| Zero-shot / configurable NER | **GLiNER** family (Apache-2.0) — `urchade/gliner_multi-v2.1` | One model, arbitrary entity types specified at inference. Covers "party", "governing-law jurisdiction", "monetary amount", "defined term", "statute citation" without a fine-tune. **Shipped (Phase 6)**: `providers/gliner_local.py` (`local-ner` / `ner_extract`), merged with the regex floor in `nlp/entities.py`, fail-soft. |
+| NLI faithfulness head (Verifier safety gate) | **DeBERTa-v3 / ModernBERT 3-class NLI**, Class A, in-process | Deterministic, local-only entailment check for the Verifier — never a generation call. **Shipped (Phase 6)**: `providers/nli_local.py` (`local-nli` / `verify_nli`), default `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`; `verifier.py` labels each summary claim against its sources. |
 | Structured extraction from text | **NuExtract 2.0** (small, template-driven extraction model) | Purpose-built for "here's a JSON schema, fill it from this text" — a good fit for clause-field extraction where GLiNER's span model is too coarse. |
 | Legal-domain encoder (fine-tune base) | **InLegalBERT**, **Legal-BERT** (Chalkidis et al.), **LexLM** | The base for any fine-tuned token-classification or clause-type head (`DEEP_LEARNING.md`). Pretrained on legal corpora; small enough to serve on CPU at Class A. |
 | Coreference resolution | **maverick-coref** (current SOTA-ish, lightweight) with **fastcoref** as the fast fallback | Contracts need long-range coref ("the Company" 40 pages later); maverick handles document-length context better than fastcoref while staying CPU-serveable. LLM-assisted coref via the Router is the escalation path for the hardest cases. |
-| Deontic modality tagging | **In-house distilled BERT-family tagger** (`DEEP_LEARNING.md`), bootstrapped by weak supervision | No public model does obligation/permission/prohibition/discretion tagging at the granularity we need. Rule-based Tier-0 (shipped in Phase 2) is the bootstrap and the permanent fast pre-filter. |
-| Clause / contract type classification | **In-house fine-tune** on a DeBERTa-v3 / ModernBERT / Legal-BERT base, evaluated against CUAD | `NLP.md` §8. ModernBERT is the strongest current permissively-licensed encoder base and a good upgrade target for all of these heads. |
+| Deontic modality tagging | **In-house distilled BERT-family tagger** (`DEEP_LEARNING.md`), bootstrapped by weak supervision | No public model does obligation/permission/prohibition/discretion tagging at the granularity we need. Rule-based Tier-0 (shipped in Phase 2) is the bootstrap and the permanent fast pre-filter. **Scaffolded (Phase 6)** in `backend/training/`, not trained. |
+| Clause / contract type classification | **In-house fine-tune** on a DeBERTa-v3 / ModernBERT / Legal-BERT base, evaluated against CUAD/LegalBench | `NLP.md` §8. **Scaffolded (Phase 6)** in `backend/training/` (LoRA, LegalBench + gold + weak-supervision data prep), not trained; the rule base stays the Tier-0 pre-filter until a head beats it on the eval gate. |
 
 ### Speech-to-text (ASR) — dictated notes, recorded negotiations, deposition/hearing audio
 
@@ -159,7 +160,7 @@ Coding models are **not** on the contract-analysis critical path — they suppor
 |---|---|---|
 | RAG-specific eval | **Ragas** (Apache-2.0) | Faithfulness, answer relevance, context precision/recall. The Phase-2 target. Its judge model is pluggable — point it at a self-hosted model so eval itself has no external dependency. |
 | Rigorous / research-grade eval + CI | **Inspect AI** (UK AISI, MIT) | The strongest open eval framework for building real, versioned, reproducible benchmark suites with proper logging — the right backbone for anything headed toward a publication. Use it to house the internal legal gold set and the agent-trajectory evals. |
-| Legal-domain benchmarks | **LegalBench**, **LexGLUE**, **CUAD**, **ContractNLI**, **MAUD**, **BillSum** | LegalBench (162 legal-reasoning tasks) is the headline external benchmark to track a self-hosted model against. CUAD/ContractNLI for clause extraction and entailment specifically. |
+| Legal-domain benchmarks | **LegalBench**, **LexGLUE**, **CUAD**, **ContractNLI**, **MAUD**, **BillSum** | LegalBench (162 legal-reasoning tasks) is the headline external benchmark to track a self-hosted model against. **Shipped (Phase 6)**: `app/eval/datasets.py` loads LegalBench cuad_*/contract_nli_* subtasks + MNLI; the standalone CUAD-QA/ContractNLI datasets are script-based and dead on `datasets` ≥ 3, so LegalBench's reformatted subtasks are the path. `app/eval/cutover_gate.py` is the "self-hosted must meet/beat the baseline before it becomes default" gate. |
 | Prompt/regression testing in CI | **promptfoo** (MIT) or **DeepEval** (Apache-2.0) | Fast, declarative, git-diffable test cases for prompt and model changes — the pre-merge smoke gate that runs on every PR. |
 | Broad capability probes | **lm-evaluation-harness** (EleutherAI, MIT) | Standard academic harness; use when evaluating a fine-tune's general capability regression, not just legal tasks. |
 
@@ -220,7 +221,7 @@ Coding models are **not** on the contract-analysis critical path — they suppor
 | OCR / parsing | Docling → PaddleOCR → olmOCR/Qwen2.5-VL (confidence-gated) |
 | Embeddings | Qwen3-Embedding-8B (0.6B constrained); BGE-M3 alternative |
 | Reranker | Qwen3-Reranker-4B; bge-reranker-v2-m3 fallback |
-| NER / NLP | GLiNER + spaCy; Legal-BERT/ModernBERT fine-tune bases; maverick-coref |
+| NER / NLP | GLiNER (shipped, `local-ner`) + spaCy; DeBERTa/ModernBERT NLI faithfulness head (shipped, `local-nli`); Legal-BERT/ModernBERT fine-tune bases (scaffolded); maverick-coref (pending) |
 | ASR | faster-whisper large-v3-turbo; Parakeet (English); WhisperX (diarization) |
 | TTS | Kokoro-82M; Piper (air-gap) |
 | Agent framework | LangGraph + xgrammar structured output |

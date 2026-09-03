@@ -2,6 +2,8 @@
 
 V1 has zero trained models of its own — every "AI" behavior is a prompt sent to a general-purpose hosted model. V2 introduces a small set of purpose-trained models where a general LLM is the wrong tool: tasks that need to be fast, cheap, run at Class A (fully local, CPU, air-gapped), interpretable, or that benefit from learning directly from an organization's historical data.
 
+**Status (Phase 6):** the training pipeline for the two nearest-term heads — the **clause/contract-type classifier** and the **deontic modality tagger** — is **scaffolded and runnable, but no model has been trained**. `backend/training/` holds the data-prep (`prepare_clause_data.py` / `prepare_deontic_data.py` — steps 1–2 below, teacher = the rule tagger by default, `--llm-teacher` for the self-hosted Model-Router teacher), the config-driven LoRA training scripts (`train_clause_classifier.py` / `train_deontic_tagger.py`, `--dry-run`/`--smoke`), YAML configs, and a model-card template. The rule-based classifiers stay the production path (Tier-0 pre-filter) until a trained head passes the eval gate (step 6). MLflow/DVC/KitOps (step 7), Argilla review (step 3), and distilabel (step 2) are not yet wired.
+
 ## Training pipeline
 
 ```

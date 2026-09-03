@@ -1,6 +1,6 @@
 # LegalAI V2 — Overview
 
-> Status: **design document**. Nothing in `docs/v2/` is implemented as described here yet — Phases 1–4 have shipped a pragmatic slice (see `ROADMAP.md`/`TASKS.md` for exactly what is real). This is a research-grade target architecture built on top of the V1 system documented in `docs/v1/`.
+> Status: **design document** — the target architecture, not a description of the current build. Phases 1–5 have shipped a pragmatic slice and Phase 6 is partly done (provider-agnostic Model Router; self-hosted embeddings/rerank/generation serving layer; a real Class-A NLI faithfulness head in the Verifier; GLiNER NER; the graded eval harness + cutover gate). Still ahead: the LLM task cutover to a self-hosted default (GPU-gated), the in-house fine-tunes (scaffolded, not trained), the frontend SPA, durable execution, and the on-prem/air-gapped profiles. See `ROADMAP.md`/`TASKS.md` for exactly what is real. Built on top of the V1 system documented in `docs/v1/`.
 
 ## Vision
 

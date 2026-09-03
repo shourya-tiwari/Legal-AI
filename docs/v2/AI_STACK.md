@@ -40,10 +40,14 @@ class ModelProvider(Protocol):
     def generate_structured(self, req: StructuredRequest) -> StructuredResponse: ...
     def embed(self, req: EmbedRequest) -> EmbedResponse: ...
     def rerank(self, req: RerankRequest) -> RerankResponse: ...
+    def entail(self, req: EntailRequest) -> EntailResponse: ...          # NLI (Verifier gate)
+    def extract_entities(self, req: NERRequest) -> NERResponse: ...      # zero-shot NER
     def transcribe(self, req: TranscribeRequest) -> TranscribeResponse: ...
     def synthesize(self, req: SynthesizeRequest) -> SynthesizeResponse: ...
     def tokenize(self, text: str, model: str) -> list[int]: ...
 ```
+
+**Shipped capability set** (`app/services/model_router/base.py`): `generate`, `embed`, `rerank`, `entail`, `ner` — plus `describe` / `is_available`. `generate_structured` / `transcribe` / `synthesize` / `health` / `tokenize` are reserved in the design, not yet needed by a feature.
 
 **Rules the codebase enforces:**
 
@@ -135,8 +139,8 @@ fallback_chain: [B, A]     # if the B provider is unhealthy, degrade; never auto
 | Scanned-document understanding | Qwen2.5-VL-7B | Qwen2.5-VL-32B for degraded scans / complex layout | See `COMPUTER_VISION.md` |
 | Embeddings | Qwen3-Embedding-8B (0.6B constrained) | — | Single model covers the retrieval need; no external option needed or better |
 | Reranking | Qwen3-Reranker-4B | — | Standard open cross-encoder; no commercial dependency justified |
-| NLI faithfulness (Verifier) | Local DeBERTa/ModernBERT NLI head (Class A) | — | This must be local and deterministic — it is a safety gate, not a generation task |
-| NER / entity resolution | GLiNER + Legal-BERT head (Class A) | Qwen3-8B for ambiguous entity disambiguation only | Structured extraction doesn't need a general LLM |
+| NLI faithfulness (Verifier) | Local DeBERTa/ModernBERT NLI head (Class A) — **shipped** (`local-nli`) | — | This must be local and deterministic — it is a safety gate, not a generation task |
+| NER / entity resolution | GLiNER (Class B) — **shipped** (`local-ner`); + a Legal-BERT head (scaffolded) | Qwen3-8B for ambiguous entity disambiguation only | Structured extraction doesn't need a general LLM |
 | ASR | faster-whisper large-v3-turbo | Parakeet (English throughput) | Self-hosted, no exceptions |
 | TTS | Kokoro-82M (Piper air-gapped) | — | Self-hosted, no exceptions |
 
@@ -152,6 +156,8 @@ V1 escalated to Gemini. V2's default escalation ladder is entirely self-hosted:
 4. **Only if** (a) `-external` is installed, (b) the org opted in, (c) the doc is `Public`/`Internal`, and (d) the policy's `class_c_allowed_for` permits it → **Class C**.
 
 Steps 1–3 are the whole product for the on-prem and air-gapped profiles.
+
+**Shipped (Phase 6):** step 3's self-hosted escalation — a generate task carries `escalate_to: [local-llm-large]` in `routing.yaml`; `generate_content(..., hard=True)` (set by `rewriter.py` for dense chunks, `chatbot.py` for multi-hop questions) prepends it. The escalation target is validated to never be a Class C provider. The confidence-signal-driven auto-escalation of steps 1–2 is still a caller-supplied boolean, not a measured self-consistency score.
 
 ## RAG architecture
 
