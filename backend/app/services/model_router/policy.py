@@ -50,6 +50,7 @@ DEFAULT_POLICY: dict = {
         "deontic_escalation": _GEN(),
         "clause_type_escalation": _GEN(),
         "agent_summary": _GEN(),
+        "agent_plan": _GEN(),
         # embed ------------------------------------------------------------
         "embed_corpus": {"capability": "embed",
                          "chain": ["local-embed-remote", "local-embed-neural", "local-embed-hash"],

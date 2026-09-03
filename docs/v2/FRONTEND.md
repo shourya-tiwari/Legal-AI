@@ -32,7 +32,7 @@ No commercial frontend SaaS (analytics, session replay, etc.) is assumed by defa
 | **Risk Dashboard** | Spider/radar chart of risk categories, drill-down to clause-level explanations with counterfactual attribution | Closes the gap flagged in V1's `FEATURES.md` (README promised, never built) |
 | **Contextualizer** | Role/tone-personalized explanation, now citing real retrieved sources instead of a static list | Evolves "Contextualizer" section |
 | **Negotiation Studio** | Redline suggestions, accept/reject, collaborative multi-reviewer editing, playbook-driven suggestions | New |
-| **Agent Trace Viewer** | Step-by-step view of what each agent did, what it retrieved, what it verified, and **which provider/model served each step** — the explainability surface for `AGENTS.md`'s audit trail | New |
+| **Agent Trace Viewer** | Step-by-step view of what each agent did, what it retrieved, what it verified, **which provider/model served each step**, and **why the planner chose the agents it ran** (`plan` + `plan_rationale` from `POST /api/v2/documents/{id}/analyze`) — the explainability surface for `AGENTS.md`'s audit trail | New (backend `plan`/trace shipped; the viewer is still to build) |
 | **Knowledge Graph Explorer** | Visual traversal of entities/obligations/contradictions across a user's document portfolio | New |
 | **Chat** | True multi-turn assistant backed by session memory (`AGENTS.md`), not V1's stateless per-message call | Evolves "Chatbot" widget |
 | **Admin/Org Settings** | Sensitivity policy, **routing-policy view + per-task/per-tier Class C toggles**, user/role management, audit log export, **Class C egress log** | New |

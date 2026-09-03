@@ -1,10 +1,10 @@
 # backend/app/agents/state.py
 """
-The shared CaseState every agent reads/writes (docs/v2/AGENTS.md), scoped to
-what Phase 4's fixed extract -> risk -> research -> summarize -> verify
-pipeline actually needs. Not the full docs/v2 vision (no memory_refs,
-sensitivity_tier, kg_refs as separate node-id lists) -- those are real
-future work, not renamed here to look more complete than they are.
+The shared CaseState every agent reads/writes (docs/v2/AGENTS.md). The
+pipeline is planner-driven (Phase 7): after extraction, the `planner` node
+sets `plan` -- the ordered node ids to run -- and the graph dispatches by it
+instead of a fixed chain. Still not the full docs/v2 vision (no memory_refs,
+no per-tier routing, no dynamic tool selection) -- those are real future work.
 """
 from __future__ import annotations
 
@@ -42,6 +42,18 @@ class CaseState(BaseModel):
     document_id: int
     org_id: int
     full_text: str = ""
+
+    # ---- planning (Phase 7 Orchestrator/Planner) ----
+    # analysis_mode: a named preset the request asks for ("full" | "risk_only"
+    #   | "quick" | "extract_only"); the planner starts from its agent list.
+    # use_ai_planner: let an LLM choose the plan (falls back to rules offline).
+    # plan: the ordered node ids the planner chose (always ends with "verifier").
+    # ran_steps: node ids already executed -- the graph's dispatch key.
+    analysis_mode: str = "full"
+    use_ai_planner: bool = False
+    plan: List[str] = Field(default_factory=list)
+    plan_rationale: str = ""
+    ran_steps: List[str] = Field(default_factory=list)
 
     clauses: List[ClauseObject] = Field(default_factory=list)
     risk_findings: List[RiskFinding] = Field(default_factory=list)

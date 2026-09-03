@@ -88,7 +88,7 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 **Agents (`AGENTS.md`)**
 - [~] Deploy LangGraph + durable-execution runtime — **LangGraph done** (`app/agents/graph.py`); **durable engine not done**, runs synchronously in-request → **Phase 7**
 - [x] Define the shared `CaseState` schema — `app/agents/state.py`, scoped to what the fixed pipeline needs (no `memory_refs`/`sensitivity_tier` yet)
-- [ ] Orchestrator/Planner agent — **not implemented as a dynamic agent**; the fixed sequence stands in → **Phase 7**
+- [x] Orchestrator/Planner agent — **done in Phase 7** (`app/agents/{planner,registry,graph}.py`): a `planner` node picks which middle agents run; rule-based default + optional LLM (`task="agent_plan"`, offline-safe fallback); `analysis_mode` presets `full`/`quick`/`risk_only`/`extract_only`. The dynamic *tool-choosing* planner of the full vision is still ahead.
 - [x] Extraction agent — `app/agents/extraction.py`, wraps Phase 2's `build_clause_objects`
 - [x] Risk & Compliance agent — `app/agents/risk_compliance.py`: keyword flags (`risk_radar/rules.py`) + KG candidate-conflict lookup. AI risk pass not invoked here (Tier-0 keyword sweep only)
 - [x] Clause Research agent — `app/agents/research.py`; only runs on already-flagged clauses
@@ -109,7 +109,7 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [ ] Feature-flag `/api/v2` usage per org
 
 **Backend** → **Phase 7**
-- [ ] `/api/v2/*` session/document-first endpoints
+- [~] `/api/v2/*` document-first endpoints — **first slice done** (`app/routes/v2.py`): `GET /api/v2/documents/{id}` + `POST .../{analyze,rewrite,map,ask,risk-scan,contextualize}` by `document_id`, reusing the V1 services (optional `block_id`). Session objects + per-org feature-flagging still to do.
 - [ ] Notification/Webhook Service for async job completion
 
 ---
@@ -198,8 +198,8 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 **Durable execution & Memory Service**
 - [ ] Introduce a durable-execution engine — DBOS (library, Postgres-backed) default; Hatchet mid-scale; Temporal only for large multi-tenant cloud. Keep `app/agents/graph.py` engine-agnostic
 - [ ] Memory Service: session tier (Redis), episodic tier (Postgres + vector store), consolidation worker with the privacy-tier gate
-- [ ] Dynamic Orchestrator/Planner agent, replacing the fixed Phase 4 sequence
-- [ ] Formalize typed tool interfaces (JSON-schema-validated) now that a planner chooses tools
+- [x] Dynamic Orchestrator/Planner agent, replacing the fixed Phase 4 sequence — `app/agents/{planner,registry,graph}.py` (rule-based + optional LLM + `analysis_mode` presets). Done without a durable engine (a per-doc run is seconds).
+- [ ] Formalize typed tool interfaces (JSON-schema-validated) — the planner picks *agents* from a registry, not arbitrary tools yet
 
 **Frontend SPA**
 - [ ] Scaffold Next.js + TypeScript; generate the API client from the OpenAPI schema
@@ -208,7 +208,7 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [ ] Model status panel: self-hosted model health / queue depth / latency
 - [ ] Fully self-hosted frontend assets (fonts, Plausible analytics); strict CSP; sandboxed PDF.js preview
 - [ ] Sensitivity-aware rendering: `Privileged` documents show a persistent indicator and disable any control that would trigger a Class C call
-- [ ] Introduce `/api/v2/*` session/document-first endpoints; feature-flag per org
+- [~] Introduce `/api/v2/*` document-first endpoints — first slice done (`app/routes/v2.py`, see Phase 4 backend note); per-org feature-flagging still to do
 - [ ] Notification/Webhook Service for async job completion
 
 **Exit criteria**: an air-gapped install (Zarf → disconnected k3s → working product, verified offline) validated with a pilot; a collapsed-data-layer on-prem install validated; the SPA at V1 parity plus the Agent Trace Viewer.

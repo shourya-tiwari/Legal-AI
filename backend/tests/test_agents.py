@@ -152,4 +152,44 @@ def test_full_graph_runs_end_to_end(monkeypatch):
     assert len(result.risk_findings) >= 1
     assert result.summary == "Summary text, no citations."
     agent_names = [step.agent_name for step in result.trace]
-    assert agent_names == ["extraction", "risk_compliance", "clause_research", "summary", "verifier"]
+    # SAMPLE_TEXT has "indemnify" + "shall not" -> the planner picks the full plan
+    assert agent_names == ["extraction", "planner", "risk_compliance", "clause_research", "summary", "verifier"]
+    assert result.plan == ["risk_compliance", "research", "summarize", "verifier"]
+
+
+def test_planner_skips_research_and_summary_for_a_benign_document(monkeypatch):
+    calls = []
+    monkeypatch.setattr("app.agents.summary.generate_content", lambda *a, **k: calls.append(1))
+    monkeypatch.setattr("app.services.contextualizer.rag.embed_content", fake_embed_content)
+
+    result = run_case_analysis(
+        document_id=1, org_id=1,
+        full_text="The parties will meet quarterly.\n\nNotices go to the addresses in Schedule A.",
+    )
+    agent_names = [s.agent_name for s in result.trace]
+    assert "clause_research" not in agent_names
+    assert "summary" not in agent_names
+    assert agent_names == ["extraction", "planner", "verifier"]
+    assert calls == []
+    assert "no risk" in result.plan_rationale.lower()
+
+
+def test_analysis_mode_extract_only_runs_only_the_gate(monkeypatch):
+    monkeypatch.setattr("app.services.contextualizer.rag.embed_content", fake_embed_content)
+    result = run_case_analysis(
+        document_id=1, org_id=1, full_text=SAMPLE_TEXT, analysis_mode="extract_only",
+    )
+    assert [s.agent_name for s in result.trace] == ["extraction", "planner", "verifier"]
+    assert result.plan == ["verifier"]
+
+
+def test_analysis_mode_risk_only_skips_the_narrative(monkeypatch):
+    calls = []
+    monkeypatch.setattr("app.agents.summary.generate_content", lambda *a, **k: calls.append(1))
+    result = run_case_analysis(
+        document_id=1, org_id=1, full_text=SAMPLE_TEXT, analysis_mode="risk_only",
+    )
+    agent_names = [s.agent_name for s in result.trace]
+    assert agent_names == ["extraction", "planner", "risk_compliance", "verifier"]
+    assert result.risk_findings  # the flags are still produced
+    assert calls == []

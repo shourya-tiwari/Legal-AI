@@ -189,9 +189,11 @@ def test_agents_analyze_endpoint(client, monkeypatch):
     assert body["clause_count"] == 2
     assert any(f["term"] == "indemnify" for f in body["risk_findings"])
     assert body["summary"] == "Risk summary, no citations."
+    # "indemnify" + "shall not" -> the planner picks the full plan
     assert [step["agent_name"] for step in body["trace"]] == [
-        "extraction", "risk_compliance", "clause_research", "summary", "verifier",
+        "extraction", "planner", "risk_compliance", "clause_research", "summary", "verifier",
     ]
+    assert body["plan"] == ["risk_compliance", "research", "summarize", "verifier"]
 
 
 def test_agents_analyze_unknown_document_returns_404(client):

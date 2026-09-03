@@ -4,7 +4,7 @@ V1 has no agency: each route makes exactly one LLM call and returns whatever com
 
 ## Orchestration framework
 
-**LangGraph** (MIT) implements each workflow as an explicit state graph rather than a free-form agent loop — a deliberate choice for a legal domain where **determinism and auditability matter more than open-ended autonomy**. Every node transition, tool call, and intermediate state is recorded. Already shipped in Phase 4 as a fixed pipeline.
+**LangGraph** (MIT) implements each workflow as an explicit state graph rather than a free-form agent loop — a deliberate choice for a legal domain where **determinism and auditability matter more than open-ended autonomy**. Every node transition, tool call, and intermediate state is recorded. Shipped in Phase 4 as a fixed pipeline; **Phase 7** made it **planner-driven** — a `planner` node runs after extraction and sets `state.plan` (the ordered node ids to execute), and the graph dispatches by it, so a document with no risk/ambiguity signal runs `extraction → planner → verifier` and skips the middle agents entirely (`app/agents/{planner,registry,graph}.py`).
 
 Long-running graphs execute on a **durable-execution engine** (`BACKEND.md`, `MODEL_STACK.md`) so a multi-step analysis survives process restarts and individual step failures retry without re-running the whole graph. The engine is **pluggable and not a vendor commitment**: **DBOS** (a library, Postgres-backed — no extra service) is the default for on-prem/air-gapped and mid-scale; **Hatchet** for larger self-hosted; **Temporal** only where the multi-tenant cloud profile's scale justifies operating it. The `app/agents/graph.py` abstraction stays engine-agnostic. Phase 4 runs synchronously in-request; the durable engine lands in Phase 7.
 
@@ -30,7 +30,7 @@ CaseState {
 
 | Agent | Role | Key tools | Escalates to |
 |---|---|---|---|
-| **Orchestrator/Planner** | Decomposes a user request into a task graph, decides which specialist agents run and in what order (Phase 7 — Phase 4 ships a fixed sequence instead) | Case-state read/write, agent-dispatch | — |
+| **Orchestrator/Planner** | Decides which specialist agents run for a document — **shipped (Phase 7)** as `app/agents/planner.py`: rule-based by default (heuristics over the extracted clauses), optional LLM planning (`task="agent_plan"`, falls back to rules offline), plus `analysis_mode` presets (`full`/`quick`/`risk_only`/`extract_only`). The *full* vision — decomposing an arbitrary user request into a task graph and choosing tools dynamically — is still ahead. | Case-state read/write, agent registry (`registry.py`) | — |
 | **Ingestion & Triage** | Classifies document type and sensitivity tier, routes to the right pipeline configuration | CV/NLP pipeline triggers, sensitivity classifier (`DEEP_LEARNING.md`) | Human review if sensitivity is ambiguous |
 | **Extraction** | Wraps the NLP/CV pipelines' output into structured clauses, entities, and timeline events | NLP pipeline, CV pipeline, date/calendar tool | Verifier |
 | **Risk & Compliance** | Runs keyword + learned risk scoring (`DEEP_LEARNING.md`), checks flags against KG-known statutory rules | Risk scorer, KG query tool, statute lookup tool | Verifier |
@@ -47,7 +47,7 @@ For high-value/high-risk documents, an optional **Red Agent / Blue Agent** pair 
 
 ## Tool interface
 
-Every tool is a typed, JSON-schema-validated function — agents cannot execute arbitrary code or make unbounded network calls (`ARCHITECTURE.md` prompt-injection defense). Structured tool calls are enforced at the decoding layer via grammar-constrained generation (xgrammar / Outlines — `MODEL_STACK.md`), so a malformed tool call is impossible, not merely caught. Phase 4 calls the backing services as plain Python functions; the formal typed-tool layer lands in Phase 7 with the dynamic Planner. Representative tools:
+Every tool is a typed, JSON-schema-validated function — agents cannot execute arbitrary code or make unbounded network calls (`ARCHITECTURE.md` prompt-injection defense). Structured tool calls are enforced at the decoding layer via grammar-constrained generation (xgrammar / Outlines — `MODEL_STACK.md`), so a malformed tool call is impossible, not merely caught. Agents still call the backing services as plain Python functions; the Phase 7 planner chooses *agents* (from `app/agents/registry.py`), not arbitrary tools — the formal typed-tool layer is still ahead. Representative tools:
 
 | Tool | Signature (conceptual) | Backing service |
 |---|---|---|

@@ -1,7 +1,7 @@
 # backend/app/models.py
 from __future__ import annotations
 
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 from pydantic import BaseModel, Field
 
 from app.agents.state import AgentStep, KGConflictFinding, RiskFinding
@@ -111,12 +111,31 @@ class KGConflictsResponse(BaseModel):
     conflicts: List[dict] = Field(default_factory=list)
 
 # ----- Agentic Case Analysis (/api/agents/analyze) -----
+_ANALYSIS_MODE_PATTERN = "^(full|quick|risk_only|extract_only)$"
+
+
 class AgentAnalyzeRequest(BaseModel):
     document_id: int
+    analysis_mode: str = Field(
+        "full", pattern=_ANALYSIS_MODE_PATTERN,
+        description="Planner preset: 'full' (all agents), 'quick' (skip RAG research), "
+        "'risk_only' (flags only), 'extract_only' (clauses + the verifier gate only). "
+        "The planner still prunes 'full' when a document has no risk/ambiguity signal.",
+    )
+    use_ai_planner: bool = Field(
+        False,
+        description="Let an LLM choose which agents run (falls back to the rule-based "
+        "planner when no self-hosted model is served).",
+    )
 
 class AgentAnalyzeResponse(BaseModel):
     document_id: int
     clause_count: int
+    plan: List[str] = Field(
+        default_factory=list,
+        description="The ordered agent node ids the planner ran (ends with 'verifier').",
+    )
+    plan_rationale: str = Field("", description="Why the planner chose that plan.")
     risk_findings: List[RiskFinding] = Field(default_factory=list)
     kg_conflicts: List[KGConflictFinding] = Field(default_factory=list)
     summary: str
@@ -175,3 +194,33 @@ class ContextualizerResponse(BaseModel):
     citation_warning: bool = Field(
         False, description="True if the model referenced a bracket citation number it wasn't actually given."
     )
+
+
+# ----- /api/v2 -- document-first request bodies (the doc id is a path param) -----
+# These reuse the V1 response models (RewriteResponse, MapResponse, AskResponse,
+# RiskScanResponse, ContextualizerResponse, AgentAnalyzeResponse) unchanged.
+class V2AnalyzeRequest(BaseModel):
+    analysis_mode: str = Field("full", pattern=_ANALYSIS_MODE_PATTERN)
+    use_ai_planner: bool = False
+
+class V2RewriteRequest(BaseModel):
+    block_id: Optional[Union[int, str]] = Field(None, description="A block id from the upload response; omit to rewrite the whole document.")
+    mode: str = Field("layman", pattern="^(layman)$")
+
+class V2AskRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+
+class V2RiskScanRequest(BaseModel):
+    block_id: Optional[Union[int, str]] = Field(None, description="A block id; omit to scan the whole document.")
+
+class V2ContextualizeRequest(BaseModel):
+    block_id: Union[int, str] = Field(..., description="The block id whose clause to explain.")
+    context: dict = Field(..., description="User context: role, location, contract_type, interests, tone.")
+
+class V2DocumentResponse(BaseModel):
+    document_id: int
+    filename: str
+    content_type: Optional[str] = None
+    full_text: str
+    blocks: List[dict] = Field(default_factory=list)
+    created_at: Optional[str] = None

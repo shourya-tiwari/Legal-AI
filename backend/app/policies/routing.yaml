@@ -50,6 +50,7 @@ tasks:
   deontic_escalation:     { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
   clause_type_escalation: { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
   agent_summary:          { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  agent_plan:             { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
 
   # ---- embeddings ------------------------------------------------------
   embed_corpus: { capability: embed, chain: [local-embed-remote, local-embed-neural, local-embed-hash], class_c: [] }

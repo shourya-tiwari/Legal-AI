@@ -91,7 +91,7 @@ Memgraph needs no GPU, so this phase's infrastructure is real. Scoped down: enti
 
 A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 
-- LangGraph orchestration deployed: Extraction → Risk & Compliance → Clause Research → Summary → Verifier as a fixed sequence. **Not done**: a dynamic Orchestrator/Planner agent; a durable-execution engine (runs synchronously in-request — acceptable at current runtimes, revisit in Phase 7).
+- LangGraph orchestration deployed: Extraction → Risk & Compliance → Clause Research → Summary → Verifier as a fixed sequence. **Since made planner-driven in Phase 7** (`app/agents/planner.py` chooses which middle agents run). **Still not done**: a durable-execution engine (runs synchronously in-request — acceptable at current runtimes, revisit in Phase 7).
 - Verifier ships citation check + KG consistency check (both real); the NLI faithfulness check is an honestly-labelled lexical-overlap stand-in — real local NLI head → **Phase 6**.
 - Memory Service — **not started** → Phase 7.
 - Frontend Agent Trace Viewer — **not started**; the whole project is backend-only through Phase 4 → Phase 7.
@@ -169,9 +169,11 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 
 **Progress:** the **verify** task is done (real Class-A NLI head). NER gained a zero-shot GLiNER layer. The **cutover gate + escalation ladder + graded eval harness** — the machinery that lets the rewrite/extraction/Q&A/risk/contextualize cutovers happen safely — is built and tested. What's left is genuinely GPU-gated: a served `local-llm` (Ollama running) to run the gate against, and a 24 GB+ GPU for the 32 B quality the cutovers need. The clause/deontic fine-tunes are scaffolded, not run.
 
-## Phase 7 — Deployment Profiles: On-Prem & Air-Gapped (~10-14 sprints)
+## Phase 7 — Deployment Profiles: On-Prem & Air-Gapped (~10-14 sprints) — 🟡 started (the CPU-only agent/API bits)
 
 With generation self-hosted (Phase 6), the product can now ship disconnected. This phase makes on-prem and air-gapped *supported profiles*, not heroics.
+
+**Done ahead of the deployment work** (they didn't need it): the **dynamic Orchestrator/Planner** (`app/agents/planner.py` — rule-based, LLM-optional, `analysis_mode` presets) replacing the fixed Phase 4 sequence, and the first slice of the **document-first `/api/v2/*` API** (`app/routes/v2.py` — `analyze`/`rewrite`/`map`/`ask`/`risk-scan`/`contextualize` by `document_id`). The rest of the phase — packaging, collapsed data layer, durable execution, Memory Service, frontend SPA — is genuinely deferred.
 
 **Build & supply chain**
 - [ ] Produce on-prem/air-gapped builds with `legalai-providers-external` **excluded**; enforce with an **SBOM allowlist** that fails the build if a commercial-provider SDK is present.
@@ -188,7 +190,7 @@ With generation self-hosted (Phase 6), the product can now ship disconnected. Th
 **Durable execution & Memory Service** (deferred from Phase 4)
 - [ ] Introduce a durable-execution engine — **DBOS** (library, Postgres-backed) as the default so no new cluster is needed; **Hatchet** for mid-scale; **Temporal** only for the large multi-tenant cloud profile. The `app/agents/graph.py` abstraction stays engine-agnostic.
 - [ ] Build the Memory Service: session tier (Redis), episodic tier (Postgres + vector store), consolidation worker (session/episodic → semantic) with the privacy-tier gate.
-- [ ] Dynamic Orchestrator/Planner agent (replacing the fixed Phase 4 sequence) once a durable engine makes multi-path workflows safe to run.
+- [x] Dynamic Orchestrator/Planner agent replacing the fixed Phase 4 sequence — `app/agents/{planner,registry,graph}.py`: `extraction → planner → dispatch-by-plan → verifier`. Rule-based planning (heuristics over the extracted clauses) is the default; `use_ai_planner=True` routes to `task="agent_plan"` and falls back to rules offline. `analysis_mode` presets: `full` / `quick` / `risk_only` / `extract_only`. Done without a durable engine — a per-document analysis still runs in seconds; the engine-agnostic abstraction stays.
 
 **Frontend SPA** (deferred from Phase 4 — a large workstream)
 - [ ] Scaffold Next.js + TypeScript; generate the API client from the OpenAPI schema.
@@ -196,7 +198,7 @@ With generation self-hosted (Phase 6), the product can now ship disconnected. Th
 - [ ] **Provider & Model admin**: an org admin sees which models serve which tasks, the eval scores behind the routing policy, and the delta report; toggles Class C per task/tier (where the build includes it).
 - [ ] **Model status panel**: self-hosted model health, queue depth, latency — the operator's view of their own inference layer.
 - [ ] Fully self-hosted frontend assets (fonts, analytics via Plausible) so a `Privileged` page has no third-party origin.
-- [ ] Introduce `/api/v2/*` session/document-first endpoints; feature-flag per org.
+- [~] Introduce `/api/v2/*` document-first endpoints — **first slice shipped** (`app/routes/v2.py`: `GET /api/v2/documents/{id}` + `POST .../{analyze,rewrite,map,ask,risk-scan,contextualize}`, reusing the V1 services, `block_id` to target one block). Session objects, `/negotiate`, per-org feature-flagging, and the OpenAPI-generated client are still to do.
 
 **Exit criteria**: a genuine air-gapped install (Zarf artifact → disconnected k3s cluster → working product, verified with no network) validated with a pilot customer; a collapsed-data-layer on-prem install validated; the frontend SPA at V1 feature parity plus the Agent Trace Viewer.
 

@@ -36,7 +36,7 @@ V1's backend is one FastAPI app with six routers, each calling one service funct
 ## API versioning and migration
 
 - `/api/v1/*` continues to serve V1's exact six endpoints and response shapes during the transition (`ARCHITECTURE.md`'s migration path), initially proxied to legacy logic, later re-implemented on top of V2 services while preserving the response contract.
-- `/api/v2/*` introduces the session/document-first model: `POST /api/v2/documents` returns a `document_id`; all subsequent calls (`/analyze`, `/ask`, `/negotiate`) reference that ID instead of re-transmitting full text, closing the gap already identified in V1 (`UploadResponse.session_id` was defined but never wired up).
+- `/api/v2/*` introduces the document-first model: subsequent calls reference a `document_id` instead of re-transmitting full text. **Shipped (Phase 7, `app/routes/v2.py`):** `GET /api/v2/documents/{id}` and `POST /api/v2/documents/{id}/{analyze,rewrite,map,ask,risk-scan,contextualize}` — each loads the org-scoped `Document` (from `/api/upload`) and calls the same service as its V1 counterpart, with an optional `block_id` to target one extracted block. The V1 endpoints are unchanged. Session objects, a `/negotiate` endpoint, and the OpenAPI-generated client are still ahead.
 - Both API surfaces share the same underlying Pydantic schema package (`packages/schemas`) so V1-compatible responses are provably a projection of V2's richer internal models, not a hand-maintained parallel implementation.
 
 ## Data contracts
