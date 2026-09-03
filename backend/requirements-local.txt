@@ -1,10 +1,18 @@
 # ---------------------------------------------------------------------------
-# OPTIONAL: self-hosted neural embedding + reranker models (Class B), run
-# IN-PROCESS via sentence-transformers. This is the no-Docker fallback for the
-# `local-embed-neural` / `local-rerank-neural` providers -- the router prefers
-# a dedicated TEI server (`local-embed-remote` / `local-rerank-remote`,
-# EMBEDDING_BASE_URL / RERANKER_BASE_URL) when one is configured, and drops to
-# the Class A hashing / lexical approximations when neither is present.
+# OPTIONAL: in-process self-hosted neural models (Class A/B), no Docker.
+#
+#   sentence-transformers -> `local-embed-neural` / `local-rerank-neural`
+#                            (fallback for the TEI servers)
+#   transformers + sentencepiece -> `local-nli` (Phase 6 Verifier NLI head,
+#                            app/services/model_router/providers/nli_local.py)
+#   gliner               -> `local-ner` (Phase 6 zero-shot NER,
+#                            app/services/model_router/providers/gliner_local.py)
+#
+# The router prefers a dedicated TEI server (`local-embed-remote` /
+# `local-rerank-remote`, EMBEDDING_BASE_URL / RERANKER_BASE_URL) when one is
+# configured, and drops to the Class A hashing / lexical approximations when
+# neither is present. The NLI head has no server option -- it's this or the
+# lexical-overlap fallback in app/agents/verifier.py.
 #
 # Pulls PyTorch -- BUT if a GPU torch build is already importable (e.g. an
 # existing ~/.local torch+cuXXX picked up via `python -m venv --system-site-
@@ -22,3 +30,7 @@
 -r requirements.txt
 
 sentence-transformers==3.3.1
+transformers>=4.48            # ModernBERT support; a system GPU build is reused if newer
+sentencepiece==0.2.0         # DeBERTa-v3 tokenizer for the NLI head
+protobuf>=3.20
+gliner>=0.2.28               # zero-shot NER (local-ner); optional. <0.2.28 breaks on newer huggingface_hub

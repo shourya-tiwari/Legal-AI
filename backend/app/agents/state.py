@@ -53,6 +53,10 @@ class CaseState(BaseModel):
     summary_citation_count: int = 0
     invalid_citation_numbers: List[int] = Field(default_factory=list)
     faithfulness_ok: bool = True
+    # "nli" (real entailment head) or "lexical_fallback" (NLI head not installed)
+    faithfulness_method: str = "nli"
+    # claim sentences a source contradicted or failed to support (NLI method only)
+    unsupported_claims: List[str] = Field(default_factory=list)
     needs_human_review: bool = False
 
     trace: List[AgentStep] = Field(default_factory=list)

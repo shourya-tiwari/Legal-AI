@@ -146,29 +146,28 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 - [x] Move the self-hosted embedding/reranker to GPU-served (**TEI on GPU**) for latency — landed in the Phase 5 bootstrap.
 
 **Progressive task cutover — each A/B-gated against the Gemini baseline before it becomes default**
-- [ ] Plain-English rewrite → Qwen3-8B/32B.
-- [ ] Structure/timeline extraction → Qwen3-32B with grammar-constrained JSON (xgrammar).
-- [ ] Q&A / chat → Qwen3-32B + RAG; reasoning model for multi-hop.
-- [ ] Risk analysis AI pass → Qwen3-32B.
-- [ ] Contextualizer advisory → Qwen3-32B + RAG.
-- [ ] Deontic/clause-classifier LLM escalation → self-hosted.
+- [x] The **gate mechanism** — `app/eval/cutover_gate.py`: runs a task's graded eval bound to the Gemini baseline vs the self-hosted candidate, `passed = cand ≥ base × ratio`, writes `eval_runs`. A task cuts over only on ✅ PASS. `qa` is wired to a graded `legalbench_qa` eval; the other tasks need a curated gold set (follow-up).
+- [x] The **escalation ladder** — `hard=True` on a generate call prepends `local-llm-large` (`LLM_LARGE_MODEL`, e.g. Qwen3-14B) via the policy's `escalate_to`; `services/rewriter.py` sets it for long input, `services/chatbot.py` for multi-hop-looking questions.
+- [ ] Actually cut each task over (rewrite / extraction / Q&A / risk / contextualize) once its gate passes — **blocked** on a served `local-llm` (Ollama up) + a bigger GPU for the 32 B quality.
+- [ ] Structure/timeline extraction → grammar-constrained JSON (xgrammar) once on vLLM.
 
 **GPU-dependent CV/NLP models** (from Phase 2's deferral list)
 - [ ] Replace OpenCV quality triage + "tables are text blocks" with **Docling** + **Qwen2.5-VL** + **Table Transformer** (or PaddleOCR PP-Structure) for real layout/table extraction; keep Tesseract/quality-triage as the clean-PDF fast path.
 - [ ] Add **olmOCR / Qwen2.5-VL** as the confidence-gated OCR escalation (replaces the previously-planned commercial Document AI fallback as the *default*).
-- [ ] Fine-tune **InLegalBERT/ModernBERT** NER for parties/dates/money/jurisdictions (via **Unsloth**); compare against the regex+defined-term baseline before making it primary.
-- [ ] Integrate **GLiNER** for zero-shot entity types and **maverick-coref** for real coreference (replacing `app/services/nlp/coref.py`'s heuristic).
-- [ ] Run the **weak-supervision-then-distill** pipeline for the deontic tagger — teacher is a self-hosted Qwen3-235B (or 32B) via **distilabel**, *not* a frontier API; student is a fast CPU tagger.
-- [ ] Fine-tune the clause/contract-type classifier; eval against real **CUAD**; keep the rule base as a Tier-0 pre-filter.
+- [x] Integrate **GLiNER** for zero-shot entity types — `providers/gliner_local.py` (`local-ner` / `ner_extract`), merged with the regex floor in `nlp/entities.py`. **maverick-coref** for real coreference: still a follow-up.
+- [~] Fine-tune the clause/contract-type classifier + the **weak-supervision-then-distill** deontic tagger — **scaffolded** in `backend/training/` (data-prep from LegalBench + gold set + rule/LLM weak supervision, LoRA training scripts, configs, model-card template). **Not trained**; the rule base stays the Tier-0 pre-filter until a head beats it on the eval gate.
+- [ ] Fine-tune **InLegalBERT/ModernBERT** NER (a full head, beyond GLiNER's zero-shot) — deferred with the classifier training runs.
 
 **Verifier**
-- [ ] Ship the real **NLI faithfulness head** (local DeBERTa/ModernBERT entailment model, Class A), replacing Phase 4's lexical-overlap stand-in.
+- [x] Ship the real **NLI faithfulness head** — `providers/nli_local.py` (`local-nli` / `verify_nli`, Class A, in-process DeBERTa-v3-MNLI, 0.91 acc on MNLI, 8/8 on `FAITHFULNESS_GOLD` vs lexical's 6/8). `app/agents/verifier.py` checks each summary claim by entailment; `faithfulness_method` surfaces `nli` vs `lexical_fallback`.
 
 **Eval**
-- [ ] Integrate **LegalBench / CUAD / ContractNLI / MAUD** corpora into the Inspect AI suite; track the self-hosted default against them continuously.
-- [ ] For every cutover: the self-hosted model must meet or beat the Gemini baseline on the task's eval before it becomes default. A fine-tuned/self-hosted model is not *assumed* better — this phase proves it.
+- [x] Integrate **LegalBench** (cuad_* / contract_nli_* subtasks) + **MNLI** into a graded harness — `app/eval/{datasets,metrics,tasks,cutover_gate}.py` + Inspect-AI wrappers + the `eval_runs` table. (The script-based CUAD/ContractNLI/MAUD datasets are dead on `datasets`≥3; LegalBench is the maintained path.)
+- [x] For every cutover: the self-hosted model must meet or beat the Gemini baseline on the task's eval — enforced by `cutover_gate.py` (reports "cannot evaluate", never a false PASS, when a provider is missing).
 
 **Exit criteria**: every core task (rewrite, extraction, Q&A, risk, contextualize, verify) is served by a **self-hosted model at or above the previous Gemini baseline**. Gemini is removed from the *default* routing policy entirely — it remains only as an optional Class C escalation an org can enable for `Public`/`Internal` documents, and the delta report shows what that escalation is worth. The product now runs end-to-end with no external API call.
+
+**Progress:** the **verify** task is done (real Class-A NLI head). NER gained a zero-shot GLiNER layer. The **cutover gate + escalation ladder + graded eval harness** — the machinery that lets the rewrite/extraction/Q&A/risk/contextualize cutovers happen safely — is built and tested. What's left is genuinely GPU-gated: a served `local-llm` (Ollama running) to run the gate against, and a 24 GB+ GPU for the 32 B quality the cutovers need. The clause/deontic fine-tunes are scaffolded, not run.
 
 ## Phase 7 — Deployment Profiles: On-Prem & Air-Gapped (~10-14 sprints)
 

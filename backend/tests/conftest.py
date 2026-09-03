@@ -15,6 +15,12 @@ os.environ.setdefault("AUTH_REQUIRED", "false")
 # ModelRouterError instead of making a real network call with the dummy key.
 # A test that specifically exercises the Gemini routing path flips this.
 os.environ.setdefault("EXTERNAL_PROVIDERS_ENABLED", "false")
+# Phase 6 in-process models (NLI head, GLiNER NER) are OFF by default in the
+# suite so tests don't load a transformers model -- the Verifier exercises its
+# lexical-overlap fallback path. tests/test_nli_faithfulness.py flips
+# NLI_ENABLED on and skips itself when transformers isn't installed.
+os.environ.setdefault("NLI_ENABLED", "false")
+os.environ.setdefault("NER_ENABLED", "false")
 # Deliberately NOT the real default port: tests must not depend on whether
 # docker-compose happens to be running on this machine right now. KG tests
 # use a fake client (test_kg_builder.py) for anything Memgraph-dependent.

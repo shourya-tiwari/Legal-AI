@@ -9,11 +9,13 @@ Conceptually two packages (docs/v2/AI_STACK.md "Provider packaging"):
   legalai-providers-external -- gemini (+ future openai/claude) (optional plugin,
                                 absent in on-prem/air-gapped builds)
 """
+from .gliner_local import GLiNERProvider
 from .local import (
     HashingEmbeddingProvider,
     LexicalReranker,
     SentenceTransformerProvider,
 )
+from .nli_local import TransformersNLIProvider
 from .openai_compat import OpenAICompatProvider
 
 __all__ = [
@@ -21,6 +23,8 @@ __all__ = [
     "LexicalReranker",
     "SentenceTransformerProvider",
     "OpenAICompatProvider",
+    "TransformersNLIProvider",
+    "GLiNERProvider",
     "load_gemini_provider",
 ]
 

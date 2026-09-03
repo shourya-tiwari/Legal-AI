@@ -13,10 +13,12 @@ from typing import Dict, Optional
 
 from .base import ModelProvider
 from .providers import (
+    GLiNERProvider,
     HashingEmbeddingProvider,
     LexicalReranker,
     OpenAICompatProvider,
     SentenceTransformerProvider,
+    TransformersNLIProvider,
     load_gemini_provider,
 )
 
@@ -26,12 +28,15 @@ logger = logging.getLogger("legalai.model_router.registry")
 def _build() -> Dict[str, ModelProvider]:
     providers: Dict[str, ModelProvider] = {
         "local-llm": OpenAICompatProvider("local-llm", role="llm"),
+        "local-llm-large": OpenAICompatProvider("local-llm-large", role="llm-large"),
         "local-embed-remote": OpenAICompatProvider("local-embed-remote", role="embed"),
         "local-rerank-remote": OpenAICompatProvider("local-rerank-remote", role="rerank"),
         "local-embed-neural": SentenceTransformerProvider(),
         "local-rerank-neural": SentenceTransformerProvider(),
         "local-embed-hash": HashingEmbeddingProvider(),
         "local-rerank-lexical": LexicalReranker(),
+        "local-nli": TransformersNLIProvider(),
+        "local-ner": GLiNERProvider(),
     }
 
     gemini = load_gemini_provider()

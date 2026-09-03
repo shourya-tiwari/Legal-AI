@@ -1,0 +1,16 @@
+# Fine-tune config: clause / contract-type classifier (Phase 6/8)
+# python training/train_clause_classifier.py training/configs/clause_classifier.yaml
+
+base_model: answerdotai/ModernBERT-base      # or nlpaueb/legal-bert-base-uncased
+max_length: 512
+
+use_lora: true
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+
+lr: 2.0e-4
+batch_size: 16
+epochs: 6
+
+output_dir: training/out/clause_classifier

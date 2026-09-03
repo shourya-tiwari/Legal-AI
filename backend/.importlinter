@@ -28,6 +28,7 @@ source_modules =
     app.services.rag
     app.services.cv
     app.services.extractor
+    app.eval
 forbidden_modules =
     google.genai
     openai
@@ -36,4 +37,6 @@ forbidden_modules =
     mistralai
     vllm
     sentence_transformers
+    transformers
+    gliner
     litellm

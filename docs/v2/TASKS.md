@@ -143,7 +143,9 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 **Exit criteria**: Router is provider-agnostic and passes the import-linter contract ✅; embeddings/rerank self-hosted by default — **now on a real TEI/GPU deployment**, not just the interface ✅; ASR/TTS N/A; the only task routed to a commercial API by default is large-LLM generation ✅; the product runs end-to-end with no credentials and no `google-genai` ✅. Remaining: an actual observability collector wired to the OTel scaffold; promptfoo.
 
-## Phase 6 — Self-Hosted LLM Generation: the GPU unlock
+## Phase 6 — Self-Hosted LLM Generation: the GPU unlock — 🟡 In progress
+
+**Scope note**: the non-LLM Phase 6 work landed (`LEARNING_LOG.md` #21) — the real **NLI faithfulness head** (Verifier), **GLiNER** zero-shot NER, the **graded eval harness + cutover gate + `eval_runs`**, and the **small→large escalation ladder**. The LLM *serving* cutover (Qwen3-32B, vLLM) stays blocked on a bigger/rented GPU + Ollama running; the clause/deontic fine-tunes are **scaffolded, not trained**. Suite: 126 pass + 1 skip.
 
 **Model serving**  (dev box: 1× RTX A4000, 16 GB — fits 7–14 B; the 32 B default needs a larger / rented GPU)
 - [~] Self-hosted generation server — **Ollama serving Qwen3-8B** is up (`docker-compose.yml` `gpu` profile, Phase 5 bootstrap). vLLM / SGLang and a 4-bit Qwen3-32B: still to do (needs the bigger GPU)
@@ -154,29 +156,26 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [ ] Add multi-LoRA serving (vLLM / LoRAX) for per-task and per-org adapters
 
 **Progressive task cutover — each A/B-gated against the Gemini baseline before becoming default**
-- [ ] Plain-English rewrite → Qwen3-8B/32B
-- [ ] Structure/timeline extraction → Qwen3-32B with grammar-constrained JSON (xgrammar)
-- [ ] Q&A / chat → Qwen3-32B + RAG; reasoning model for multi-hop
-- [ ] Risk analysis AI pass → Qwen3-32B
-- [ ] Contextualizer advisory → Qwen3-32B + RAG
-- [ ] Deontic / clause-classifier LLM escalation → self-hosted
-- [ ] Remove Gemini from the default routing policy once all of the above pass; keep it only as opt-in Class C for `Public`/`Internal`
+- [x] The gate — `app/eval/cutover_gate.py` (`python -m app.eval.cutover_gate --task qa`): baseline-vs-candidate on a task's graded eval, PASS ⇒ safe to cut over, writes `eval_runs`. `qa` wired to `legalbench_qa`; other tasks need a gold set (follow-up)
+- [x] The escalation ladder — `hard=True` → policy `escalate_to: [local-llm-large]` (`LLM_LARGE_MODEL`); wired into `rewriter.py` (long input) + `chatbot.py` (multi-hop heuristic)
+- [ ] Run the cutovers (rewrite / extraction / Q&A / risk / contextualize) — blocked on a served `local-llm` + the 32 B GPU
+- [ ] Structure/timeline extraction → grammar-constrained JSON (xgrammar) once on vLLM
+- [ ] Remove Gemini from the default policy once all cutovers pass
 
 **GPU-dependent CV / NLP models**
 - [ ] Replace OpenCV quality triage + "tables are text blocks" with Docling + Qwen2.5-VL + Table Transformer / PP-Structure; keep Tesseract + quality-triage as the clean-PDF fast path
-- [ ] Add olmOCR / Qwen2.5-VL as the confidence-gated OCR escalation (replaces the planned commercial Document AI fallback as the default; commercial OCR stays an optional Class C plugin only)
-- [ ] Fine-tune InLegalBERT/ModernBERT NER (via Unsloth); compare against the regex+defined-term baseline before making it primary
-- [ ] Integrate GLiNER (zero-shot entity types) and maverick-coref (real coreference, replacing `app/services/nlp/coref.py`)
-- [ ] Run the weak-supervision-then-distill pipeline for the deontic tagger — **teacher is a self-hosted Qwen3-235B/32B via distilabel, not a frontier API**; student is a fast CPU tagger
-- [ ] Fine-tune the clause/contract-type classifier; eval against real CUAD; keep the rule base as a Tier-0 pre-filter
+- [ ] Add olmOCR / Qwen2.5-VL as the confidence-gated OCR escalation
+- [x] Integrate GLiNER (zero-shot entity types) — `providers/gliner_local.py` (`local-ner`/`ner_extract`), merged with the regex floor in `nlp/entities.py`, fail-soft. **maverick-coref** (real coref): follow-up
+- [~] Weak-supervision-then-distill deontic tagger + clause classifier fine-tune — **scaffolded** in `backend/training/` (`prepare_*_data.py` from LegalBench + gold + rule/LLM teacher; `train_*.py` LoRA + `--dry-run`/`--smoke`; configs; model-card template). Not trained; rule base stays Tier-0
+- [ ] Fine-tune InLegalBERT/ModernBERT NER (a full head beyond GLiNER zero-shot) — deferred with the training runs
 
 **Verifier**
-- [ ] Ship the real NLI faithfulness head (local DeBERTa/ModernBERT entailment model, Class A), replacing Phase 4's lexical-overlap stand-in (`app/agents/verifier.py`)
+- [x] Ship the real NLI faithfulness head — `providers/nli_local.py` (`local-nli`/`verify_nli`, Class A, in-process DeBERTa-v3-MNLI). `verifier.py` entailment-checks each summary claim; `_lexical_overlap_faithfulness` kept as the labelled fallback. 0.91 MNLI acc, 8/8 on `FAITHFULNESS_GOLD` vs lexical 6/8
 
 **Eval**
-- [ ] Integrate LegalBench / CUAD / ContractNLI / MAUD into the Inspect AI suite; track the self-hosted default continuously
-- [ ] Enforce: a self-hosted model becomes default for a task only after meeting or beating the Gemini baseline on that task's eval
-- [ ] Explicit re-evaluation step per upgraded component (fine-tuned model vs. the rule-based baseline it replaces) — prove the upgrade, don't assume it
+- [x] Graded harness — `app/eval/{datasets,metrics,tasks,cutover_gate,eval_store}.py` over **LegalBench** (cuad_*/contract_nli_*) + **MNLI**; `eval_runs` table; Inspect-AI wrappers. (Script-based CUAD/ContractNLI/MAUD are dead on `datasets`≥3 — LegalBench is the path)
+- [x] Enforce meet/beat-baseline before default — `cutover_gate.py`; never a false PASS on a missing provider
+- [x] Per-component re-eval — `tests/test_nli_faithfulness.py` gates "NLI head beats the lexical stand-in"; `test_eval_metrics.py` locks the scorers
 
 **Exit criteria**: every core task served by a self-hosted model at or above the previous Gemini baseline; Gemini removed from the default routing policy; the product runs end-to-end with no external API call.
 

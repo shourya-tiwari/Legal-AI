@@ -1,21 +1,17 @@
 # backend/app/eval/inspect_tasks.py
 """
-Inspect AI suite seed (docs/v2/MODEL_STACK.md "Evaluation", ROADMAP Phase 5/6
+Inspect AI suite wrappers (docs/v2/MODEL_STACK.md "Evaluation", ROADMAP Phase 6
 "Adopt Inspect AI as the suite backbone").
 
-The backbone the legal gold set and (Phase 6) the LegalBench / CUAD /
-ContractNLI corpora will hang off. It houses ONE task today -- the rule-based
-clause-type classifier scored against the hand-curated gold set -- to prove
-the harness wraps our own components, not just LLM calls.
+The graded logic lives in `app/eval/tasks.py` (runnable with no inspect-ai);
+this module exposes it as Inspect `@task`s for the richer reporting / logging
+Inspect gives. Runnable once `pip install -r requirements-eval.txt`:
 
-Runnable once `pip install -r requirements-eval.txt`:
+    inspect eval app/eval/inspect_tasks.py@rule_clause_type
+    inspect eval app/eval/inspect_tasks.py@legalbench_qa --model openai/qwen3:8b \
+        -M base_url=http://localhost:11434/v1
 
-    inspect eval app/eval/inspect_tasks.py
-
-The fast pre-merge gate stays app/eval/run_eval.py + tests/test_eval_gate.py;
-this is the richer, extensible harness alongside it. Next step (Phase 6):
-add a `cuad_extraction` task over app/eval/datasets.load_cuad() and point its
-graded solver at the self-hosted model via the Model Router.
+The fast pre-merge gate stays app/eval/run_eval.py + tests/test_eval_gate.py.
 """
 from __future__ import annotations
 
@@ -25,7 +21,7 @@ try:
     from inspect_ai import Task, task
     from inspect_ai.dataset import Sample
     from inspect_ai.scorer import match
-    from inspect_ai.solver import Generate, TaskState, solver
+    from inspect_ai.solver import Generate, TaskState, generate, solver
 
     _INSPECT_AVAILABLE = True
 except Exception:  # inspect-ai not installed -- module stays import-safe
@@ -46,13 +42,31 @@ if _INSPECT_AVAILABLE:
         return solve
 
     @task
-    def legal_clause_type() -> Task:
+    def rule_clause_type() -> Task:
         samples = [
             Sample(input=ex["text"], target=ex["expected_clause_type"])
             for ex in GOLD_SET
         ]
+        return Task(dataset=samples, solver=rule_based_clause_classifier(),
+                    scorer=match(location="any"))
+
+    @task
+    def legalbench_qa(limit_per: int = 25) -> Task:
+        """Yes/No LegalBench QA (CUAD + ContractNLI subtasks) -- pass a --model
+        to grade a served LLM; the cutover gate (app/eval/cutover_gate.py)
+        automates the self-hosted-vs-Gemini comparison."""
+        from app.eval.datasets import (CONTRACT_NLI_SUBTASKS, CUAD_SUBTASKS,
+                                       load_legalbench)
+
+        samples = []
+        for st in CUAD_SUBTASKS[:4] + CONTRACT_NLI_SUBTASKS[:2]:
+            try:
+                for e in load_legalbench(st, limit=limit_per):
+                    samples.append(Sample(input=e["input"], target=e["answer"]))
+            except Exception:
+                continue
         return Task(
             dataset=samples,
-            solver=rule_based_clause_classifier(),
-            scorer=match(location="any"),
+            solver=generate(),
+            scorer=match(location="begin"),
         )

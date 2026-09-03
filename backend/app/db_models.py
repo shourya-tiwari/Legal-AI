@@ -86,6 +86,27 @@ class ModelCall(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class EvalRun(Base):
+    """One row per graded eval run (docs/v2/AI_STACK.md "join to eval_runs";
+    ROADMAP Phase 6). Written by app/eval/ -- the cutover gate, the task CLI.
+    The join partner for `model_calls`: a routing-policy change is defensible
+    only if the eval_runs for the affected tasks didn't regress."""
+    __tablename__ = "eval_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task: Mapped[str] = mapped_column(String(64), index=True)
+    dataset: Mapped[str] = mapped_column(String(128))
+    provider: Mapped[str] = mapped_column(String(64), index=True)
+    model: Mapped[str] = mapped_column(String(128))
+    metric: Mapped[str] = mapped_column(String(32))
+    score: Mapped[float] = mapped_column()
+    n_examples: Mapped[int] = mapped_column(Integer)
+    baseline_score: Mapped[float | None] = mapped_column(nullable=True)
+    passed: Mapped[bool | None] = mapped_column(nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class AgentTrace(Base):
     """One row per agent step in a Phase 4 case-analysis run
     (app/agents/graph.py) -- the audit trail docs/v2/AGENTS.md requires

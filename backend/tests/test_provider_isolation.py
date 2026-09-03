@@ -29,6 +29,7 @@ FORBIDDEN_ROOTS = {
     "vllm",
     "sentence_transformers",
     "transformers",
+    "gliner",
     "litellm",
     "ollama",
 }

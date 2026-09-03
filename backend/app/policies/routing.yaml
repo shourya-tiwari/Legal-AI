@@ -16,6 +16,9 @@
 #                           a TEI container, /rerank)
 #   local-rerank-neural  -> SentenceTransformerProvider cross-encoder              Class B
 #   local-rerank-lexical -> LexicalReranker (always available)                     Class A
+#   local-llm-large      -> OpenAICompatProvider llm-large role (LLM_LARGE_MODEL)  Class B
+#   local-nli            -> TransformersNLIProvider (DeBERTa/ModernBERT NLI head)  Class A
+#   local-ner            -> GLiNERProvider (zero-shot NER; optional gliner extra)  Class B
 #   gemini               -> GeminiProvider (providers-external; absent air-gapped) Class C
 #
 # Chain order for embed/rerank: dedicated GPU server first (the Phase 5/6
@@ -23,27 +26,30 @@
 # Class A approximation. Every leg fails soft, so an unconfigured / down
 # server transparently degrades to the next.
 #
-# `chain`   = Class A/B candidates, tried in order by health.
-# `class_c` = external candidates, appended to the chain ONLY when
-#             EXTERNAL_PROVIDERS_ENABLED and STRICT_LOCAL_ONLY=false and the
-#             document's sensitivity tier is in class_c_allowed_tiers.
-#             A Class C provider is NEVER a silent fallback for a sensitive tier.
+# `chain`       = Class A/B candidates, tried in order by health.
+# `escalate_to` = (generate only) a bigger SELF-HOSTED model, prepended to the
+#                 chain when the caller passes hard=True. Never a Class C target
+#                 (docs/v2/AI_STACK.md "Escalation without a bigger vendor").
+# `class_c`     = external candidates, appended to the chain ONLY when
+#                 EXTERNAL_PROVIDERS_ENABLED and STRICT_LOCAL_ONLY=false and the
+#                 document's sensitivity tier is in class_c_allowed_tiers.
+#                 A Class C provider is NEVER a silent fallback for a sensitive tier.
 
-version: 1
+version: 2
 
 class_c_allowed_tiers: [public, internal]
 
 tasks:
   # ---- generation --------------------------------------------------------
-  generic:                { capability: generate, chain: [local-llm], class_c: [gemini] }
-  clause_rewrite:         { capability: generate, chain: [local-llm], class_c: [gemini] }
-  timeline_extract:       { capability: generate, chain: [local-llm], class_c: [gemini] }
-  qa:                     { capability: generate, chain: [local-llm], class_c: [gemini] }
-  risk_analysis:          { capability: generate, chain: [local-llm], class_c: [gemini] }
-  contextualize:          { capability: generate, chain: [local-llm], class_c: [gemini] }
-  deontic_escalation:     { capability: generate, chain: [local-llm], class_c: [gemini] }
-  clause_type_escalation: { capability: generate, chain: [local-llm], class_c: [gemini] }
-  agent_summary:          { capability: generate, chain: [local-llm], class_c: [gemini] }
+  generic:                { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  clause_rewrite:         { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  timeline_extract:       { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  qa:                     { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  risk_analysis:          { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  contextualize:          { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  deontic_escalation:     { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  clause_type_escalation: { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
+  agent_summary:          { capability: generate, chain: [local-llm], escalate_to: [local-llm-large], class_c: [gemini] }
 
   # ---- embeddings ------------------------------------------------------
   embed_corpus: { capability: embed, chain: [local-embed-remote, local-embed-neural, local-embed-hash], class_c: [] }
@@ -51,3 +57,9 @@ tasks:
 
   # ---- reranking ------------------------------------------------------
   rerank: { capability: rerank, chain: [local-rerank-remote, local-rerank-neural, local-rerank-lexical], class_c: [] }
+
+  # ---- NLI faithfulness head (Verifier safety gate, Class A, local-only) ----
+  verify_nli: { capability: entail, chain: [local-nli], class_c: [] }
+
+  # ---- zero-shot NER --------------------------------------------------
+  ner_extract: { capability: ner, chain: [local-ner], class_c: [] }

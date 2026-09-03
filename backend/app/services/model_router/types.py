@@ -60,6 +60,7 @@ class GenerateRequest:
     model: Optional[str] = None          # explicit override; usually None
     temperature: Optional[float] = None
     max_output_tokens: Optional[int] = None
+    hard: bool = False                   # caller's difficulty signal -> policy escalate_to
     extra: dict = field(default_factory=dict)   # passthrough config a provider may use
 
 
@@ -120,10 +121,50 @@ class RerankResult:
 
 
 @dataclass
+class EntailRequest:
+    """Natural-language inference. Each pair is (premise, hypothesis): does the
+    premise support the hypothesis? Used by the Verifier's faithfulness check
+    (docs/v2/AGENTS.md) -- premise = a retrieved source, hypothesis = a claim
+    the generated summary makes."""
+    pairs: Sequence[tuple]              # list of (premise: str, hypothesis: str)
+    task: str = "verify_nli"
+    model: Optional[str] = None
+
+
+@dataclass
+class EntailResult:
+    labels: List[str]                  # per pair: "entailment" | "neutral" | "contradiction"
+    scores: List[float]               # per pair: softmax prob of the chosen label
+    provider: str
+    model: str
+    hosting_class: HostingClass
+
+
+@dataclass
+class NERRequest:
+    """Zero-shot named-entity extraction over a single text, with the entity
+    types requested at call time (GLiNER-style). docs/v2/NLP.md's NER default."""
+    text: str
+    labels: Sequence[str]
+    task: str = "ner_extract"
+    model: Optional[str] = None
+    threshold: float = 0.5
+
+
+@dataclass
+class NERResult:
+    # each: {"text": str, "type": str, "score": float, "start": int, "end": int}
+    entities: List[dict]
+    provider: str
+    model: str
+    hosting_class: HostingClass
+
+
+@dataclass
 class ProviderCard:
     name: str
     hosting_class: HostingClass
-    capabilities: List[str]              # subset of {"generate","embed","rerank"}
+    capabilities: List[str]              # subset of {"generate","embed","rerank","entail","ner"}
     leaves_perimeter: bool
     models: List[str] = field(default_factory=list)
     note: str = ""

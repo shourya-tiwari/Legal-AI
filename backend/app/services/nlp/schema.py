@@ -15,7 +15,9 @@ from pydantic import BaseModel, Field
 
 class EntityMention(BaseModel):
     text: str
-    type: str  # "money" | "jurisdiction"
+    # "money" | "jurisdiction" from regex (always); GLiNER (Phase 6, optional)
+    # adds "party" | "date" | "duration" | "statute"
+    type: str
 
 
 class DeonticTag(BaseModel):

@@ -121,7 +121,17 @@ class AgentAnalyzeResponse(BaseModel):
     kg_conflicts: List[KGConflictFinding] = Field(default_factory=list)
     summary: str
     faithfulness_ok: bool = Field(
-        description="Lexical-overlap heuristic, NOT a real NLI entailment check -- see app/agents/verifier.py"
+        description="Each summary claim is entailed by a retrieved source (NLI check). "
+        "False means a claim was contradicted or left unsupported -- see unsupported_claims."
+    )
+    faithfulness_method: str = Field(
+        "nli",
+        description="'nli' = real entailment head (Class A DeBERTa/ModernBERT); "
+        "'lexical_fallback' = the NLI head isn't installed, a weaker vocabulary-overlap check ran",
+    )
+    unsupported_claims: List[str] = Field(
+        default_factory=list,
+        description="Claim sentences a source contradicted or failed to support (NLI method only)",
     )
     invalid_citation_numbers: List[int] = Field(
         default_factory=list, description="Non-empty means the summary cited a source it was never given"

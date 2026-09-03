@@ -163,7 +163,7 @@ def test_every_registered_provider_implements_the_interface():
         card = provider.describe()
         assert card.name
         assert card.hosting_class in HostingClass
-        assert set(card.capabilities) <= {"generate", "embed", "rerank"}
+        assert set(card.capabilities) <= {"generate", "embed", "rerank", "entail", "ner"}
         # a Class C provider is the only kind that may leave the perimeter
         if card.leaves_perimeter:
             assert card.hosting_class == HostingClass.C
@@ -259,6 +259,61 @@ def test_model_call_logging_can_be_disabled(client, db_session, monkeypatch):
     before = db_session.query(ModelCall).count()
     embed_content(["another clause"])
     assert db_session.query(ModelCall).count() == before
+
+
+# --------------------------------------------------------------------------
+# Phase 6: entail (NLI) + ner capabilities, and the escalation ladder
+# --------------------------------------------------------------------------
+
+def test_entail_and_ner_providers_are_registered_and_typed():
+    from app.services.model_router.base import ModelProvider
+
+    reg = get_registry()
+    assert reg["local-nli"].describe().capabilities == ["entail"]
+    assert reg["local-nli"].describe().hosting_class == HostingClass.A
+    assert reg["local-ner"].describe().capabilities == ["ner"]
+    for name in ("local-nli", "local-ner", "local-llm-large"):
+        assert isinstance(reg[name], ModelProvider), name
+
+
+def test_verify_nli_and_ner_extract_policy_chains():
+    policy = get_policy()
+    assert policy.candidates("verify_nli", SensitivityTier.INTERNAL) == ["local-nli"]
+    assert policy.candidates("ner_extract", SensitivityTier.INTERNAL) == ["local-ner"]
+    # entail/ner never get a Class C candidate, even for public
+    assert policy.candidates("verify_nli", SensitivityTier.PUBLIC) == ["local-nli"]
+
+
+def test_entailment_raises_cleanly_when_the_head_is_disabled(monkeypatch):
+    monkeypatch.setenv("NLI_ENABLED", "false")
+    get_settings.cache_clear(); get_policy.cache_clear(); get_router.cache_clear()
+    reset_registry_cache()
+    from app.services.model_router import entailment
+
+    with pytest.raises(ModelRouterError):
+        entailment([("a premise", "a hypothesis")])
+
+
+def test_hard_flag_prepends_the_escalation_model(monkeypatch):
+    monkeypatch.setenv("EXTERNAL_PROVIDERS_ENABLED", "false")
+    get_settings.cache_clear(); get_policy.cache_clear()
+    policy = get_policy()
+
+    normal = policy.candidates("clause_rewrite", SensitivityTier.INTERNAL, hard=False)
+    escalated = policy.candidates("clause_rewrite", SensitivityTier.INTERNAL, hard=True)
+    assert normal == ["local-llm"]
+    assert escalated == ["local-llm-large", "local-llm"]
+
+
+def test_hard_escalation_target_is_never_class_c(monkeypatch):
+    monkeypatch.setenv("EXTERNAL_PROVIDERS_ENABLED", "true")
+    get_settings.cache_clear(); get_policy.cache_clear()
+    escalated = get_policy().candidates("qa", SensitivityTier.PUBLIC, hard=True)
+    # gemini may be appended (public tier), but only AFTER the self-hosted chain
+    assert escalated[0] == "local-llm-large"
+    assert escalated.index("local-llm-large") < escalated.index("local-llm")
+    if "gemini" in escalated:
+        assert escalated.index("gemini") == len(escalated) - 1
 
 
 def test_registry_runs_without_external_providers(monkeypatch):

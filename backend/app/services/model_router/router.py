@@ -21,10 +21,14 @@ from .registry import get_provider
 from .types import (
     EmbedRequest,
     EmbedResult,
+    EntailRequest,
+    EntailResult,
     GenerateRequest,
     GenerateResult,
     HostingClass,
     ModelRouterError,
+    NERRequest,
+    NERResult,
     ProviderUnavailable,
     RerankRequest,
     RerankResult,
@@ -37,9 +41,9 @@ logger = logging.getLogger("legalai.model_router")
 
 class Router:
     def _resolve_chain(self, task: str, capability: str,
-                       sensitivity: SensitivityTier) -> List[ModelProvider]:
+                       sensitivity: SensitivityTier, *, hard: bool = False) -> List[ModelProvider]:
         policy = get_policy()
-        names = policy.candidates(task, sensitivity)
+        names = policy.candidates(task, sensitivity, hard=hard)
         chain: List[ModelProvider] = []
         for name in names:
             provider = get_provider(name)
@@ -51,8 +55,8 @@ class Router:
         return chain
 
     def _pick_and_call(self, task: str, capability: str, sensitivity: SensitivityTier,
-                       call):
-        chain = self._resolve_chain(task, capability, sensitivity)
+                       call, *, hard: bool = False):
+        chain = self._resolve_chain(task, capability, sensitivity, hard=hard)
         if not chain:
             raise ModelRouterError(
                 f"No provider available for task '{task}' (capability '{capability}', "
@@ -112,7 +116,9 @@ class Router:
             r = p.generate(req)
             return r, r.model, r.hosting_class
 
-        result, _decision = self._pick_and_call(req.task, "generate", req.sensitivity, _call)
+        result, _decision = self._pick_and_call(
+            req.task, "generate", req.sensitivity, _call, hard=req.hard
+        )
         return result
 
     def embed(self, req: EmbedRequest) -> EmbedResult:
@@ -129,6 +135,22 @@ class Router:
             return r, "-", r.hosting_class
 
         result, _decision = self._pick_and_call(req.task, "rerank", SensitivityTier.INTERNAL, _call)
+        return result
+
+    def entail(self, req: EntailRequest) -> EntailResult:
+        def _call(p: ModelProvider):
+            r = p.entail(req)
+            return r, r.model, r.hosting_class
+
+        result, _decision = self._pick_and_call(req.task, "entail", SensitivityTier.INTERNAL, _call)
+        return result
+
+    def extract_entities(self, req: NERRequest) -> NERResult:
+        def _call(p: ModelProvider):
+            r = p.extract_entities(req)
+            return r, r.model, r.hosting_class
+
+        result, _decision = self._pick_and_call(req.task, "ner", SensitivityTier.INTERNAL, _call)
         return result
 
 

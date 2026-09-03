@@ -50,6 +50,9 @@ jobs:
       - name: Install core only
         run: pip install -r requirements.txt
       - name: Smoke test (no external / no local-neural providers installed)
+        # The NLI/GLiNER model-gated tests (test_nli_faithfulness, test_ner_gliner)
+        # self-skip here -- `transformers`/`gliner` come from requirements-local.txt,
+        # which neither CI job installs.
         env:
           GOOGLE_API_KEY: ""
-        run: pytest -v -k "provider_isolation or model_router or rag_hybrid or nlp_pipeline or eval_gate"
+        run: pytest -v -k "provider_isolation or model_router or rag_hybrid or nlp_pipeline or eval_gate or eval_metrics or models_status"

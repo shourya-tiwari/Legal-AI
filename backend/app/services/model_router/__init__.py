@@ -8,9 +8,11 @@ self-hosted providers (Class A/B); a commercial API (Class C) is used only
 when explicitly enabled and only for non-sensitive tiers.
 
 Public API:
-  generate_content(prompt, *, task=..., sensitivity=..., model=..., **cfg) -> str
+  generate_content(prompt, *, task=..., sensitivity=..., model=..., hard=..., **cfg) -> str
   embed_content(contents, *, task=..., model=...) -> EmbedResult (.embeddings[i].values)
   rerank(query, documents, *, top_k=...) -> RerankResult
+  entailment(pairs, *, task="verify_nli") -> EntailResult  (NLI: (premise, hypothesis) -> label)
+  ner_extract(text, labels, *, task="ner_extract") -> NERResult  (zero-shot entity spans)
   get_router() -> Router  (typed request/response API)
 
 `generate_content` / `embed_content` keep V1's signatures and return shapes so
@@ -28,9 +30,13 @@ from .router import get_router
 from .types import (
     EmbedRequest,
     EmbedResult,
+    EntailRequest,
+    EntailResult,
     GenerateRequest,
     HostingClass,
     ModelRouterError,
+    NERRequest,
+    NERResult,
     RerankRequest,
     RerankResult,
     SensitivityTier,
@@ -40,6 +46,8 @@ __all__ = [
     "generate_content",
     "embed_content",
     "rerank",
+    "entailment",
+    "ner_extract",
     "get_router",
     "get_policy",
     "get_registry",
@@ -50,6 +58,8 @@ __all__ = [
     "GenerateRequest",
     "EmbedRequest",
     "RerankRequest",
+    "EntailRequest",
+    "NERRequest",
 ]
 
 
@@ -59,9 +69,12 @@ def generate_content(
     model: Optional[str] = None,
     task: str = "generic",
     sensitivity: "str | SensitivityTier | None" = SensitivityTier.INTERNAL,
+    hard: bool = False,
     **config_kwargs,
 ) -> str:
-    """Back-compatible text generation. Returns the generated string."""
+    """Back-compatible text generation. Returns the generated string.
+    `hard=True` asks the policy to escalate to a bigger self-hosted model
+    (docs/v2/AI_STACK.md) -- callers set it from a task-difficulty signal."""
     temperature = config_kwargs.pop("temperature", None)
     max_output_tokens = config_kwargs.pop("max_output_tokens", None)
     req = GenerateRequest(
@@ -71,6 +84,7 @@ def generate_content(
         model=model,
         temperature=temperature,
         max_output_tokens=max_output_tokens,
+        hard=hard,
         extra=config_kwargs,
     )
     return get_router().generate(req).text
@@ -99,3 +113,29 @@ def rerank(
 ) -> RerankResult:
     req = RerankRequest(query=query, documents=list(documents), task=task, top_k=top_k)
     return get_router().rerank(req)
+
+
+def entailment(
+    pairs: Sequence[tuple],
+    *,
+    task: str = "verify_nli",
+    model: Optional[str] = None,
+) -> EntailResult:
+    """NLI over (premise, hypothesis) pairs. Raises ModelRouterError if no
+    entailment provider is available (the caller decides whether to degrade)."""
+    req = EntailRequest(pairs=[tuple(p) for p in pairs], task=task, model=model)
+    return get_router().entail(req)
+
+
+def ner_extract(
+    text: str,
+    labels: Sequence[str],
+    *,
+    task: str = "ner_extract",
+    model: Optional[str] = None,
+    threshold: float = 0.5,
+) -> NERResult:
+    """Zero-shot entity extraction. Raises ModelRouterError if no NER provider
+    is available."""
+    req = NERRequest(text=text, labels=list(labels), task=task, model=model, threshold=threshold)
+    return get_router().extract_entities(req)

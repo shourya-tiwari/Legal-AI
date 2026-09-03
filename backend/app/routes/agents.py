@@ -43,6 +43,8 @@ def analyze_case(
         kg_conflicts=result.kg_conflicts,
         summary=result.summary,
         faithfulness_ok=result.faithfulness_ok,
+        faithfulness_method=result.faithfulness_method,
+        unsupported_claims=result.unsupported_claims,
         invalid_citation_numbers=result.invalid_citation_numbers,
         needs_human_review=result.needs_human_review,
         trace=result.trace,

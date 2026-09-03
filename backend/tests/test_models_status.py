@@ -33,7 +33,7 @@ def test_models_status_every_entry_has_the_documented_shape(client):
             "leaves_perimeter", "models", "note",
         }
         assert p["hosting_class"] in {"A", "B", "C"}
-        assert set(p["capabilities"]) <= {"generate", "embed", "rerank"}
+        assert set(p["capabilities"]) <= {"generate", "embed", "rerank", "entail", "ner"}
         # only a Class C provider may leave the deployment perimeter
         if p["leaves_perimeter"]:
             assert p["hosting_class"] == "C"

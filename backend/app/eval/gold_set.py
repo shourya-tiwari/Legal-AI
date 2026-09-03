@@ -100,3 +100,58 @@ GOLD_SET: List[GoldExample] = [
         "expected_deontic_modalities": ["prohibition"],
     },
 ]
+
+
+class FaithfulnessExample(TypedDict):
+    summary: str                 # a claim a generated summary might make
+    sources: List[str]           # the retrieved source texts it should be grounded in
+    is_faithful: bool            # ground truth: is the summary entailed by the sources?
+
+
+# Hand-built cases for the Verifier's faithfulness check (app/agents/verifier.py).
+# The NLI head must classify these more accurately than the lexical-overlap
+# fallback -- especially the "high vocabulary overlap but wrong meaning" cases
+# (3, 5) that lexical overlap gets wrong by design.
+FAITHFULNESS_GOLD: List[FaithfulnessExample] = [
+    {  # 1: exact restatement
+        "summary": "The security deposit must be returned within 21 days after the tenant moves out.",
+        "sources": ["Under California law the landlord must return the security deposit within 21 days of the tenant vacating the unit."],
+        "is_faithful": True,
+    },
+    {  # 2: valid paraphrase
+        "summary": "Either side can end the contract by giving 60 days notice.",
+        "sources": ["This Agreement may be terminated by either party upon sixty (60) days prior written notice."],
+        "is_faithful": True,
+    },
+    {  # 3: high lexical overlap, contradicted meaning
+        "summary": "The security deposit is returned within 90 days of move-out.",
+        "sources": ["The landlord shall return the security deposit within 21 days after the tenant vacates the premises."],
+        "is_faithful": False,
+    },
+    {  # 4: fabricated detail not in sources
+        "summary": "The contract automatically renews for five-year terms and cannot be cancelled.",
+        "sources": ["This Agreement has an initial term of one year.", "Termination for convenience requires 30 days notice."],
+        "is_faithful": False,
+    },
+    {  # 5: overlapping vocabulary, opposite obligation
+        "summary": "The vendor is permitted to disclose confidential information to third parties.",
+        "sources": ["The Vendor shall not disclose Confidential Information to any third party without prior written consent."],
+        "is_faithful": False,
+    },
+    {  # 6: supported, different words
+        "summary": "The provider covers the customer's legal costs if a third party sues over the provider's IP.",
+        "sources": ["The Provider shall indemnify and hold the Customer harmless against any third-party claim that the Services infringe intellectual property rights, including reasonable attorneys' fees."],
+        "is_faithful": True,
+    },
+    {  # 7: claim about a topic the sources don't cover
+        "summary": "Late payments accrue interest at 1.5% per month.",
+        "sources": ["Invoices are payable within 30 days of receipt.", "The governing law is the State of New York."],
+        "is_faithful": False,
+    },
+    {  # 8: faithful multi-sentence
+        "summary": "The agreement is governed by Delaware law. Disputes go to binding arbitration.",
+        "sources": ["This Agreement shall be governed by the laws of the State of Delaware.",
+                    "Any dispute arising under this Agreement shall be resolved by binding arbitration."],
+        "is_faithful": True,
+    },
+]

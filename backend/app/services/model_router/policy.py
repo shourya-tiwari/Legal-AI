@@ -29,20 +29,27 @@ from .types import SensitivityTier
 logger = logging.getLogger("legalai.model_router.policy")
 
 # Kept byte-for-byte in sync with app/policies/routing.yaml.
+# `escalate_to` (generate tasks): providers prepended to the chain when the
+# caller passes hard=True (docs/v2/AI_STACK.md "Escalation without a bigger
+# vendor" -- a bigger *self-hosted* model, never Class C).
+_GEN = lambda esc=None: {  # noqa: E731 - compact, one shape repeated
+    "capability": "generate", "chain": ["local-llm"],
+    "escalate_to": esc or ["local-llm-large"], "class_c": ["gemini"],
+}
 DEFAULT_POLICY: dict = {
-    "version": 1,
+    "version": 2,
     "class_c_allowed_tiers": ["public", "internal"],
     "tasks": {
         # generate ---------------------------------------------------------
-        "generic": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
-        "clause_rewrite": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
-        "timeline_extract": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
-        "qa": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
-        "risk_analysis": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
-        "contextualize": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
-        "deontic_escalation": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
-        "clause_type_escalation": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
-        "agent_summary": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
+        "generic": _GEN(),
+        "clause_rewrite": _GEN(),
+        "timeline_extract": _GEN(),
+        "qa": _GEN(),
+        "risk_analysis": _GEN(),
+        "contextualize": _GEN(),
+        "deontic_escalation": _GEN(),
+        "clause_type_escalation": _GEN(),
+        "agent_summary": _GEN(),
         # embed ------------------------------------------------------------
         "embed_corpus": {"capability": "embed",
                          "chain": ["local-embed-remote", "local-embed-neural", "local-embed-hash"],
@@ -54,10 +61,14 @@ DEFAULT_POLICY: dict = {
         "rerank": {"capability": "rerank",
                    "chain": ["local-rerank-remote", "local-rerank-neural", "local-rerank-lexical"],
                    "class_c": []},
+        # entail (NLI faithfulness head -- Verifier safety gate, Class A) --
+        "verify_nli": {"capability": "entail", "chain": ["local-nli"], "class_c": []},
+        # ner (zero-shot entity extraction) ------------------------------
+        "ner_extract": {"capability": "ner", "chain": ["local-ner"], "class_c": []},
     },
 }
 
-_VALID_CAPABILITIES = {"generate", "embed", "rerank"}
+_VALID_CAPABILITIES = {"generate", "embed", "rerank", "entail", "ner"}
 
 
 class RoutingPolicy:
@@ -72,15 +83,20 @@ class RoutingPolicy:
         entry = self._tasks.get(task) or self._tasks.get("generic", {})
         return entry.get("capability", "generate")
 
-    def candidates(self, task: str, sensitivity: SensitivityTier) -> List[str]:
-        """Ordered provider-name candidates for this task, with Class C
-        appended only when policy + settings + sensitivity all permit."""
+    def candidates(self, task: str, sensitivity: SensitivityTier, *, hard: bool = False) -> List[str]:
+        """Ordered provider-name candidates for this task. When hard=True the
+        task's `escalate_to` providers (a bigger *self-hosted* model) go to the
+        front. Class C is appended last, only when policy + settings +
+        sensitivity all permit -- and never as an escalation target."""
         entry = self._tasks.get(task)
         if entry is None:
             logger.debug("No policy entry for task '%s'; using 'generic'.", task)
             entry = self._tasks.get("generic", {"chain": ["local-llm"], "class_c": ["gemini"]})
 
         chain: List[str] = list(entry.get("chain", []))
+        if hard:
+            escalate = [e for e in entry.get("escalate_to", []) if e not in chain]
+            chain = escalate + chain
 
         settings = get_settings()
         allow_c = (

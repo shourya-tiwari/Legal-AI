@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = ""
     LLM_MODEL: str = "qwen2.5:3b"
     LLM_API_KEY: str = ""
+    # Escalation target (Phase 6, docs/v2/AI_STACK.md "Escalation without a
+    # bigger vendor"): same endpoint, a bigger self-hosted model. Used when a
+    # caller passes hard=True and the policy has an `escalate_to` for the task.
+    LLM_LARGE_MODEL: str = "qwen3:14b"
 
     # Self-hosted embeddings (Class B). EMBEDDING_BASE_URL points at a
     # TEI / Infinity / OpenAI-compatible embedding server; if unset, the
@@ -45,6 +49,22 @@ class Settings(BaseSettings):
     RERANKER_BASE_URL: str = ""
     RERANKER_API_KEY: str = ""
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    # NLI faithfulness head (Phase 6, Class A -- the Verifier's safety gate,
+    # app/services/model_router/providers/nli_local.py). In-process transformers
+    # model; needs `requirements-local.txt`. Disabled or absent => the Verifier
+    # falls back to lexical overlap, honestly labelled.
+    NLI_MODEL: str = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+    NLI_ENABLED: bool = True
+
+    # Zero-shot NER (Phase 6, Class B -- GLiNER, providers/gliner_local.py).
+    # Optional `gliner` extra; regex extraction in nlp/entities.py is the floor.
+    NER_MODEL: str = "urchade/gliner_multi-v2.1"
+    NER_ENABLED: bool = True
+    NER_LABELS: list[str] = [
+        "party", "organization", "person", "monetary amount", "date",
+        "duration", "governing law jurisdiction", "statute citation",
+    ]
     RERANKER_ENABLED: bool = True
 
     # Class C gating. EXTERNAL_PROVIDERS_ENABLED=false OR STRICT_LOCAL_ONLY=true

@@ -50,6 +50,12 @@ Rules:
 - Return ONLY the rewritten text.
 """
 
+# A dense clause near the chunk cap is where a small model most often loses
+# nuance -- ask the router to escalate to the bigger self-hosted model for it
+# (docs/v2/AI_STACK.md "Escalation without a bigger vendor").
+_HARD_CHUNK_CHARS = 4000
+
+
 def _rewrite_chunk(chunk: str) -> str:
     prompt = f"""
 {SYSTEM_PROMPT}
@@ -62,6 +68,7 @@ Clause:
         prompt,
         task="clause_rewrite",
         temperature=0.3,
+        hard=len(chunk) >= _HARD_CHUNK_CHARS,
     )
     return result
 

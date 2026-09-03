@@ -34,6 +34,13 @@ def segment_into_clauses(full_text: str, max_clause_chars: int = DEFAULT_MAX_CLA
     return clauses
 
 
+def split_sentences(text: str) -> List[str]:
+    """Sentence-level split of a single block of text (same regex heuristic
+    the clause splitter uses). Used by the Verifier to check each claim
+    sentence of a generated summary against its sources."""
+    return [s.strip() for s in _SENTENCE_SPLIT_RE.split(text or "") if s.strip()]
+
+
 def _split_long_paragraph(paragraph: str, max_chars: int) -> List[str]:
     sentences = _SENTENCE_SPLIT_RE.split(paragraph)
     chunks: List[str] = []

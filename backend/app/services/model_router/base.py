@@ -17,8 +17,12 @@ from typing import List
 from .types import (
     EmbedRequest,
     EmbedResult,
+    EntailRequest,
+    EntailResult,
     GenerateRequest,
     GenerateResult,
+    NERRequest,
+    NERResult,
     ProviderCard,
     ProviderUnavailable,
     RerankRequest,
@@ -52,6 +56,12 @@ class ModelProvider(abc.ABC):
 
     def rerank(self, req: RerankRequest) -> RerankResult:  # pragma: no cover - default
         raise NotImplementedError(f"{self.name} does not support rerank")
+
+    def entail(self, req: EntailRequest) -> EntailResult:  # pragma: no cover - default
+        raise NotImplementedError(f"{self.name} does not support entail")
+
+    def extract_entities(self, req: NERRequest) -> NERResult:  # pragma: no cover - default
+        raise NotImplementedError(f"{self.name} does not support ner")
 
     # ---- helpers ----
 

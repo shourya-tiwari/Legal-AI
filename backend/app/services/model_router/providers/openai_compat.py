@@ -63,9 +63,13 @@ class OpenAICompatProvider(ModelProvider):
             return s.EMBEDDING_BASE_URL, s.EMBEDDING_MODEL, s.EMBEDDING_API_KEY
         if self._role == "rerank":
             return s.RERANKER_BASE_URL, s.RERANKER_MODEL, s.RERANKER_API_KEY
+        if self._role == "llm-large":
+            # the escalation target -- same endpoint, a bigger model
+            return s.LLM_BASE_URL, s.LLM_LARGE_MODEL, s.LLM_API_KEY
         return s.LLM_BASE_URL, s.LLM_MODEL, s.LLM_API_KEY
 
-    _ROLE_CAPS = {"llm": ["generate"], "embed": ["embed"], "rerank": ["rerank"]}
+    _ROLE_CAPS = {"llm": ["generate"], "llm-large": ["generate"],
+                  "embed": ["embed"], "rerank": ["rerank"]}
 
     def describe(self) -> ProviderCard:
         base_url, model, _ = self._cfg()

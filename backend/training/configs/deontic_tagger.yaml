@@ -1,0 +1,16 @@
+# Fine-tune config: deontic modality tagger (multi-label, Phase 6/8)
+# python training/train_deontic_tagger.py training/configs/deontic_tagger.yaml
+
+base_model: answerdotai/ModernBERT-base      # or nlpaueb/legal-bert-base-uncased
+max_length: 256
+
+use_lora: true
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+
+lr: 2.0e-4
+batch_size: 16
+epochs: 8
+
+output_dir: training/out/deontic_tagger

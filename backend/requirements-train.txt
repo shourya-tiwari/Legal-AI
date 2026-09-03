@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# OPTIONAL: fine-tuning tooling for backend/training/ (Phase 6/8,
+# docs/v2/MODEL_STACK.md "Training").
+#
+# NOT needed to run the app or the eval harness. Install only to train the
+# in-house clause / deontic heads:
+#
+#   pip install -r requirements-train.txt
+#   pip install unsloth        # optional: 2x-faster, lower-VRAM LoRA
+# ---------------------------------------------------------------------------
+-r requirements.txt
+
+transformers>=4.48
+datasets>=3.2
+accelerate>=1.0
+peft>=0.14
+evaluate>=0.4
+scikit-learn>=1.4
