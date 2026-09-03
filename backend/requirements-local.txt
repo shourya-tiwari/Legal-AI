@@ -1,17 +1,23 @@
 # ---------------------------------------------------------------------------
 # OPTIONAL: self-hosted neural embedding + reranker models (Class B), run
-# in-process. Pulls PyTorch, so it's a heavy install kept out of the core set.
+# IN-PROCESS via sentence-transformers. This is the no-Docker fallback for the
+# `local-embed-neural` / `local-rerank-neural` providers -- the router prefers
+# a dedicated TEI server (`local-embed-remote` / `local-rerank-remote`,
+# EMBEDDING_BASE_URL / RERANKER_BASE_URL) when one is configured, and drops to
+# the Class A hashing / lexical approximations when neither is present.
 #
-# With this absent, the Model Router uses:
-#   - the Class A hashing embedder (offline, zero-dep, lexical signal), or
-#   - a TEI / Ollama / OpenAI-compatible embedding endpoint if EMBEDDING_BASE_URL
-#     is configured.
+# Pulls PyTorch -- BUT if a GPU torch build is already importable (e.g. an
+# existing ~/.local torch+cuXXX picked up via `python -m venv --system-site-
+# packages`), pip reuses it and sentence-transformers runs on the GPU
+# automatically. See scripts/setup_venv.sh.
 #
 #   pip install -r requirements-local.txt
 #
-# Recommended models (docs/v2/MODEL_STACK.md):
-#   EMBEDDING_MODEL   -> BAAI/bge-small-en-v1.5  (or a Qwen3-Embedding / EmbeddingGemma build)
-#   RERANKER_MODEL    -> cross-encoder/ms-marco-MiniLM-L-6-v2  (or BAAI/bge-reranker-v2-m3)
+# Recommended models for the in-process path (docs/v2/MODEL_STACK.md):
+#   EMBEDDING_MODEL   -> BAAI/bge-m3            (1024-d, multilingual; matches the TEI server)
+#   RERANKER_MODEL    -> BAAI/bge-reranker-v2-m3
+#   (BAAI/bge-small-en-v1.5 + cross-encoder/ms-marco-MiniLM-L-6-v2 are the
+#    lighter CPU-friendly choices and remain the app/config.py defaults.)
 # ---------------------------------------------------------------------------
 -r requirements.txt
 

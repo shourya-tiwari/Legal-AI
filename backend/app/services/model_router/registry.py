@@ -27,6 +27,7 @@ def _build() -> Dict[str, ModelProvider]:
     providers: Dict[str, ModelProvider] = {
         "local-llm": OpenAICompatProvider("local-llm", role="llm"),
         "local-embed-remote": OpenAICompatProvider("local-embed-remote", role="embed"),
+        "local-rerank-remote": OpenAICompatProvider("local-rerank-remote", role="rerank"),
         "local-embed-neural": SentenceTransformerProvider(),
         "local-rerank-neural": SentenceTransformerProvider(),
         "local-embed-hash": HashingEmbeddingProvider(),

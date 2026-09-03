@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     EMBEDDING_BASE_URL: str = ""
     EMBEDDING_API_KEY: str = ""
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+
+    # Self-hosted reranker (Class B). RERANKER_BASE_URL points at a dedicated
+    # cross-encoder server -- a Text Embeddings Inference (TEI) container with
+    # its /rerank route (docs/v2/MODEL_STACK.md). If unset, the router uses the
+    # optional sentence-transformers CrossEncoder when installed, else the
+    # always-available Class A lexical (token-overlap) reranker.
+    RERANKER_BASE_URL: str = ""
+    RERANKER_API_KEY: str = ""
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     RERANKER_ENABLED: bool = True
 
@@ -77,6 +85,19 @@ class Settings(BaseSettings):
     MEMGRAPH_URI: str = "bolt://127.0.0.1:7687"  # IP literal, not "localhost" -- skips a slow dual-stack DNS/connect attempt when Memgraph isn't running
     MEMGRAPH_USER: str = ""
     MEMGRAPH_PASSWORD: str = ""
+
+    # ---- Observability (Phase 5, docs/v2/MODEL_STACK.md "Observability") -----
+    # MODEL_CALL_LOGGING persists one row per routing decision to the
+    # `model_calls` table (app/db_models.py) -- the join key for the eval
+    # delta report and the operator cost/latency view. Fail-soft: a DB error
+    # is swallowed, never breaks a model call.
+    MODEL_CALL_LOGGING: bool = True
+    # OpenTelemetry: off unless an OTLP collector endpoint is configured
+    # (a self-hosted Langfuse / SigNoz / Grafana Tempo). Import- and
+    # connection-fail-soft -- see app/observability.py.
+    OTEL_ENABLED: bool = False
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+    OTEL_SERVICE_NAME: str = "legalai-backend"
 
 
 @lru_cache

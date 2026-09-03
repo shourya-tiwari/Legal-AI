@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import init_db
+from .observability import init_tracing
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,6 +25,7 @@ from .routes import contextualize
 from .routes import nlp
 from .routes import kg
 from .routes import agents
+from .routes import models as models_route
 
 settings = get_settings()
 
@@ -31,6 +33,7 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    init_tracing(app)
     logger.info(
         "Startup complete. auth_required=%s database=%s",
         settings.AUTH_REQUIRED,
@@ -62,6 +65,7 @@ app.include_router(contextualize.router, prefix="/api", tags=["contextualizer"])
 app.include_router(nlp.router, prefix="/api", tags=["nlp"])
 app.include_router(kg.router, prefix="/api", tags=["knowledge-graph"])
 app.include_router(agents.router, prefix="/api", tags=["agents"])
+app.include_router(models_route.router, prefix="/api", tags=["models"])
 
 # ---- Health Endpoint ----
 @app.get("/", tags=["health"])

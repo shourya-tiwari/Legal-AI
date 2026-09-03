@@ -8,12 +8,20 @@
 #
 # Provider names are resolved by app/services/model_router/registry.py:
 #   local-llm            -> OpenAICompatProvider (LLM_BASE_URL: Ollama/vLLM/...)   Class B
-#   local-embed-neural   -> SentenceTransformerProvider (optional extra)           Class B
-#   local-embed-remote   -> OpenAICompatProvider embed role (EMBEDDING_BASE_URL)   Class B
+#   local-embed-remote   -> OpenAICompatProvider embed role (EMBEDDING_BASE_URL:   Class B
+#                           a TEI/Infinity container, /v1/embeddings)
+#   local-embed-neural   -> SentenceTransformerProvider (optional -local extra)    Class B
 #   local-embed-hash     -> HashingEmbeddingProvider (always available, offline)   Class A
+#   local-rerank-remote  -> OpenAICompatProvider rerank role (RERANKER_BASE_URL:   Class B
+#                           a TEI container, /rerank)
 #   local-rerank-neural  -> SentenceTransformerProvider cross-encoder              Class B
 #   local-rerank-lexical -> LexicalReranker (always available)                     Class A
 #   gemini               -> GeminiProvider (providers-external; absent air-gapped) Class C
+#
+# Chain order for embed/rerank: dedicated GPU server first (the Phase 5/6
+# self-hosted default), then the in-process neural model, then the always-on
+# Class A approximation. Every leg fails soft, so an unconfigured / down
+# server transparently degrades to the next.
 #
 # `chain`   = Class A/B candidates, tried in order by health.
 # `class_c` = external candidates, appended to the chain ONLY when
@@ -38,8 +46,8 @@ tasks:
   agent_summary:          { capability: generate, chain: [local-llm], class_c: [gemini] }
 
   # ---- embeddings ------------------------------------------------------
-  embed_corpus: { capability: embed, chain: [local-embed-neural, local-embed-remote, local-embed-hash], class_c: [] }
-  embed_query:  { capability: embed, chain: [local-embed-neural, local-embed-remote, local-embed-hash], class_c: [] }
+  embed_corpus: { capability: embed, chain: [local-embed-remote, local-embed-neural, local-embed-hash], class_c: [] }
+  embed_query:  { capability: embed, chain: [local-embed-remote, local-embed-neural, local-embed-hash], class_c: [] }
 
   # ---- reranking ------------------------------------------------------
-  rerank: { capability: rerank, chain: [local-rerank-neural, local-rerank-lexical], class_c: [] }
+  rerank: { capability: rerank, chain: [local-rerank-remote, local-rerank-neural, local-rerank-lexical], class_c: [] }

@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# OPTIONAL: the eval-harness upgrade (docs/v2/AI_STACK.md "Eval harness
+# upgrade", ROADMAP Phase 5/6).
+#
+#   - inspect-ai : the suite backbone (app/eval/inspect_tasks.py)
+#   - datasets   : loads CUAD / ContractNLI / LegalBench (app/eval/datasets.py)
+#
+# The fast pre-merge gate (app/eval/run_eval.py + tests/test_eval_gate.py)
+# needs NONE of this -- it stays pure-stdlib. These are for the richer,
+# corpus-backed evals and the self-hosted-vs-external delta report
+# (app/eval/delta_report.py).
+#
+#   pip install -r requirements-eval.txt
+# ---------------------------------------------------------------------------
+-r requirements.txt
+
+inspect-ai==0.3.130
+datasets==3.2.0

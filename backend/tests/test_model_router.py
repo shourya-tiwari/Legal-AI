@@ -169,6 +169,98 @@ def test_every_registered_provider_implements_the_interface():
             assert card.hosting_class == HostingClass.C
 
 
+# --------------------------------------------------------------------------
+# self-hosted reranker server (Phase 5/6): local-rerank-remote
+# --------------------------------------------------------------------------
+
+def test_rerank_remote_provider_is_registered_and_implements_the_interface():
+    from app.services.model_router.base import ModelProvider
+
+    provider = get_registry()["local-rerank-remote"]
+    assert isinstance(provider, ModelProvider)
+    card = provider.describe()
+    assert card.capabilities == ["rerank"]
+    assert card.hosting_class == HostingClass.B
+    assert card.leaves_perimeter is False
+
+
+def test_rerank_remote_is_unavailable_without_a_base_url_and_falls_to_class_a(monkeypatch):
+    monkeypatch.setenv("RERANKER_BASE_URL", "")
+    get_settings.cache_clear(); get_policy.cache_clear(); get_router.cache_clear()
+    reset_registry_cache()
+
+    assert get_registry()["local-rerank-remote"].is_available() is False
+    # the router walks the chain and lands on the Class A lexical reranker
+    result = rerank("return the security deposit", ["deposit returned in 21 days", "force majeure"])
+    assert result.hosting_class == HostingClass.A
+    assert result.provider == "lexical-rerank"
+
+
+def test_rerank_remote_parses_a_tei_rerank_response(monkeypatch):
+    monkeypatch.setenv("RERANKER_BASE_URL", "http://tei-rerank:80")
+    get_settings.cache_clear(); get_policy.cache_clear(); get_router.cache_clear()
+    reset_registry_cache()
+
+    import app.services.model_router.providers.openai_compat as oc
+
+    class _Resp:
+        def raise_for_status(self): ...
+        def json(self):
+            # TEI /rerank shape: unordered [{index, score}, ...]
+            return [{"index": 0, "score": 0.11}, {"index": 2, "score": 0.97}, {"index": 1, "score": 0.42}]
+
+    monkeypatch.setattr(oc.httpx, "post", lambda *a, **k: _Resp())
+
+    result = rerank("q", ["doc a", "doc b", "doc c"], top_k=2)
+    assert result.hosting_class == HostingClass.B
+    assert result.provider == "local-rerank-remote"
+    assert result.ranking == [2, 1]           # best-first, truncated to top_k
+    assert result.scores == [0.97, 0.42]
+
+
+def test_policy_chain_order_puts_the_dedicated_server_first():
+    policy = get_policy()
+    for task in ("embed_query", "embed_corpus"):
+        chain = policy.candidates(task, SensitivityTier.INTERNAL)
+        assert chain[0] == "local-embed-remote"
+        assert chain[-1] == "local-embed-hash"
+    rerank_chain = policy.candidates("rerank", SensitivityTier.INTERNAL)
+    assert rerank_chain[0] == "local-rerank-remote"
+    assert rerank_chain[-1] == "local-rerank-lexical"
+
+
+# --------------------------------------------------------------------------
+# routing-decision telemetry (model_calls table) -- fail-soft
+# --------------------------------------------------------------------------
+
+def test_model_call_logging_writes_a_row_and_is_fail_soft(client, db_session, monkeypatch):
+    # `client` runs init_db() so the model_calls table exists.
+    from app.db_models import ModelCall
+
+    monkeypatch.setenv("MODEL_CALL_LOGGING", "true")
+    get_settings.cache_clear()
+
+    before = db_session.query(ModelCall).count()
+    embed_content(["a security deposit clause"])
+    rows = db_session.query(ModelCall).order_by(ModelCall.id.desc()).all()
+    assert len(rows) == before + 1
+    assert rows[0].provider == "hashing-embed"
+    assert rows[0].hosting_class == "A"
+    assert rows[0].ok is True
+    assert rows[0].task == "embed_corpus"
+
+
+def test_model_call_logging_can_be_disabled(client, db_session, monkeypatch):
+    from app.db_models import ModelCall
+
+    monkeypatch.setenv("MODEL_CALL_LOGGING", "false")
+    get_settings.cache_clear()
+
+    before = db_session.query(ModelCall).count()
+    embed_content(["another clause"])
+    assert db_session.query(ModelCall).count() == before
+
+
 def test_registry_runs_without_external_providers(monkeypatch):
     # Simulate the on-prem / air-gapped install: no gemini provider.
     import app.services.model_router.registry as reg

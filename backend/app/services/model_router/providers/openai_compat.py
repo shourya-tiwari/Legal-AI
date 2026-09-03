@@ -8,10 +8,16 @@ Talks to any server that exposes the OpenAI REST shape:
   - Text Embeddings Inference (TEI) with the OpenAI route
   - LM Studio, llama.cpp server, LocalAI, ...
 
-Configured entirely from Settings (LLM_BASE_URL / LLM_MODEL / LLM_API_KEY,
-and EMBEDDING_* for the embedding route). If LLM_BASE_URL is empty the
-provider reports itself unavailable and the router moves on -- which is the
-normal state on a dev machine or in CI with nothing served locally yet.
+Configured entirely from Settings by `role`:
+  - role="llm"     -> LLM_BASE_URL / LLM_MODEL / LLM_API_KEY, serves `generate`
+  - role="embed"   -> EMBEDDING_BASE_URL / EMBEDDING_MODEL / EMBEDDING_API_KEY,
+                      serves `embed` (TEI / Infinity / OpenAI `/v1/embeddings`)
+  - role="rerank"  -> RERANKER_BASE_URL / RERANKER_MODEL / RERANKER_API_KEY,
+                      serves `rerank` via TEI's native `/rerank` route
+
+If the role's *_BASE_URL is empty the provider reports itself unavailable and
+the router moves on -- the normal state on a dev machine or in CI with
+nothing served locally yet.
 """
 from __future__ import annotations
 
@@ -31,6 +37,8 @@ from ..types import (
     HostingClass,
     ProviderCard,
     ProviderUnavailable,
+    RerankRequest,
+    RerankResult,
 )
 
 logger = logging.getLogger("legalai.model_router.openai_compat")
@@ -45,7 +53,7 @@ class OpenAICompatProvider(ModelProvider):
     hosting_class = HostingClass.B
 
     def __init__(self, name: str, *, role: str = "llm") -> None:
-        # role: "llm" reads LLM_* settings; "embed" reads EMBEDDING_* settings.
+        # role: "llm" -> LLM_*, "embed" -> EMBEDDING_*, "rerank" -> RERANKER_*
         self.name = name
         self._role = role
 
@@ -53,11 +61,15 @@ class OpenAICompatProvider(ModelProvider):
         s = get_settings()
         if self._role == "embed":
             return s.EMBEDDING_BASE_URL, s.EMBEDDING_MODEL, s.EMBEDDING_API_KEY
+        if self._role == "rerank":
+            return s.RERANKER_BASE_URL, s.RERANKER_MODEL, s.RERANKER_API_KEY
         return s.LLM_BASE_URL, s.LLM_MODEL, s.LLM_API_KEY
+
+    _ROLE_CAPS = {"llm": ["generate"], "embed": ["embed"], "rerank": ["rerank"]}
 
     def describe(self) -> ProviderCard:
         base_url, model, _ = self._cfg()
-        caps = ["generate"] if self._role == "llm" else ["embed"]
+        caps = self._ROLE_CAPS.get(self._role, ["generate"])
         return ProviderCard(
             name=self.name,
             hosting_class=HostingClass.B,
@@ -126,3 +138,35 @@ class OpenAICompatProvider(ModelProvider):
             raise ProviderUnavailable(f"{self.name}: unexpected embedding response shape: {e}") from e
         return EmbedResult(vectors=vectors, provider=self.name, model=model,
                            hosting_class=HostingClass.B)
+
+    def rerank(self, req: RerankRequest) -> RerankResult:
+        # Text Embeddings Inference native /rerank route (also spoken by
+        # Infinity). Request: {query, texts}; response: [{index, score}, ...]
+        # already sorted best-first.
+        base_url, _model, _ = self._cfg()
+        if not base_url:
+            raise ProviderUnavailable(f"{self.name}: RERANKER_BASE_URL not configured")
+        if not req.documents:
+            return RerankResult(ranking=[], scores=[], provider=self.name,
+                                hosting_class=HostingClass.B)
+        try:
+            resp = httpx.post(
+                self._url("/rerank"),
+                json={"query": req.query, "texts": list(req.documents),
+                      "return_text": False, "raw_scores": False},
+                headers=self._headers(), timeout=_TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            pairs = sorted(
+                ((int(item["index"]), float(item["score"])) for item in data),
+                key=lambda p: p[1], reverse=True,
+            )
+        except httpx.HTTPError as e:
+            raise ProviderUnavailable(f"{self.name}: rerank request to {base_url} failed: {e}") from e
+        except (KeyError, IndexError, TypeError, ValueError) as e:
+            raise ProviderUnavailable(f"{self.name}: unexpected rerank response shape: {e}") from e
+        if req.top_k is not None:
+            pairs = pairs[: req.top_k]
+        return RerankResult(ranking=[i for i, _ in pairs], scores=[s for _, s in pairs],
+                            provider=self.name, hosting_class=HostingClass.B)

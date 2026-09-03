@@ -182,7 +182,7 @@ Hierarchical, clause-aware chunking. The canonical chunk boundary is the **`Clau
 
 This replaces V1's fallback behaviour (`get_rag_hints()` silently falling back to a static per-contract-type dict) with three independent retrieval strategies to fall back across before an explicit "not enough grounded information — verify locally" response, which the UI surfaces honestly.
 
-**Current state (Phase 3):** dense (Gemini embeddings, pending self-hosting) + sparse (BM25) fused via RRF; graph retrieval exposed but not yet fused; reranker deferred. See `ROADMAP.md`.
+**Current state (Phase 5):** dense (self-hosted — TEI/`bge-m3` on the GPU when the `gpu` compose profile is up, else in-process `sentence-transformers`, else the Class-A hashing embedder) + sparse (BM25) + GraphRAG hits fused via RRF, then reranked (TEI/`bge-reranker-v2-m3` → in-process cross-encoder → Class-A lexical). GraphRAG fusion is wired into the Clause Research agent; the Contextualizer route wiring is a follow-up. The Verifier's faithfulness step is still the honestly-labelled lexical-overlap stand-in — the real local NLI head is Phase 6. Qdrant is not yet used (the corpus is small; FAISS in-process). See `ROADMAP.md`.
 
 ## Prompt and version governance
 

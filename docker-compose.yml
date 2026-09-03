@@ -32,6 +32,88 @@ services:
     volumes:
       - legalai_memgraph_data:/var/lib/memgraph
 
+  # ---------------------------------------------------------------------------
+  # Self-hosted inference layer (Phase 5/6, docs/v2/MODEL_STACK.md).
+  #
+  # Behind the `gpu` profile so `docker compose up -d` stays lightweight
+  # (Postgres + Redis + Memgraph only). Bring the model servers up with:
+  #
+  #     docker compose --profile gpu up -d
+  #     ./scripts/bootstrap_selfhosted.sh      # pulls qwen3:8b, waits for health
+  #
+  # Requires the NVIDIA Container Toolkit. VRAM budget on a 16 GB card:
+  #   qwen3:8b (Q4_K_M) ~6 GB + bge-m3 ~2.3 GB + bge-reranker-v2-m3 ~2.3 GB.
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["gpu"]
+    container_name: legalai-ollama
+    ports:
+      - "11434:11434"          # OpenAI-compatible API at /v1
+    volumes:
+      - legalai_ollama_data:/root/.ollama
+    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    healthcheck:
+      test: ["CMD-SHELL", "ollama --version >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  tei-embed:
+    image: ghcr.io/huggingface/text-embeddings-inference:cuda-1.5
+    profiles: ["gpu"]
+    container_name: legalai-tei-embed
+    command: ["--model-id", "BAAI/bge-m3", "--max-client-batch-size", "64", "--auto-truncate"]
+    ports:
+      - "8080:80"              # /v1/embeddings (OpenAI-compatible) + /embed
+    volumes:
+      - legalai_tei_data:/data
+    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  tei-rerank:
+    image: ghcr.io/huggingface/text-embeddings-inference:cuda-1.5
+    profiles: ["gpu"]
+    container_name: legalai-tei-rerank
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3", "--max-client-batch-size", "64", "--auto-truncate"]
+    ports:
+      - "8081:80"              # /rerank
+    volumes:
+      - legalai_tei_data:/data
+    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   legalai_postgres_data:
   legalai_memgraph_data:
+  legalai_ollama_data:
+  legalai_tei_data:

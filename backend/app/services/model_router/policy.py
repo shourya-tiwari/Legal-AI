@@ -45,14 +45,14 @@ DEFAULT_POLICY: dict = {
         "agent_summary": {"capability": "generate", "chain": ["local-llm"], "class_c": ["gemini"]},
         # embed ------------------------------------------------------------
         "embed_corpus": {"capability": "embed",
-                         "chain": ["local-embed-neural", "local-embed-remote", "local-embed-hash"],
+                         "chain": ["local-embed-remote", "local-embed-neural", "local-embed-hash"],
                          "class_c": []},
         "embed_query": {"capability": "embed",
-                        "chain": ["local-embed-neural", "local-embed-remote", "local-embed-hash"],
+                        "chain": ["local-embed-remote", "local-embed-neural", "local-embed-hash"],
                         "class_c": []},
         # rerank ---------------------------------------------------------
         "rerank": {"capability": "rerank",
-                   "chain": ["local-rerank-neural", "local-rerank-lexical"],
+                   "chain": ["local-rerank-remote", "local-rerank-neural", "local-rerank-lexical"],
                    "class_c": []},
     },
 }

@@ -9,9 +9,10 @@ Every phase moves inference *toward* the organization's own hardware and *away* 
 ```
 V1:        100% Gemini, no fallback
 Phase 1-4: Gemini for generation; local rules/classical-ML for structure
-Phase 5:   Provider-agnostic Router; embeddings/rerank self-hosted by default;  ← WE ARE HERE
-           Gemini is an optional plugin, used only for LLM generation
-Phase 6:   Self-hosted LLM generation is the default; Gemini removed from the default path
+Phase 5:   Provider-agnostic Router; embeddings/rerank self-hosted ON A REAL TEI/GPU  ← WE ARE HERE
+           deployment; Ollama (Qwen3-8B) serving generation; Gemini optional plugin
+Phase 6:   Self-hosted LLM generation is the default (GPU big enough for the 32B class);
+           Gemini removed from the default path
 Phase 7:   On-prem + air-gapped builds; commercial-provider package excludable entirely
 Phase 8+:  Portfolio intelligence, in-house trained models, research track — all on self-hosted infra
 ```
@@ -24,8 +25,8 @@ The old roadmap put "GPU Upgrade" *last*, as a quality top-up on a Gemini-based 
 
 | Phase | GPU on *our* side? | Notes |
 |---|---|---|
-| **0–5** | **No** | CPU rules / classical ML / hashing embeddings; generation via an external plugin or a CPU-served small model (Ollama). Phase 5 is deliberately GPU-free. |
-| **6 — Self-hosted LLM generation** | **Yes — this is the phase the GPU is for** | Serving a 32B-class model via vLLM needs ~24 GB (one 3090/4090/A5000, or a rented GPU box). A 6 GB RTX-4050-class card covers a quantized 4B/8B model **and** every fine-tune in the plan (Legal-BERT, small-LLM LoRA via Unsloth). Until then, the Phase 5 interim stands. A **cloud/rented GPU** — spun up for training runs and for the inference node — fully satisfies this phase. |
+| **0–5** | **No** (a GPU helps but isn't required) | CPU rules / classical ML / hashing embeddings; generation via an external plugin or a small served model. **Update:** the dev box now has an RTX A4000 (16 GB), so Phase 5's serving layer is real — Ollama Qwen3-8B + TEI bge-m3 / bge-reranker-v2-m3 on the GPU. The *architecture* stays GPU-free (Class-A fallbacks keep every path working with nothing served). |
+| **6 — Self-hosted LLM generation** | **Yes — a bigger GPU than the current 16 GB** | The A4000 (16 GB) already serves the constrained profile (Qwen3-8B, 4-bit 14B) **and** every fine-tune in the plan (Legal-BERT, small-LLM LoRA via Unsloth). Serving the **32B-class default** via vLLM needs ~24 GB (one 3090/4090/A5000/A6000, or a rented GPU box). Until that, the Qwen3-8B serve + the Phase 5 interim stand. A **cloud/rented GPU** fully satisfies this phase. |
 | **7 — On-prem / air-gapped deployment** | **No** | Packaging (Zarf/OpenTofu/Harbor/SBOM), collapsed data layer, durable execution, Memory Service, frontend SPA — all CPU/infra. A *customer* running air-gapped supplies their own GPU for self-hosted generation, or accepts the constrained-profile CPU small-model quality; that is their hardware, not the platform team's. |
 | **8 — Portfolio intelligence & research** | **Partially — reuses the Phase 6 GPU** | CPU: Risk Scoring (LightGBM), Document Sensitivity (classical), the Simulation agent, portfolio-agent baselines, bitemporal graph, `NOVELTY.md` #2 and #5. Same GPU as Phase 6: the fine-tuned clause classifier, the Legal Clause Embedding contrastive fine-tune, and the training steps for `NOVELTY.md` #1 and #3. |
 | **9 — Scale & enterprise hardening** | **No new need** | SOC 2, GDPR workflows, cost/latency tuning, multi-tenant scale. "GPU autoscaling" here means *operating* the Phase 6 pool, not acquiring more. |
@@ -100,47 +101,49 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 
 ---
 
-## Phase 5 — Provider Abstraction Hardening (~4-6 sprints) — 🟡 In progress (code core shipped)
+## Phase 5 — Provider Abstraction Hardening (~4-6 sprints) — 🟢 Substantially complete
 
-**No GPU required.** This phase makes the architecture genuinely provider-agnostic and removes every external dependency *except* large-LLM generation quality — before spending a dollar on hardware. It is deliberately small and deliberately first.
+**This phase makes the architecture genuinely provider-agnostic and removes every external dependency *except* large-LLM generation quality.** The code core came first (no GPU needed); the serving layer landed once a GPU (RTX A4000, 16 GB) became available.
 
-**Shipped (code):** the `ModelProvider` interface, the `providers-core` / `providers-external` packaging split (`google-genai` removed from `requirements.txt`), the import-linter contract (CI-gated), the declarative routing-policy engine (`app/policies/routing.yaml`) with Class A/B/C and Class-C gating, per-call routing-decision logging, and — the key deliverable — **removal of the Gemini embedding dependency from the RAG path** (self-hosted / Class-A hashing embedder is the default; reranker + GraphRAG fusion wired into hybrid retrieval). Verified by running the full backend test suite in a fresh venv with **no `google-genai` installed** (see `TASKS.md` and `LEARNING_LOG.md` #18).
+**Shipped (code):** the `ModelProvider` interface, the `providers-core` / `providers-external` packaging split (`google-genai` removed from `requirements.txt`), the import-linter contract (CI-gated), the declarative routing-policy engine (`app/policies/routing.yaml`) with Class A/B/C and Class-C gating, per-call routing-decision logging, and **removal of the Gemini embedding dependency from the RAG path**. Verified in a fresh venv with no `google-genai` (`LEARNING_LOG.md` #18).
 
-**Still open:** standing up a real self-hosted embedding server (TEI/Infinity + EmbeddingGemma/BGE-M3), an Ollama service in `docker-compose`, and the observability stack (OpenTelemetry / Langfuse / Phoenix / Grafana) + Inspect AI — all "run a service", not "write code". ASR/TTS providers are deferred until a feature needs them.
+**Shipped (serving + observability, `LEARNING_LOG.md` #19):** a `gpu` docker-compose profile + `scripts/bootstrap_selfhosted.sh` running **Ollama (Qwen3-8B)** for generation and **TEI on GPU** for **bge-m3** embeddings and **bge-reranker-v2-m3** reranking; a `local-rerank-remote` provider (`OpenAICompatProvider` rerank role) for TEI's `/rerank`; `GET /api/models/status`; `model_calls` routing-decision persistence + an OpenTelemetry scaffold (`app/observability.py`); and the eval seed — Inspect-AI suite (`app/eval/inspect_tasks.py`), CUAD / ContractNLI loaders, and the self-hosted-vs-external **delta report**. Full suite 110 pass + 1 skip, green with nothing served.
+
+**Still open:** an actual observability collector wired to the OTel scaffold (a `docker-compose.observability.yml` — Langfuse / SigNoz / Grafana LGTM); promptfoo; ASR/TTS providers (deferred until a feature needs them).
 
 **Model Router → the real provider interface** (`AI_STACK.md`)
-- [ ] Define the `ModelProvider` protocol (`generate`, `generate_structured`, `embed`, `rerank`, `transcribe`, `synthesize`, `describe`, `health`) and provider-neutral request/response schemas.
-- [ ] Split providers into `legalai-providers-core` (self-hosted adapters) and `legalai-providers-external` (commercial adapters, may wrap LiteLLM); make `-external` an optional install.
-- [ ] Add the **import-linter CI contract**: nothing outside the provider package may import a model SDK.
-- [ ] Build the **declarative routing-policy engine** (`packages/policies/routing.yaml`): task × sensitivity × capability × budget → `(provider, model)`, with self-hosted-only fallback chains and a separate opt-in `emergency_class_c`.
-- [ ] Log `{task, sensitivity, provider, model, policy_version, reason}` on every call; join to `eval_runs`.
-- [ ] Re-express hosting as **Class A / B / C**, not vendor tiers, throughout config and code.
+- [x] Define the `ModelProvider` protocol (`generate`, `embed`, `rerank`, `describe`, `is_available`) and provider-neutral request/response schemas. `generate_structured`/`transcribe`/`synthesize`/`health` reserved, not yet needed.
+- [x] Split providers into core (self-hosted adapters) / external (commercial); `-external` is an optional install (`requirements-external.txt`).
+- [x] Add the **import-linter CI contract**: nothing outside the provider package may import a model SDK (`tests/test_provider_isolation.py` + `.importlinter`).
+- [x] Build the **declarative routing-policy engine** (`app/policies/routing.yaml`): task × sensitivity × capability → ordered chain, self-hosted-only fallback chains, conditional Class C. `emergency_class_c` per-org opt-in: not built (no multi-tenant policy layer yet).
+- [x] Log `{task, sensitivity, provider, model, reason, candidates}` on every routing decision (`router.py` + `model_router/telemetry.py` → `model_calls`). Join to `eval_runs`: deferred (no `eval_runs` table yet).
+- [x] Re-express hosting as **Class A / B / C**, not vendor tiers, throughout config and code.
 
 **Self-host everything that isn't a large LLM** (all CPU- or small-GPU-feasible)
-- [ ] Deploy **TEI / Infinity** serving a self-hosted embedding model (EmbeddingGemma-300M or Qwen3-Embedding-0.6B on CPU to start; BGE-M3 batch on ingest). **Remove the Gemini embedding dependency from the RAG path** — this is the single most important deliverable of the phase.
-- [ ] Deploy a self-hosted reranker (bge-reranker-base on CPU) and wire it into RRF fusion.
-- [ ] Fuse GraphRAG hits into the Contextualizer's hybrid retrieval (the Phase 3 gap).
-- [ ] Add **faster-whisper** (ASR) and **Kokoro/Piper** (TTS) providers for the accessibility/audio features — CPU-served.
-- [ ] Ship an **Ollama**-served small LLM (Qwen3-4B) as the local-dev / docker-compose default so contributors run the full stack with no API key.
+- [x] Deploy **TEI** serving a self-hosted embedding model (**BGE-M3** on the GPU, `gpu` compose profile). **Gemini embedding dependency removed from the RAG path** — the phase's key deliverable.
+- [x] Deploy a self-hosted reranker (**bge-reranker-v2-m3** on TEI) and wire it into RRF fusion (`local-rerank-remote` provider).
+- [~] Fuse GraphRAG hits into hybrid retrieval — done for the Clause Research agent; the Contextualizer route wiring is a follow-up (needs org context threaded to `explainer`).
+- [ ] Add **faster-whisper** (ASR) and **Kokoro/Piper** (TTS) providers — deferred until an audio feature exists.
+- [x] Ship an **Ollama**-served small LLM (**Qwen3-8B**) as the local default (`scripts/bootstrap_selfhosted.sh`, `.env.example`).
 
 **Eval harness upgrade**
-- [ ] Adopt **Inspect AI** as the suite backbone; keep the hand-curated gold set as a fast pre-merge check; add **promptfoo** for prompt regression.
-- [ ] Point every eval judge at a self-hosted model — eval has no external dependency.
-- [ ] Add the **self-hosted-vs-external delta report**: for each task, measure what (if anything) Class C would add. This report gates every future decision to enable Class C.
+- [~] Adopt **Inspect AI** as the suite backbone — seed task shipped (`app/eval/inspect_tasks.py`); keep the hand-curated gold set as the fast pre-merge check; **promptfoo** not yet added.
+- [~] Point every eval judge at a self-hosted model — the delta report can use `local-llm`; a dedicated judge harness is future work.
+- [x] Add the **self-hosted-vs-external delta report** (`app/eval/delta_report.py`): per task, measure what Class C would add. Gates future Class C decisions.
 
-**Exit criteria**: the Model Router is provider-agnostic and passes the import-linter contract; embeddings, reranking, ASR, and TTS are self-hosted; the *only* remaining task routed to a commercial API by default is large-LLM text generation; a contributor can run the entire product locally with zero credentials.
+**Exit criteria**: the Model Router is provider-agnostic and passes the import-linter contract ✅; embeddings and reranking are self-hosted on a real TEI/GPU deployment ✅; ASR/TTS N/A; the *only* task routed to a commercial API by default is large-LLM text generation ✅; a contributor can run the entire product locally with zero credentials ✅. Remaining: an observability collector wired to the OTel scaffold; promptfoo.
 
 **Can the product run after Phase 5 with no GPU and no external API?** Yes — end to end. Every task has a working model: structure/RAG/KG/agents are CPU-fine already (Phases 2–4), and embeddings/rerank/ASR/TTS become CPU-served here. LLM generation falls to a CPU-served small model (Qwen3-4B via Ollama/llama.cpp). The honest caveat is *quality and latency*, not capability: CPU-served 4B generation is noticeably weaker and slower than a GPU-served 32B or Gemini. So there are two ways to run between Phase 5 and Phase 6 — (a) keep Gemini as an opt-in Class C plugin for generation quality (cloud/hybrid profiles), or (b) accept the CPU small-model quality for a genuinely disconnected pilot. Nothing is *blocked*; Phase 6 is a quality/latency upgrade on the generative path, and the point at which the disconnected profile reaches production-grade generation.
 
 ## Phase 6 — Self-Hosted LLM Generation: the GPU unlock (~8-12 sprints)
 
-**The pivotal phase.** GPU hardware becomes available and self-hosted generation becomes the default for every task. Target hardware progression: an RTX-4050-class card (6 GB) validates the small-model and fine-tuning path; a proper inference node (1–2× 24–48 GB, or a rented GPU box) serves the 32 B default. A quantized Qwen3-32B (AWQ/GPTQ 4-bit) fits ~24 GB; Qwen3-4B/8B fit the 6 GB card at 4-bit for the constrained profile.
+**The pivotal phase.** GPU hardware becomes available and self-hosted generation becomes the default for every task. **Partly underway:** the dev box has an RTX A4000 (16 GB), which already runs the Phase 5 serving layer (Ollama Qwen3-8B + TEI bge-m3 / bge-reranker-v2-m3) — that covers the *constrained profile* and every fine-tune in the plan. The remaining Phase 6 hardware ask is a larger / rented GPU (1–2× 24–48 GB) to serve the **32 B default**. A quantized Qwen3-32B (AWQ/GPTQ 4-bit) fits ~24 GB.
 
 **Model serving**
 - [ ] Deploy **vLLM** (and evaluate **SGLang** for the agent prefix-cache workload) on the GPU pool.
-- [ ] Serve **Qwen3-32B** (quantized) as the default generation model; **Qwen3-4B** for the constrained profile; a reasoning model (**DeepSeek-R1-Distill-32B** / **QwQ-32B**) for flagged-hard tasks.
+- [~] Serve **Qwen3-32B** (quantized) as the default generation model — **Qwen3-8B is served now** via Ollama (constrained profile); the 32 B default and a reasoning model (**DeepSeek-R1-Distill-32B** / **QwQ-32B**) for flagged-hard tasks need the bigger GPU.
 - [ ] Serve **Qwen2.5-VL-7B/32B** for scanned-document understanding.
-- [ ] Move the self-hosted embedding/reranker from CPU to GPU-served (TEI on GPU) for latency.
+- [x] Move the self-hosted embedding/reranker to GPU-served (**TEI on GPU**) for latency — landed in the Phase 5 bootstrap.
 
 **Progressive task cutover — each A/B-gated against the Gemini baseline before it becomes default**
 - [ ] Plain-English rewrite → Qwen3-8B/32B.

@@ -10,9 +10,11 @@ No service imports a provider. No service names a vendor. (docs/v2/AI_STACK.md)
 from __future__ import annotations
 
 import logging
+import time
 from functools import lru_cache
 from typing import List, Optional, Sequence
 
+from . import telemetry
 from .base import ModelProvider
 from .policy import get_policy
 from .registry import get_provider
@@ -21,6 +23,7 @@ from .types import (
     EmbedResult,
     GenerateRequest,
     GenerateResult,
+    HostingClass,
     ModelRouterError,
     ProviderUnavailable,
     RerankRequest,
@@ -64,11 +67,13 @@ class Router:
             if not provider.is_available():
                 errors.append(f"{provider.name}: not available")
                 continue
+            start = time.perf_counter()
             try:
                 result, model, hclass = call(provider)
             except (ProviderUnavailable, NotImplementedError) as e:
                 errors.append(f"{provider.name}: {e}")
                 continue
+            latency_ms = int((time.perf_counter() - start) * 1000)
 
             reason = "primary" if provider is chain[0] else f"fell through from {chain[0].name}"
             decision = RoutingDecision(
@@ -76,6 +81,7 @@ class Router:
                 provider=provider.name, model=model, hosting_class=hclass,
                 reason=reason, candidates_considered=considered,
             )
+            telemetry.record_call(decision, latency_ms=latency_ms, ok=True)
             if hclass.value == "C":
                 logger.warning(
                     "ROUTE -> EXTERNAL provider %s for task '%s' (%s). "
@@ -87,9 +93,17 @@ class Router:
                 logger.info("ROUTE %s", decision.as_log_dict())
             return result, decision
 
-        raise ModelRouterError(
-            f"All providers for task '{task}' failed: {'; '.join(errors)}"
+        err_msg = f"All providers for task '{task}' failed: {'; '.join(errors)}"
+        telemetry.record_call(
+            RoutingDecision(
+                task=task, capability=capability, sensitivity=sensitivity,
+                provider="(none)", model="-", hosting_class=HostingClass.A,
+                reason="no candidate served the request",
+                candidates_considered=considered,
+            ),
+            latency_ms=0, ok=False, error=err_msg,
         )
+        raise ModelRouterError(err_msg)
 
     # ---- public API ----
 

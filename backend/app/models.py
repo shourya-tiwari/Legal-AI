@@ -129,6 +129,23 @@ class AgentAnalyzeResponse(BaseModel):
     needs_human_review: bool
     trace: List[AgentStep] = Field(default_factory=list)
 
+# ----- Model Router status (/api/models/status) -----
+class ModelProviderStatus(BaseModel):
+    name: str
+    hosting_class: str = Field(description="A (deterministic/CPU), B (self-hosted neural), C (external API)")
+    capabilities: List[str] = Field(default_factory=list)
+    available: bool = Field(description="Provider's own is_available() -- config present, dependency importable")
+    leaves_perimeter: bool = Field(description="True only for Class C providers that call a third-party API")
+    models: List[str] = Field(default_factory=list)
+    note: str = ""
+
+class ModelsStatusResponse(BaseModel):
+    providers: List[ModelProviderStatus]
+    policy_version: int
+    external_providers_enabled: bool
+    strict_local_only: bool
+
+
 # ----- Contextualizer (/api/contextualize) -----
 class ContextualizerRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Contract clause text to explain")

@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# OPTIONAL: OpenTelemetry tracing (docs/v2/MODEL_STACK.md "Observability").
+#
+# With this absent, app/observability.py is a no-op and MODEL_CALL_LOGGING
+# still records routing decisions to the `model_calls` table -- you just
+# don't get distributed traces / spans exported to a collector.
+#
+#   pip install -r requirements-observability.txt
+#
+# Then set in .env:
+#   OTEL_ENABLED=true
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces   # Langfuse / SigNoz / Alloy
+# ---------------------------------------------------------------------------
+-r requirements.txt
+
+opentelemetry-sdk==1.29.0
+opentelemetry-exporter-otlp-proto-http==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
