@@ -114,8 +114,8 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [ ] Memory consolidation worker (session/episodic → semantic, privacy-tier gated)
 
 **Frontend (`FRONTEND.md`)** → all **Phase 7**
-- [ ] Scaffold Next.js + TypeScript; generate API client from OpenAPI
-- [ ] Workspace + Document Analyzer modules (V1 parity)
+- [x] Scaffold Next.js + TypeScript; generate API client from OpenAPI — `frontend-v2/` (Next.js App Router + TS + Tailwind + TanStack Query), `npm run codegen` dumps `app.main.app.openapi()` and runs `openapi-typescript` over it (`src/lib/api-types.ts`, committed; `openapi.json` regenerated, gitignored). V1's `frontend/` untouched, still deployed.
+- [x] Workspace + Document Analyzer modules (V1 parity) — upload → `/documents/[id]` workspace: per-clause actions (rewrite/risk-scan/contextualize via `block_id`, something V1's UI structurally couldn't do) + whole-document rewrite/timeline/risk-scan/ask, a sensitivity badge, and a bonus full-agent-analysis panel (`plan`/`trace`/`risk_findings`/`kg_conflicts`/faithfulness — zero backend work, the endpoint already returned everything). Verified against the real backend via curl (Gemini was intermittently 503-ing during the session; every endpoint succeeded on retry with the exact request/response shapes the client expects) plus a clean `next build`/`lint`; no browser extension was connected this session to click through it live — that's still open.
 - [ ] Agent Trace Viewer (real-time via session WebSocket)
 - [ ] Human-in-the-loop review queue UI
 - [ ] Feature-flag `/api/v2` usage per org
@@ -232,12 +232,12 @@ This is a coherent choice: the docs' own thesis is that legal-domain quality com
 - [ ] Formalize typed tool interfaces (JSON-schema-validated) — the planner picks *agents* from a registry, not arbitrary tools yet
 
 **Frontend SPA**
-- [ ] Scaffold Next.js + TypeScript; generate the API client from the OpenAPI schema
-- [ ] Workspace + Document Analyzer (V1 parity); Agent Trace Viewer (real-time via session WebSocket); human-in-the-loop review queue UI
+- [x] Scaffold Next.js + TypeScript; generate the API client from the OpenAPI schema — `frontend-v2/` (`LEARNING_LOG.md` #27): App Router + TS + Tailwind + TanStack Query, `npm run codegen` (`app.main.app.openapi()` → `openapi-typescript`). Not adopted this slice: shadcn/ui, Zustand (no cross-page shared state or complex primitives needed yet — plain Tailwind + hand-rolled ARIA instead).
+- [x] Workspace + Document Analyzer (V1 parity) — upload → `/documents/[id]`: per-clause rewrite/risk-scan/contextualize (`block_id` — V1's UI structurally couldn't do this), whole-document rewrite/timeline/risk-scan/ask, a sensitivity badge, and a bonus full-agent-analysis panel. ⛔ **Agent Trace Viewer** (needs the session WebSocket, not built) and **human-in-the-loop review queue UI** remain not started.
 - [ ] Provider & Model admin: which models serve which tasks, the eval scores behind the policy, the delta report, per-task/tier Class C toggles
 - [ ] Model status panel: self-hosted model health / queue depth / latency
 - [ ] Fully self-hosted frontend assets (fonts, Plausible analytics); strict CSP; sandboxed PDF.js preview
-- [ ] Sensitivity-aware rendering: `Privileged` documents show a persistent indicator and disable any control that would trigger a Class C call
+- [x] Sensitivity-aware rendering: a persistent tier badge on every document, sourced from `GET /api/v2/documents/{id}/sensitivity`'s real `external_providers_permitted` (not a client-side guess). No Class-C toggle exists in the UI yet to disable — nothing to enforce against there yet.
 - [~] Introduce `/api/v2/*` document-first endpoints — first slice done (`app/routes/v2.py`, see Phase 4 backend note); per-org feature-flagging still to do
 - [ ] Notification/Webhook Service for async job completion
 
