@@ -154,7 +154,7 @@ A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 - [x] Integrate **GLiNER** for zero-shot entity types — `providers/gliner_local.py` (`local-ner` / `ner_extract`), merged with the regex floor.
 - [ ] **Run the fine-tunes** (`backend/training/`): the clause/contract-type classifier and the **weak-supervision-then-distill** deontic tagger — QLoRA on ModernBERT/Legal-BERT, **minutes each on the A4000**, then the small head serves on CPU. Highest-value GPU task; do it while the card is available. Blocked only on data curation.
 - [ ] Fine-tune an **InLegalBERT/ModernBERT NER** head (same story).
-- [ ] **maverick-coref** — blocked by a *software* issue (transformers 5 refuses `torch.load` on torch < 2.6, CVE-2025-32434), not GPU.
+- [ ] **maverick-coref** — still blocked by a *software* issue, not GPU, but the issue moved: the original transformers-5/torch-<2.6 CVE guard is resolved on a current stack (torch 2.14 + a safetensors checkpoint load fine), but `fastcoref`'s own model-loading code is unmaintained and breaks against transformers ≥ 5's `PreTrainedModel` internals (`AttributeError: 'FCorefModel' object has no attribute 'all_tied_weights_keys'`). Needs a maintained coref library/checkpoint, or pinning transformers to an older 4.x line specifically for this one dependency (untested).
 - [ ] Layout/table extraction (**Docling** / **PaddleOCR PP-Structure**) — mostly CPU; the clean-PDF fast path (Tesseract + quality triage) stays. **olmOCR / Qwen2.5-VL** OCR escalation → future scope (VLM needs more VRAM).
 
 **Verifier**

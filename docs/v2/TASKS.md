@@ -12,7 +12,7 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 
 **Configured but not stood up** (ops, not code): Docker Compose + Ollama + TEI — the `gpu` compose profile and `scripts/bootstrap_selfhosted.sh` exist; run them to serve Qwen3-8B + bge-m3 + bge-reranker.
 
-**Blocked**: the LLM task cutovers (need a served `local-llm` — expect 8B/14B to pass on easy tasks, lose to Gemini on hard reasoning); real coreference (`fastcoref` hits a transformers-5/torch-<2.6 CVE guard); the clause/deontic fine-tune *runs* (need data curation — the GPU cost is minutes on the A4000).
+**Blocked**: the LLM task cutovers (need a served `local-llm` — expect 8B/14B to pass on easy tasks, lose to Gemini on hard reasoning); real coreference (the original torch-<2.6 CVE guard is resolved on a current stack, but `fastcoref`'s unmaintained model code now breaks against transformers ≥ 5's internals instead); the clause/deontic fine-tune *runs* (real train/val data now curated — see below — the remaining blocker is purely GPU time, minutes on the A4000).
 
 **Not started**: on-prem packaging (Zarf/SBOM/Harbor), the collapsed data layer, durable execution, the Memory Service, the frontend SPA, Phase 8 portfolio features. All CPU/code — none need a GPU.
 
@@ -177,9 +177,9 @@ This is a coherent choice: the docs' own thesis is that legal-domain quality com
 
 **CV / NLP models — on the A4000 while it's available**
 - [x] GLiNER zero-shot NER — `providers/gliner_local.py`, merged with the regex floor, fail-soft.
-- [ ] **Run the fine-tunes** (`backend/training/`): the clause/contract-type classifier and the deontic tagger, QLoRA on ModernBERT/Legal-BERT — **minutes each on the A4000**, then the resulting small head serves on CPU forever. This is the highest-value GPU task; do it while the card is here. Blocked only on data curation (LegalBench + gold + weak-supervision prep exists).
+- [ ] **Run the fine-tunes** (`backend/training/`): the clause/contract-type classifier and the deontic tagger, QLoRA on ModernBERT/Legal-BERT — **minutes each on the A4000**, then the resulting small head serves on CPU forever. This is the highest-value GPU task; do it while the card is here. **Data curated** (`LEARNING_LOG.md` #26): `training/data/clause_{train,val}.jsonl` (419/73 rows, LegalBench cuad_* + gold set) and `training/data/deontic_{train,val}.jsonl` (17/3 rows — only the seed fallback; a real `--corpus` of unlabeled contract text would meaningfully grow this and is the next data-curation step, not yet sourced). Purely a GPU-time blocker now.
 - [ ] Fine-tune an InLegalBERT/ModernBERT NER head (same story).
-- [ ] **maverick-coref** — blocked by a *software* issue (transformers 5 refuses `torch.load` on torch < 2.6, CVE-2025-32434), not GPU. Needs a safetensors coref checkpoint or a torch bump.
+- [ ] **maverick-coref** — the torch bump happened (torch 2.14 here) and the original CVE guard is gone (`biu-nlp/f-coref` now loads a real `.safetensors` checkpoint fine), but `fastcoref`'s own model class is unmaintained and breaks on transformers ≥ 5's `PreTrainedModel` internals (`AttributeError: ... 'all_tied_weights_keys'`). Still blocked, now on library maintenance rather than the CVE — needs a maintained coref checkpoint or a transformers-4.x pin scoped to this one dependency (untested, and would need checking against everything else that now assumes transformers 5).
 - [ ] Docling / PaddleOCR layout + table extraction — mostly CPU; the clean-PDF fast path (Tesseract + quality triage) stays.
 
 **Deferred — beyond the 16 GB hardware ceiling → future scope**
