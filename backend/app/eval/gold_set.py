@@ -178,3 +178,150 @@ SENSITIVITY_GOLD: List[SensitivityExample] = [
     {"text": "5. Confidentiality. Each party will protect the other's confidential information with reasonable care.", "expected_tier": "internal"},
     {"text": "Amendment No. 2 to the Lease, adjusting the rent and extending the term by one year.", "expected_tier": "internal"},
 ]
+
+
+class RewriteExample(TypedDict):
+    text: str
+    must_retain: List[str]   # facts (numbers/parties/dates) a correct rewrite keeps
+    banned_jargon: List[str]  # legalese a *plain-English* rewrite should not still contain
+
+
+# Hand-built cases for the Phase 6 cutover gate's `clause_rewrite` eval
+# (app/eval/tasks.py:run_rewrite_gold). Free-text generation has no single
+# reference paraphrase, so this checks the two properties a good rewrite
+# provably has instead of similarity to one hand-written answer: it keeps the
+# operative facts, and it actually drops the legalese it was asked to plain-
+# English (a rewrite that just keeps "shall"/"notwithstanding" verbatim has
+# not done the job, even if it's otherwise a faithful paraphrase).
+REWRITE_GOLD: List[RewriteExample] = [
+    {
+        "text": "The Client shall pay all invoices within thirty (30) days of the invoice date. Notwithstanding the foregoing, any amount not paid when due shall accrue interest at 1.5% per month.",
+        "must_retain": ["30 days", "1.5%"],
+        "banned_jargon": ["shall", "notwithstanding"],
+    },
+    {
+        "text": "The Contractor shall indemnify and hold harmless the Company from any and all third-party claims, up to a maximum aggregate liability of $500,000.",
+        "must_retain": ["$500,000"],
+        "banned_jargon": ["shall", "indemnify and hold harmless"],
+    },
+    {
+        "text": "The Employee shall not, during the Term or thereafter, disclose any Confidential Information of the Company to any third party without prior written consent.",
+        "must_retain": ["third party", "written consent"],
+        "banned_jargon": ["shall", "thereafter"],
+    },
+    {
+        "text": "Notwithstanding anything to the contrary herein, in no event shall either party's aggregate liability under this Agreement exceed the total fees paid in the preceding twelve (12) months.",
+        "must_retain": ["12 months"],
+        "banned_jargon": ["notwithstanding", "herein", "in no event shall"],
+    },
+    {
+        "text": "This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict of laws principles.",
+        "must_retain": ["Delaware"],
+        "banned_jargon": ["shall", "construed in accordance with"],
+    },
+    {
+        "text": "Neither party may assign this Agreement, in whole or in part, without the prior written consent of the other party, which consent shall not be unreasonably withheld.",
+        "must_retain": ["written consent"],
+        "banned_jargon": ["shall"],
+    },
+    {
+        "text": "This Agreement shall automatically renew for successive one (1) year terms unless either party provides written notice of non-renewal at least sixty (60) days prior to the end of the then-current term.",
+        "must_retain": ["one", "60 days"],
+        "banned_jargon": ["shall", "then-current"],
+    },
+    {
+        "text": "The Landlord shall return the security deposit, less any lawful deductions, within twenty-one (21) days after the Tenant vacates the premises.",
+        "must_retain": ["21 days"],
+        "banned_jargon": ["shall", "hereinafter"],
+    },
+]
+
+
+class TimelineEventGold(TypedDict):
+    date_description: str
+    event: str
+
+
+class TimelineGoldExample(TypedDict):
+    text: str
+    expected_events: List[TimelineEventGold]
+
+
+# Hand-built cases for the Phase 6 cutover gate's `timeline_extract` eval
+# (app/eval/tasks.py:run_timeline_extract_gold). Grading is per-gold-event
+# best-match token-F1 (metrics.token_f1) against the model's predicted
+# {date_description, event} pairs -- there's no single correct wording, but a
+# correct extraction names the same date and the same obligation.
+TIMELINE_GOLD: List[TimelineGoldExample] = [
+    {
+        "text": "This Lease shall commence on January 1, 2025 and expire on December 31, 2025. The Tenant shall pay rent on the first day of each month.",
+        "expected_events": [
+            {"date_description": "January 1, 2025", "event": "Lease commences"},
+            {"date_description": "December 31, 2025", "event": "Lease expires"},
+            {"date_description": "first day of each month", "event": "Rent payment due"},
+        ],
+    },
+    {
+        "text": "The Buyer shall deposit $50,000 into escrow within five (5) business days of the Effective Date. Closing shall occur no later than March 15, 2026.",
+        "expected_events": [
+            {"date_description": "within 5 business days of the Effective Date", "event": "Buyer deposits $50,000 into escrow"},
+            {"date_description": "March 15, 2026", "event": "Closing occurs"},
+        ],
+    },
+    {
+        "text": "Either party may terminate this Agreement upon 90 days written notice. The initial Term begins on the Effective Date and continues for two (2) years.",
+        "expected_events": [
+            {"date_description": "90 days after written notice", "event": "Agreement terminates"},
+            {"date_description": "two years from the Effective Date", "event": "initial Term ends"},
+        ],
+    },
+    {
+        "text": "The Employee's probationary period shall end on June 30, 2025, after which full benefits become effective July 1, 2025.",
+        "expected_events": [
+            {"date_description": "June 30, 2025", "event": "probationary period ends"},
+            {"date_description": "July 1, 2025", "event": "full benefits become effective"},
+        ],
+    },
+    {
+        "text": "The Contractor shall complete Phase 1 by April 1, 2025, Phase 2 by September 1, 2025, and deliver final materials no later than December 15, 2025.",
+        "expected_events": [
+            {"date_description": "April 1, 2025", "event": "Phase 1 complete"},
+            {"date_description": "September 1, 2025", "event": "Phase 2 complete"},
+            {"date_description": "December 15, 2025", "event": "final materials delivered"},
+        ],
+    },
+]
+
+
+class RiskExample(TypedDict):
+    text: str
+    expected_terms: List[str]  # phrases a real risk-flag pass should surface
+
+
+# Hand-built cases for the Phase 6 cutover gate's `risk_analysis` eval
+# (app/eval/tasks.py:run_risk_analysis_gold). Scored as recall: of the
+# phrases that make each clause genuinely risky, how many does the model's
+# {"flags":[{"term","explanation"}]} JSON actually surface (substring match
+# over the combined term+explanation text)?
+RISK_GOLD: List[RiskExample] = [
+    {
+        "text": "The Contractor shall indemnify and hold harmless the Company from any and all claims, including consequential and punitive damages, with no cap on liability.",
+        "expected_terms": ["no cap on liability", "punitive damages"],
+    },
+    {
+        "text": "Either party may terminate this Agreement immediately, for any reason or no reason, without notice or a cure period.",
+        "expected_terms": ["without notice", "no reason"],
+    },
+    {
+        "text": "The Company may unilaterally amend the terms of this Agreement at any time without notifying the Customer.",
+        "expected_terms": ["unilaterally amend", "without notifying"],
+    },
+    {
+        "text": "This non-compete restricts the Employee from working in the same industry anywhere in the world for a period of ten (10) years after termination.",
+        "expected_terms": ["ten (10) years", "anywhere in the world"],
+    },
+    {
+        "text": "Any dispute shall be resolved exclusively through binding arbitration administered by an arbitrator selected solely by the Company, with each party bearing its own costs.",
+        "expected_terms": ["arbitrator selected solely by the Company", "binding arbitration"],
+    },
+]

@@ -43,6 +43,8 @@ class Candidate:
     run: Callable                # (generate_fn) -> TaskResult
     min_ratio: float = 1.0
     graded: bool = True
+    temperature: float = 0.0
+    max_output_tokens: int = 16
 
 
 CUTOVER_CANDIDATES: List[Candidate] = [
@@ -52,20 +54,45 @@ CUTOVER_CANDIDATES: List[Candidate] = [
         run=lambda gen: eval_tasks.run_legalbench_qa(gen, limit_per=25),
         min_ratio=1.0,
     ),
-    # rewrite / risk / contextualize / timeline_extract have no gold eval set
-    # yet -- see app/eval/delta_report.py for the agreement-with-baseline view.
-    # Add a Candidate here once a graded task exists (curate a gold set).
+    Candidate(
+        task="clause_rewrite",
+        eval_name="rewrite_retention",
+        run=lambda gen: eval_tasks.run_rewrite_gold(gen),
+        min_ratio=1.0,
+        temperature=0.3,
+        max_output_tokens=400,
+    ),
+    Candidate(
+        task="timeline_extract",
+        eval_name="timeline_extraction",
+        run=lambda gen: eval_tasks.run_timeline_extract_gold(gen),
+        min_ratio=1.0,
+        temperature=0.2,
+        max_output_tokens=500,
+    ),
+    Candidate(
+        task="risk_analysis",
+        eval_name="risk_flag_recall",
+        run=lambda gen: eval_tasks.run_risk_analysis_gold(gen),
+        min_ratio=1.0,
+        temperature=0.2,
+        max_output_tokens=400,
+    ),
+    # contextualize / agent_summary have no gold eval set yet -- open-ended
+    # generation with citations has no clean automatic reference; see
+    # app/eval/delta_report.py for the agreement-with-baseline view instead.
 ]
 
 
-def _provider_generate_fn(provider_name: str) -> Callable[[str], str]:
+def _provider_generate_fn(provider_name: str, *, task: str = "qa", temperature: float = 0.0,
+                          max_output_tokens: int = 16) -> Callable[[str], str]:
     provider = get_provider(provider_name)
 
     def fn(prompt: str) -> str:
         if provider is None or not provider.is_available():
             raise ProviderUnavailable(f"{provider_name} unavailable")
-        req = GenerateRequest(prompt=prompt, task="qa", sensitivity=SensitivityTier.PUBLIC,
-                              temperature=0.0, max_output_tokens=16)
+        req = GenerateRequest(prompt=prompt, task=task, sensitivity=SensitivityTier.PUBLIC,
+                              temperature=temperature, max_output_tokens=max_output_tokens)
         return provider.generate(req).text
 
     return fn
@@ -91,8 +118,10 @@ def run_cutover_gate(candidates: Optional[List[Candidate]] = None, *,
     candidates = candidates or CUTOVER_CANDIDATES
     rows: List[dict] = []
     for c in candidates:
-        base_fn = _provider_generate_fn(baseline_provider)
-        cand_fn = _provider_generate_fn(candidate_provider)
+        base_fn = _provider_generate_fn(baseline_provider, task=c.task, temperature=c.temperature,
+                                        max_output_tokens=c.max_output_tokens)
+        cand_fn = _provider_generate_fn(candidate_provider, task=c.task, temperature=c.temperature,
+                                        max_output_tokens=c.max_output_tokens)
         base_res, base_err = _score_or_none(c.run, base_fn)
         cand_res, cand_err = _score_or_none(c.run, cand_fn)
 
