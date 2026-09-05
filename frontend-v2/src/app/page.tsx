@@ -48,30 +48,30 @@ export default function Home() {
       <main className="flex-1">
         {/* Hero */}
         <section className="mx-auto flex max-w-4xl flex-col items-center px-6 pt-20 pb-16 text-center">
-          <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+          <span className="rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300">
             Document-first · powered by /api/v2
           </span>
-          <h1 className="mt-5 text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
+          <h1 className="mt-5 text-4xl font-bold tracking-tight text-white sm:text-5xl">
             Understand any contract
             <br />
-            <span className="bg-gradient-to-r from-indigo-600 to-blue-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-indigo-400 to-blue-400 bg-clip-text text-transparent">
               in plain English
             </span>
           </h1>
-          <p className="mt-5 max-w-xl text-base text-zinc-600 sm:text-lg">
+          <p className="mt-5 max-w-xl text-base text-zinc-400 sm:text-lg">
             Upload a contract and get a plain-English rewrite, a risk scan, a timeline, and
             personalized clause explanations — grounded in the actual text, not a guess.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/upload"
-              className="rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-transform hover:scale-[1.03]"
+              className="rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-950 transition-transform hover:scale-[1.03]"
             >
               Upload a document →
             </Link>
             <Link
               href="/about"
-              className="rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+              className="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/10"
             >
               About this project
             </Link>
@@ -80,7 +80,7 @@ export default function Home() {
 
         {/* Feature grid */}
         <section className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-center text-2xl font-semibold text-zinc-900">
+          <h2 className="text-center text-2xl font-semibold text-white">
             Everything the workspace does
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-center text-sm text-zinc-500">
@@ -90,13 +90,13 @@ export default function Home() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="group rounded-2xl border border-zinc-200/80 bg-white/80 p-6 shadow-sm backdrop-blur transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-100"
+                className="group rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-sm backdrop-blur transition-all hover:-translate-y-1 hover:border-indigo-400/30 hover:bg-white/[0.07]"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 text-xl">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-xl">
                   {f.icon}
                 </span>
-                <h3 className="mt-4 text-base font-semibold text-zinc-900">{f.title}</h3>
-                <p className="mt-1.5 text-sm text-zinc-500">{f.desc}</p>
+                <h3 className="mt-4 text-base font-semibold text-zinc-100">{f.title}</h3>
+                <p className="mt-1.5 text-sm text-zinc-400">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -104,15 +104,15 @@ export default function Home() {
 
         {/* How it works */}
         <section className="mx-auto max-w-4xl px-6 py-16">
-          <h2 className="text-center text-2xl font-semibold text-zinc-900">How it works</h2>
+          <h2 className="text-center text-2xl font-semibold text-white">How it works</h2>
           <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3">
             {STEPS.map((s) => (
               <div key={s.n} className="flex flex-col items-center text-center">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-sm font-bold text-white">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 text-sm font-bold text-white">
                   {s.n}
                 </span>
-                <h3 className="mt-3 text-sm font-semibold text-zinc-900">{s.title}</h3>
-                <p className="mt-1 text-sm text-zinc-500">{s.desc}</p>
+                <h3 className="mt-3 text-sm font-semibold text-zinc-100">{s.title}</h3>
+                <p className="mt-1 text-sm text-zinc-400">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -120,7 +120,7 @@ export default function Home() {
 
         {/* CTA banner */}
         <section className="mx-auto max-w-4xl px-6 pb-20">
-          <div className="flex flex-col items-center gap-4 rounded-3xl bg-gradient-to-br from-indigo-600 to-blue-600 px-8 py-12 text-center shadow-xl shadow-indigo-200">
+          <div className="flex flex-col items-center gap-4 rounded-3xl bg-gradient-to-br from-indigo-500 to-blue-600 px-8 py-12 text-center shadow-xl shadow-indigo-950/50">
             <h2 className="text-2xl font-semibold text-white">Ready to try it?</h2>
             <p className="max-w-md text-sm text-indigo-100">
               No account needed for local development — upload a contract and see the whole

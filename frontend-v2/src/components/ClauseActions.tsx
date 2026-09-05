@@ -32,12 +32,12 @@ export function ClauseActions({
   });
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm backdrop-blur">
+    <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-sm backdrop-blur">
       <div>
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
           Selected clause
         </h3>
-        <p className="whitespace-pre-wrap text-sm text-zinc-800">{block.text}</p>
+        <p className="whitespace-pre-wrap text-sm text-zinc-200">{block.text}</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -45,7 +45,7 @@ export function ClauseActions({
           type="button"
           onClick={() => rewrite.mutate()}
           disabled={rewrite.isPending}
-          className="rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
+          className="rounded-full border border-zinc-700 bg-zinc-900 px-3.5 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-indigo-300 disabled:opacity-50"
         >
           {rewrite.isPending ? "Rewriting…" : "Rewrite this clause"}
         </button>
@@ -53,14 +53,14 @@ export function ClauseActions({
           type="button"
           onClick={() => riskScan.mutate()}
           disabled={riskScan.isPending}
-          className="rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
+          className="rounded-full border border-zinc-700 bg-zinc-900 px-3.5 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-indigo-300 disabled:opacity-50"
         >
           {riskScan.isPending ? "Scanning…" : "Risk-scan this clause"}
         </button>
         <button
           type="button"
           onClick={() => setShowContextForm((v) => !v)}
-          className="rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+          className="rounded-full border border-zinc-700 bg-zinc-900 px-3.5 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-indigo-300"
         >
           Contextualize this clause
         </button>
@@ -75,7 +75,7 @@ export function ClauseActions({
 
       {rewrite.data && (
         <ResultBlock title="Plain-English rewrite">
-          <p className="whitespace-pre-wrap text-sm text-zinc-800">
+          <p className="whitespace-pre-wrap text-sm text-zinc-200">
             {rewrite.data.rewritten_text}
           </p>
         </ResultBlock>
@@ -91,16 +91,16 @@ export function ClauseActions({
 
       {contextualize.data && (
         <ResultBlock title="Explanation">
-          <p className="whitespace-pre-wrap text-sm text-zinc-800">
+          <p className="whitespace-pre-wrap text-sm text-zinc-200">
             {contextualize.data.explanation}
           </p>
           {contextualize.data.citation_warning && (
-            <p className="mt-2 text-xs font-medium text-amber-700">
+            <p className="mt-2 text-xs font-medium text-amber-400">
               ⚠ The model referenced a citation it wasn&apos;t given.
             </p>
           )}
           {(contextualize.data.used_hints ?? []).length > 0 && (
-            <ul className="mt-2 list-disc pl-5 text-xs text-zinc-600">
+            <ul className="mt-2 list-disc pl-5 text-xs text-zinc-400">
               {(contextualize.data.used_hints ?? []).map((hint, i) => (
                 <li key={i}>{hint}</li>
               ))}
@@ -121,7 +121,7 @@ function ResultBlock({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-zinc-100 bg-zinc-50 p-3">
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
       <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {title}
       </h4>
@@ -132,7 +132,7 @@ function ResultBlock({
 
 function ErrorBlock({ error }: { error: unknown }) {
   return (
-    <p role="alert" className="text-sm text-red-700">
+    <p role="alert" className="text-sm text-red-400">
       Error: {error instanceof Error ? error.message : String(error)}
     </p>
   );
@@ -149,11 +149,11 @@ function RiskScanResult({
   ]);
   return (
     <div>
-      <p className="mb-2 text-sm text-zinc-700">{data.risk_summary}</p>
+      <p className="mb-2 text-sm text-zinc-300">{data.risk_summary}</p>
       {flags.length > 0 ? (
         <ul className="flex flex-col gap-1">
           {flags.map((f, i) => (
-            <li key={i} className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+            <li key={i} className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
               <strong>{f.term}</strong> — {f.note}
             </li>
           ))}

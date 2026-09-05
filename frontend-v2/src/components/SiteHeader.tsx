@@ -13,10 +13,10 @@ export function SiteHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-10 border-b border-zinc-200/70 bg-white/70 backdrop-blur-md">
+    <header className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/70 backdrop-blur-md">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-blue-500 text-sm font-bold text-white shadow-sm shadow-indigo-300">
+        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-blue-500 text-sm font-bold text-white shadow-sm shadow-indigo-900/50">
             L
           </span>
           <span className="text-base">LegalAI</span>
@@ -31,8 +31,8 @@ export function SiteHeader() {
                 href={item.href}
                 className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                    ? "bg-white text-zinc-900"
+                    : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
                 }`}
               >
                 {item.label}
@@ -43,7 +43,7 @@ export function SiteHeader() {
 
         <Link
           href="/upload"
-          className="rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition-transform hover:scale-[1.03] sm:hidden"
+          className="rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-900/50 transition-transform hover:scale-[1.03] sm:hidden"
         >
           Upload
         </Link>

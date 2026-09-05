@@ -24,7 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,#e0e7ff,transparent),linear-gradient(#fafafa,#ffffff)] bg-fixed text-zinc-900 font-sans">
+      <body className="min-h-full flex flex-col bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,#312e81,transparent),linear-gradient(#020617,#0a0a0f)] bg-fixed text-zinc-100 font-sans">
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>

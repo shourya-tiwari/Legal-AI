@@ -41,10 +41,10 @@ export default function DocumentPage() {
     return (
       <PageShell>
         <CenteredMessage>
-          <p role="alert" className="text-red-700">
+          <p role="alert" className="text-red-400">
             Error loading document: {error instanceof Error ? error.message : "not found"}
           </p>
-          <Link href="/" className="mt-3 inline-block text-sm text-blue-600 underline">
+          <Link href="/" className="mt-3 inline-block text-sm text-indigo-400 underline">
             Upload a new document
           </Link>
         </CenteredMessage>
@@ -58,12 +58,12 @@ export default function DocumentPage() {
   return (
     <PageShell>
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-8">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <Link href="/" className="text-xs text-zinc-500 hover:underline">
               ← Upload another document
             </Link>
-            <h1 className="text-xl font-semibold text-zinc-900">{data.filename}</h1>
+            <h1 className="text-xl font-semibold text-white">{data.filename}</h1>
           </div>
           <SensitivityBadge
             tier={data.sensitivity_tier}
@@ -73,7 +73,7 @@ export default function DocumentPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,320px)_1fr]">
           <section aria-label="Extracted clauses" className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-zinc-700">
+            <h2 className="text-sm font-semibold text-zinc-300">
               Clauses ({blocks.length})
             </h2>
             <ClauseList blocks={blocks} selectedId={selectedBlockId} onSelect={setSelectedBlockId} />
@@ -83,7 +83,7 @@ export default function DocumentPage() {
             {selectedBlock ? (
               <ClauseActions documentId={documentId} block={selectedBlock} />
             ) : (
-              <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500">
+              <p className="rounded-lg border border-dashed border-white/15 p-4 text-sm text-zinc-500">
                 Select a clause on the left to rewrite, risk-scan, or contextualize it — or use the
                 whole-document actions below.
               </p>
@@ -109,7 +109,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
 
 function CenteredMessage({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center text-sm text-zinc-600">
+    <main className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center text-sm text-zinc-400">
       {children}
     </main>
   );

@@ -21,7 +21,7 @@ export function ContextualizeForm({
 
   return (
     <form
-      className="flex flex-col gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-3"
+      className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit({
@@ -34,10 +34,10 @@ export function ContextualizeForm({
       }}
     >
       <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600">
+        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">
           Your role
           <select
-            className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm"
+            className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
             value={role}
             onChange={(e) => setRole(e.target.value)}
           >
@@ -48,19 +48,19 @@ export function ContextualizeForm({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600">
+        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">
           Location (optional)
           <input
-            className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm"
+            className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="e.g. California"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600">
+        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">
           Contract type
           <select
-            className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm"
+            className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
             value={contractType}
             onChange={(e) => setContractType(e.target.value)}
           >
@@ -71,10 +71,10 @@ export function ContextualizeForm({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600">
+        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">
           Explanation style
           <select
-            className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm"
+            className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
             value={tone}
             onChange={(e) => setTone(e.target.value)}
           >

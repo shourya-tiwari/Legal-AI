@@ -29,14 +29,14 @@ export function ClauseList({
               role="option"
               aria-selected={active}
               onClick={() => onSelect(block.id)}
-              className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                 active
-                  ? "border-indigo-400 bg-indigo-50 text-indigo-900"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
+                  ? "border-indigo-400/50 bg-indigo-500/10 text-indigo-200"
+                  : "border-white/10 bg-white/[0.02] text-zinc-300 hover:bg-white/[0.06]"
               }`}
             >
               {block.type && (
-                <span className="mr-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                <span className="mr-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
                   {block.type}
                 </span>
               )}
