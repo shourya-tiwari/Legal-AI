@@ -13,7 +13,7 @@ export function AnalysisPanel({ documentId }: { documentId: number }) {
   });
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-4">
+    <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-zinc-700">
           Full agent analysis
@@ -22,7 +22,7 @@ export function AnalysisPanel({ documentId }: { documentId: number }) {
           type="button"
           onClick={() => analyze.mutate()}
           disabled={analyze.isPending}
-          className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+          className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
         >
           {analyze.isPending ? "Running planner + agents…" : "Run full analysis"}
         </button>

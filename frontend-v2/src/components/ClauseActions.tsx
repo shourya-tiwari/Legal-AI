@@ -32,7 +32,7 @@ export function ClauseActions({
   });
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-4">
+    <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm backdrop-blur">
       <div>
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
           Selected clause
@@ -45,7 +45,7 @@ export function ClauseActions({
           type="button"
           onClick={() => rewrite.mutate()}
           disabled={rewrite.isPending}
-          className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+          className="rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
         >
           {rewrite.isPending ? "Rewriting…" : "Rewrite this clause"}
         </button>
@@ -53,14 +53,14 @@ export function ClauseActions({
           type="button"
           onClick={() => riskScan.mutate()}
           disabled={riskScan.isPending}
-          className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+          className="rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
         >
           {riskScan.isPending ? "Scanning…" : "Risk-scan this clause"}
         </button>
         <button
           type="button"
           onClick={() => setShowContextForm((v) => !v)}
-          className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+          className="rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
         >
           Contextualize this clause
         </button>

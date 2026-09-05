@@ -13,7 +13,7 @@ export function DocumentActions({ documentId }: { documentId: number }) {
   const ask = useMutation({ mutationFn: (q: string) => askDocument(documentId, q) });
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-4">
+    <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200/70 bg-white/80 p-5 shadow-sm backdrop-blur">
       <h2 className="text-sm font-semibold text-zinc-700">Whole-document actions</h2>
 
       <div className="flex flex-wrap gap-2">
@@ -38,7 +38,7 @@ export function DocumentActions({ documentId }: { documentId: number }) {
         <button
           type="submit"
           disabled={ask.isPending || !question.trim()}
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition-transform hover:scale-[1.03] disabled:opacity-50 disabled:from-zinc-300 disabled:to-zinc-300 disabled:shadow-none"
         >
           {ask.isPending ? "Asking…" : "Ask"}
         </button>
@@ -103,7 +103,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={pending}
-      className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+      className="rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
     >
       {pending ? pendingLabel : label}
     </button>

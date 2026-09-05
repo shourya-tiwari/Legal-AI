@@ -89,7 +89,7 @@ export function ContextualizeForm({
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="self-start rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition-transform hover:scale-[1.03] disabled:opacity-50 disabled:from-zinc-300 disabled:to-zinc-300 disabled:shadow-none"
       >
         {pending ? "Explaining…" : "Explain this clause"}
       </button>

@@ -1,134 +1,139 @@
-"use client";
-
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
-import { uploadDocument } from "@/lib/api";
+import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 
 const FEATURES = [
-  { icon: "📝", label: "Plain-English rewrite", desc: "Legalese clauses translated into normal language." },
-  { icon: "⚠️", label: "Risk scan", desc: "Keyword + AI detection of high-risk terms." },
-  { icon: "🗓️", label: "Timeline", desc: "Every date, deadline, and obligation extracted." },
-  { icon: "💬", label: "Ask questions", desc: "Grounded Q&A over the actual contract text." },
+  {
+    icon: "📝",
+    title: "Plain-English rewrite",
+    desc: "Every clause translated out of legalese, whole-document or one clause at a time.",
+  },
+  {
+    icon: "⚠️",
+    title: "Risk radar",
+    desc: "Keyword-based and AI-driven detection of high-risk terms — uncapped liability, unilateral termination, one-sided arbitration.",
+  },
+  {
+    icon: "🗓️",
+    title: "Timeline extraction",
+    desc: "Every date, deadline, and time-based obligation pulled out and laid out in order.",
+  },
+  {
+    icon: "🎯",
+    title: "Contextualizer",
+    desc: "Explanations personalized to your role, location, and the kind of contract you're reading.",
+  },
+  {
+    icon: "💬",
+    title: "Ask anything",
+    desc: "Grounded Q&A over the actual contract text — no answer without a quote to back it up.",
+  },
+  {
+    icon: "🤖",
+    title: "Full agent analysis",
+    desc: "A planner-driven pipeline that researches flagged clauses, checks cross-document conflicts, and verifies its own summary before you see it.",
+  },
 ];
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+const STEPS = [
+  { n: "1", title: "Upload", desc: "Drop in a .pdf, .docx, or .txt contract." },
+  { n: "2", title: "Analyze", desc: "Every feature above runs against the document's extracted clauses." },
+  { n: "3", title: "Understand", desc: "Read the plain-English version, the flagged risks, and the timeline — all in one workspace." },
+];
 
 export default function Home() {
-  const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const upload = useMutation({
-    mutationFn: (f: File) => uploadDocument(f),
-    onSuccess: (result) => {
-      router.push(`/documents/${result.document_id}`);
-    },
-  });
-
-  function pickFile(f: File | undefined | null) {
-    if (f) setFile(f);
-  }
-
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader />
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center px-6 py-16">
-        <h1 className="text-center text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
-          Understand any contract in minutes
-        </h1>
-        <p className="mt-3 max-w-xl text-center text-base text-zinc-500">
-          Upload a contract to get a plain-English rewrite, a risk scan, a timeline, and
-          per-clause explanations — powered by the document-first{" "}
-          <code className="rounded bg-zinc-100 px-1 py-0.5 text-sm">/api/v2</code> API.
-        </p>
-
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => fileInputRef.current?.click()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragOver(true);
-          }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsDragOver(false);
-            pickFile(e.dataTransfer.files?.[0]);
-          }}
-          className={`mt-10 flex w-full cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-8 py-14 text-center transition-colors ${
-            isDragOver
-              ? "border-blue-500 bg-blue-50"
-              : "border-zinc-300 bg-white hover:border-zinc-400 hover:bg-zinc-50"
-          }`}
-        >
-          <span className="text-4xl" aria-hidden="true">
-            📄
+      <main className="flex-1">
+        {/* Hero */}
+        <section className="mx-auto flex max-w-4xl flex-col items-center px-6 pt-20 pb-16 text-center">
+          <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+            Document-first · powered by /api/v2
           </span>
-          {file ? (
-            <div>
-              <p className="font-medium text-zinc-900">{file.name}</p>
-              <p className="text-sm text-zinc-500">{formatSize(file.size)} — click to change</p>
-            </div>
-          ) : (
-            <div>
-              <p className="font-medium text-zinc-900">
-                Drop a contract here, or click to browse
-              </p>
-              <p className="text-sm text-zinc-500">Supports .pdf, .docx, .txt</p>
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.docx,.txt"
-            className="sr-only"
-            onChange={(e) => pickFile(e.target.files?.[0])}
-          />
-        </div>
-
-        <button
-          type="button"
-          disabled={!file || upload.isPending}
-          onClick={() => file && upload.mutate(file)}
-          className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
-        >
-          {upload.isPending ? "Uploading & analyzing…" : "Analyze document"}
-        </button>
-
-        {upload.isError && (
-          <p role="alert" className="mt-3 text-sm text-red-700">
-            Error: {upload.error instanceof Error ? upload.error.message : String(upload.error)}
+          <h1 className="mt-5 text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
+            Understand any contract
+            <br />
+            <span className="bg-gradient-to-r from-indigo-600 to-blue-500 bg-clip-text text-transparent">
+              in plain English
+            </span>
+          </h1>
+          <p className="mt-5 max-w-xl text-base text-zinc-600 sm:text-lg">
+            Upload a contract and get a plain-English rewrite, a risk scan, a timeline, and
+            personalized clause explanations — grounded in the actual text, not a guess.
           </p>
-        )}
-
-        <div className="mt-16 grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
-          {FEATURES.map((f) => (
-            <div
-              key={f.label}
-              className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-white p-4"
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/upload"
+              className="rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-transform hover:scale-[1.03]"
             >
-              <span className="text-xl" aria-hidden="true">
-                {f.icon}
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">{f.label}</p>
-                <p className="text-sm text-zinc-500">{f.desc}</p>
+              Upload a document →
+            </Link>
+            <Link
+              href="/about"
+              className="rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              About this project
+            </Link>
+          </div>
+        </section>
+
+        {/* Feature grid */}
+        <section className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="text-center text-2xl font-semibold text-zinc-900">
+            Everything the workspace does
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-center text-sm text-zinc-500">
+            Every one of these runs live once you upload a document — nothing here is a mockup.
+          </p>
+          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="group rounded-2xl border border-zinc-200/80 bg-white/80 p-6 shadow-sm backdrop-blur transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-100"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 text-xl">
+                  {f.icon}
+                </span>
+                <h3 className="mt-4 text-base font-semibold text-zinc-900">{f.title}</h3>
+                <p className="mt-1.5 text-sm text-zinc-500">{f.desc}</p>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="mx-auto max-w-4xl px-6 py-16">
+          <h2 className="text-center text-2xl font-semibold text-zinc-900">How it works</h2>
+          <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3">
+            {STEPS.map((s) => (
+              <div key={s.n} className="flex flex-col items-center text-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-sm font-bold text-white">
+                  {s.n}
+                </span>
+                <h3 className="mt-3 text-sm font-semibold text-zinc-900">{s.title}</h3>
+                <p className="mt-1 text-sm text-zinc-500">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* CTA banner */}
+        <section className="mx-auto max-w-4xl px-6 pb-20">
+          <div className="flex flex-col items-center gap-4 rounded-3xl bg-gradient-to-br from-indigo-600 to-blue-600 px-8 py-12 text-center shadow-xl shadow-indigo-200">
+            <h2 className="text-2xl font-semibold text-white">Ready to try it?</h2>
+            <p className="max-w-md text-sm text-indigo-100">
+              No account needed for local development — upload a contract and see the whole
+              workspace in action.
+            </p>
+            <Link
+              href="/upload"
+              className="mt-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-indigo-700 transition-transform hover:scale-[1.03]"
+            >
+              Upload a document →
+            </Link>
+          </div>
+        </section>
       </main>
     </div>
   );

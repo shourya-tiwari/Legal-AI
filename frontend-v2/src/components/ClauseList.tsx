@@ -31,7 +31,7 @@ export function ClauseList({
               onClick={() => onSelect(block.id)}
               className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
                 active
-                  ? "border-blue-400 bg-blue-50 text-blue-900"
+                  ? "border-indigo-400 bg-indigo-50 text-indigo-900"
                   : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
               }`}
             >
