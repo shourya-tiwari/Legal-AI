@@ -234,6 +234,9 @@ class V2DocumentResponse(BaseModel):
     created_at: Optional[str] = None
     sensitivity_tier: str = "internal"
     sensitivity_source: str = "auto"
+    quality: Optional[dict] = Field(
+        None, description="CV quality triage (blur/skew) -- only set for PDFs with scanned pages."
+    )
 
 
 # ----- Document sensitivity (/api/v2/documents/{id}/sensitivity) -----

@@ -45,6 +45,7 @@ async def upload_contract(
         sensitivity_tier=assessment.tier,
         sensitivity_source=assessment.source,
         sensitivity_signals=[s.model_dump() for s in assessment.signals],
+        quality=result.get("quality"),
     )
     db.add(document)
     db.commit()

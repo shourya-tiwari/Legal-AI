@@ -50,6 +50,7 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("documents", "sensitivity_tier", "VARCHAR(16) NOT NULL DEFAULT 'internal'"),
     ("documents", "sensitivity_source", "VARCHAR(16) NOT NULL DEFAULT 'auto'"),
     ("documents", "sensitivity_signals", "JSON"),
+    ("documents", "quality", "JSON"),
     ("audit_log", "detail", "TEXT"),
 ]
 

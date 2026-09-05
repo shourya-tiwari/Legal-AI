@@ -11,6 +11,21 @@ import { ClauseList, type Block } from "@/components/ClauseList";
 import { ClauseActions } from "@/components/ClauseActions";
 import { DocumentActions } from "@/components/DocumentActions";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
+import { StructuredAnalysisPanel } from "@/components/StructuredAnalysisPanel";
+import { KnowledgeGraphPanel } from "@/components/KnowledgeGraphPanel";
+
+interface PageQuality {
+  page: number;
+  blur_score: number;
+  skew_angle_degrees: number;
+  is_low_quality: boolean;
+}
+
+interface DocumentQuality {
+  pages_assessed: number;
+  low_quality_pages: number[];
+  pages: PageQuality[];
+}
 
 export default function DocumentPage() {
   const params = useParams<{ id: string }>();
@@ -54,6 +69,7 @@ export default function DocumentPage() {
 
   const blocks: Block[] = (data.blocks ?? []) as unknown as Block[];
   const selectedBlock = blocks.find((b) => String(b.id) === String(selectedBlockId)) ?? null;
+  const quality = data.quality as unknown as DocumentQuality | null | undefined;
 
   return (
     <PageShell>
@@ -70,6 +86,14 @@ export default function DocumentPage() {
             externalProvidersPermitted={sensitivity?.external_providers_permitted ?? true}
           />
         </header>
+
+        {quality && quality.low_quality_pages.length > 0 && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+            ⚠ Scan quality: {quality.low_quality_pages.length} of {quality.pages_assessed} page(s)
+            flagged low-quality (blurry or skewed) — pages {quality.low_quality_pages.join(", ")}.
+            Extraction may be less reliable there.
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,320px)_1fr]">
           <section aria-label="Extracted clauses" className="flex flex-col gap-2">
@@ -91,6 +115,8 @@ export default function DocumentPage() {
 
             <DocumentActions documentId={documentId} />
             <AnalysisPanel documentId={documentId} />
+            <StructuredAnalysisPanel fullText={data.full_text} />
+            <KnowledgeGraphPanel documentId={documentId} />
           </section>
         </div>
       </main>

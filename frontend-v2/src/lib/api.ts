@@ -147,3 +147,47 @@ export async function analyzeDocument(
     body: JSON.stringify(opts ?? {}),
   });
 }
+
+// ----- /api/nlp/analyze (V1 route -- takes raw text, not a document_id) -----
+export type ClauseObject = components["schemas"]["ClauseObject"];
+export type NlpAnalyzeResponse = components["schemas"]["NlpAnalyzeResponse"];
+
+export async function analyzeNlp(contractText: string): Promise<NlpAnalyzeResponse> {
+  return request<NlpAnalyzeResponse>("/nlp/analyze", {
+    method: "POST",
+    body: JSON.stringify({ contract_text: contractText, use_ai_escalation: false }),
+  });
+}
+
+// ----- /api/models/status -----
+export type ModelsStatusResponse = components["schemas"]["ModelsStatusResponse"];
+
+export async function getModelsStatus(): Promise<ModelsStatusResponse> {
+  return request<ModelsStatusResponse>("/models/status");
+}
+
+// ----- /api/kg/* (org-wide, term-based -- not document-scoped) -----
+export type KGIngestResponse = components["schemas"]["KGIngestResponse"];
+export type KGQueryResponse = components["schemas"]["KGQueryResponse"];
+export type KGConflictsResponse = components["schemas"]["KGConflictsResponse"];
+
+export async function ingestKg(documentId: number): Promise<KGIngestResponse> {
+  return request<KGIngestResponse>("/kg/ingest", {
+    method: "POST",
+    body: JSON.stringify({ document_id: documentId }),
+  });
+}
+
+export async function queryKgTerm(term: string): Promise<KGQueryResponse> {
+  return request<KGQueryResponse>("/kg/query", {
+    method: "POST",
+    body: JSON.stringify({ term }),
+  });
+}
+
+export async function queryKgConflicts(term: string): Promise<KGConflictsResponse> {
+  return request<KGConflictsResponse>("/kg/conflicts", {
+    method: "POST",
+    body: JSON.stringify({ term }),
+  });
+}

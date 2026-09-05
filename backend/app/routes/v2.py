@@ -83,6 +83,7 @@ def get_document(
         created_at=doc.created_at.isoformat() if doc.created_at else None,
         sensitivity_tier=doc.sensitivity_tier,
         sensitivity_source=doc.sensitivity_source,
+        quality=doc.quality,
     )
 
 

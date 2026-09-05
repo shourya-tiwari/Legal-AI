@@ -911,6 +911,13 @@ export interface components {
              * @default auto
              */
             sensitivity_source: string;
+            /**
+             * Quality
+             * @description CV quality triage (blur/skew) -- only set for PDFs with scanned pages.
+             */
+            quality?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** V2RewriteRequest */
         V2RewriteRequest: {

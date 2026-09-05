@@ -59,6 +59,11 @@ class Document(Base):
     sensitivity_source: Mapped[str] = mapped_column(String(16), default="auto", server_default="auto")
     sensitivity_signals: Mapped[list] = mapped_column(JSON, default=list)
 
+    # CV quality triage (services/cv/quality.py) -- only set for PDFs with
+    # scanned pages (see extractor.py); null otherwise. Previously computed
+    # at upload time and returned in that one response only, never persisted.
+    quality: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
