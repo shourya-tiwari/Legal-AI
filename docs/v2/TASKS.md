@@ -241,7 +241,7 @@ This is a coherent choice: the docs' own thesis is that legal-domain quality com
 - [x] Sensitivity-aware rendering: a persistent tier badge on every document, sourced from `GET /api/v2/documents/{id}/sensitivity`'s real `external_providers_permitted` (not a client-side guess). No Class-C toggle exists in the UI yet to disable — nothing to enforce against there yet.
 - [~] Introduce `/api/v2/*` document-first endpoints — first slice done (`app/routes/v2.py`, see Phase 4 backend note); per-org feature-flagging still to do
 - [ ] Notification/Webhook Service for async job completion
-- ⛔ **Agent Trace Viewer** (needs the session WebSocket, not built) and **human-in-the-loop review queue UI** remain not started.
+- [~] **Agent Trace Viewer** — post-hoc version shipped (`AgentTraceViewer`, `LEARNING_LOG.md` #29): `AgentAnalyzeResponse.trace` already carried every step, just had no UI; now a collapsible timeline in the analysis panel. ⛔ The *real-time* (session-WebSocket) version and **human-in-the-loop review queue UI** remain not started.
 
 **Exit criteria**: an air-gapped install (Zarf → disconnected k3s → working product, verified offline) validated with a pilot; a collapsed-data-layer on-prem install validated; the SPA at V1 parity plus the Agent Trace Viewer.
 

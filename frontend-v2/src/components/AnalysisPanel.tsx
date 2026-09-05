@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { analyzeDocument } from "@/lib/api";
+import { AgentTraceViewer } from "@/components/AgentTraceViewer";
 
 // The planner-driven agent pipeline (app/agents/graph.py) has no UI anywhere
 // in the project yet -- this is pure bonus: the backend already returns
 // everything needed to render it (plan, trace, risk findings, KG conflicts,
 // faithfulness), so surfacing it here is zero backend work.
 export function AnalysisPanel({ documentId }: { documentId: number }) {
+  const [showTrace, setShowTrace] = useState(false);
   const analyze = useMutation({
     mutationFn: () => analyzeDocument(documentId, { analysis_mode: "full" }),
   });
@@ -60,6 +63,22 @@ export function AnalysisPanel({ documentId }: { documentId: number }) {
           {analyze.data.plan_rationale && (
             <p className="text-xs italic text-zinc-500">{analyze.data.plan_rationale}</p>
           )}
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+            <button
+              type="button"
+              onClick={() => setShowTrace((v) => !v)}
+              className="flex w-full items-center justify-between text-left text-xs font-semibold uppercase tracking-wide text-zinc-500"
+            >
+              Agent trace ({(analyze.data.trace ?? []).length} steps)
+              <span aria-hidden="true">{showTrace ? "▲" : "▼"}</span>
+            </button>
+            {showTrace && (
+              <div className="mt-3">
+                <AgentTraceViewer trace={analyze.data.trace ?? []} />
+              </div>
+            )}
+          </div>
 
           <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
             <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
