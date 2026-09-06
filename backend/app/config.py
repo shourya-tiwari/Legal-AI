@@ -106,6 +106,9 @@ class Settings(BaseSettings):
     # frontend keeps working with zero credentials until keys are issued and
     # this is deliberately flipped on.
     AUTH_REQUIRED: bool = False
+    # Per-user identity (Phase 7, app/auth.py's Session model). How long a
+    # login session token is valid before requiring a fresh login.
+    SESSION_TTL_HOURS: int = 24 * 7
 
     # Rate limiting (per org when AUTH_REQUIRED, else per client IP). Fails
     # open (request allowed) if Redis is unreachable.

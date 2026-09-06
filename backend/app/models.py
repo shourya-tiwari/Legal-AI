@@ -374,5 +374,37 @@ class EgressLogResponse(BaseModel):
     entries: List[EgressLogEntry] = Field(default_factory=list)
 
 
+# ----- Per-user identity (app/routes/auth.py, LEARNING_LOG.md #37) -----
+class LoginRequest(BaseModel):
+    email: str
+    password: str = Field(..., min_length=1)
+
+
+class LoginResponse(BaseModel):
+    token: str = Field(..., description="Bearer session token -- shown once, never recoverable again.")
+    org_id: int
+    org_name: str
+    role: str
+    expires_at: str
+
+
+class CreateUserRequest(BaseModel):
+    email: str
+    password: str = Field(..., min_length=8, description="At least 8 characters -- no other complexity rule enforced yet.")
+    role: str = Field("admin", description="One of 'admin' | 'editor' | 'viewer'.")
+
+
+class UserSummary(BaseModel):
+    id: int
+    email: str
+    role: str
+    created_at: Optional[str] = None
+    revoked_at: Optional[str] = None
+
+
+class UsersListResponse(BaseModel):
+    users: List[UserSummary] = Field(default_factory=list)
+
+
 class ReviewResolveRequest(BaseModel):
     note: Optional[str] = Field(None, max_length=1000)

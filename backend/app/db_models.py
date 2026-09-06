@@ -23,6 +23,7 @@ class Organization(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="organization")
+    users: Mapped[list["User"]] = relationship(back_populates="organization")
 
 
 class ApiKey(Base):
@@ -43,6 +44,43 @@ class ApiKey(Base):
     revoked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     organization: Mapped["Organization"] = relationship(back_populates="api_keys")
+
+
+class User(Base):
+    """Per-user identity (docs/v2/ARCHITECTURE.md security item 5,
+    `LEARNING_LOG.md` #37) -- the gap ApiKey.role's per-*key* RBAC left open:
+    two people sharing one org's API key shared its role and were
+    indistinguishable in the audit trail. A user logs in with email+password
+    (app.auth.authenticate_user) and gets a Session token, resolved by
+    get_current_org exactly like an ApiKey is, just via a different table."""
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(16), default="admin", server_default="admin")
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    revoked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    organization: Mapped["Organization"] = relationship(back_populates="users")
+    sessions: Mapped[list["Session"]] = relationship(back_populates="user")
+
+
+class Session(Base):
+    """A logged-in user's bearer token (app.auth.create_session). Same
+    hash-at-rest pattern as ApiKey.key_hash -- the raw token is returned once
+    at login and never stored."""
+    __tablename__ = "sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="sessions")
 
 
 class Document(Base):
@@ -87,11 +125,14 @@ class AuditLog(Base):
     # written by model_router/telemetry.py::record_egress. The provider name
     # a request actually left the perimeter to; null for every other action.
     egress_target: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # Which specific API key performed this action, when known -- the
+    # Which specific credential performed this action, when known -- the
     # `actor_id` ARCHITECTURE.md's schema sketch always named but the model
-    # never had. Null under the default (AUTH_REQUIRED=false) org, where
-    # there's no key to attribute to.
+    # never had. `actor_type` disambiguates the id's namespace ("api_key" ->
+    # api_keys.id, "user" -> users.id, added LEARNING_LOG.md #37) since the
+    # two tables' ids aren't otherwise distinguishable. Both null under the
+    # default (AUTH_REQUIRED=false) org, where there's no credential at all.
     actor_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actor_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

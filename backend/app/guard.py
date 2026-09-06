@@ -17,6 +17,19 @@ from app.db_models import AuditLog
 from app.rate_limit import RateLimitExceeded, check_rate_limit
 
 
+def actor_of(org: OrgContext) -> tuple[int | None, str | None]:
+    """Disambiguates OrgContext's two mutually-exclusive credential ids into
+    the (actor_id, actor_type) pair AuditLog stores -- an api_keys.id and a
+    users.id are both plain ints and otherwise indistinguishable. Exported
+    for routes (e.g. routes/v2.py's sensitivity override) that write their
+    own AuditLog row instead of relying on api_guard's generic one."""
+    if org.user_id is not None:
+        return org.user_id, "user"
+    if org.api_key_id is not None:
+        return org.api_key_id, "api_key"
+    return None, None
+
+
 def api_guard(
     request: Request,
     org: OrgContext = Depends(get_current_org),
@@ -30,7 +43,8 @@ def api_guard(
     except RateLimitExceeded as e:
         raise HTTPException(status_code=429, detail=str(e))
 
-    db.add(AuditLog(org_id=org.id, actor_id=org.api_key_id,
+    actor_id, actor_type = actor_of(org)
+    db.add(AuditLog(org_id=org.id, actor_id=actor_id, actor_type=actor_type,
                     action=request.method, resource=request.url.path))
     db.commit()
 

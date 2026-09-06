@@ -282,6 +282,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log in with email + password */
+        post: operations["login_api_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke the session token used to authenticate this request */
+        post: operations["logout_api_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List users in the caller's org (admin only) */
+        get: operations["list_org_users_api_auth_users_get"];
+        put?: never;
+        /** Create a user in the caller's org (admin only) */
+        post: operations["create_org_user_api_auth_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/users/{user_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke a user in the caller's org (admin only) */
+        post: operations["revoke_org_user_api_auth_users__user_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/documents/{document_id}": {
         parameters: {
             query?: never;
@@ -725,6 +794,22 @@ export interface components {
              */
             citation_warning: boolean;
         };
+        /** CreateUserRequest */
+        CreateUserRequest: {
+            /** Email */
+            email: string;
+            /**
+             * Password
+             * @description At least 8 characters -- no other complexity rule enforced yet.
+             */
+            password: string;
+            /**
+             * Role
+             * @description One of 'admin' | 'editor' | 'viewer'.
+             * @default admin
+             */
+            role: string;
+        };
         /** CrossReference */
         CrossReference: {
             /** Text */
@@ -918,6 +1003,29 @@ export interface components {
             term: string;
             /** Predefined Explanation */
             predefined_explanation: string;
+        };
+        /** LoginRequest */
+        LoginRequest: {
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+        };
+        /** LoginResponse */
+        LoginResponse: {
+            /**
+             * Token
+             * @description Bearer session token -- shown once, never recoverable again.
+             */
+            token: string;
+            /** Org Id */
+            org_id: number;
+            /** Org Name */
+            org_name: string;
+            /** Role */
+            role: string;
+            /** Expires At */
+            expires_at: string;
         };
         /** MapRequest */
         MapRequest: {
@@ -1165,6 +1273,24 @@ export interface components {
             date_description: string;
             /** Event */
             event: string;
+        };
+        /** UserSummary */
+        UserSummary: {
+            /** Id */
+            id: number;
+            /** Email */
+            email: string;
+            /** Role */
+            role: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Revoked At */
+            revoked_at?: string | null;
+        };
+        /** UsersListResponse */
+        UsersListResponse: {
+            /** Users */
+            users?: components["schemas"]["UserSummary"][];
         };
         /** V2AnalyzeRequest */
         V2AnalyzeRequest: {
@@ -1809,6 +1935,171 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EgressLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_api_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_org_users_api_auth_users_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_org_user_api_auth_users_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_org_user_api_auth_users__user_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSummary"];
                 };
             };
             /** @description Validation Error */
