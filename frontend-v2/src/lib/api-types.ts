@@ -566,6 +566,23 @@ export interface components {
         AskResponse: {
             /** Answer */
             answer: string;
+            /**
+             * Faithful
+             * @description Whether the answer's claims are entailed by the contract text.
+             * @default true
+             */
+            faithful: boolean;
+            /**
+             * Faithfulness Method
+             * @description 'nli' (real entailment head) | 'lexical_fallback' (NLI head not installed) | 'not_checked'.
+             * @default not_checked
+             */
+            faithfulness_method: string;
+            /**
+             * Unsupported Claims
+             * @description Answer sentences a source contradicted or failed to support (NLI method only).
+             */
+            unsupported_claims?: string[];
         };
         /** Body_upload_contract_api_upload_post */
         Body_upload_contract_api_upload_post: {

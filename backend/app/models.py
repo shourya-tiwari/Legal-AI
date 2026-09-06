@@ -53,6 +53,20 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
+    # Additive (backward-compatible): the faithfulness check the agent
+    # pipeline's Verifier has always had, now applied to the single
+    # most-used feature in the product. Defaults are honest sentinels for
+    # any hypothetical caller that constructs AskResponse without routing
+    # through answer_question()'s check -- not a claim that a check ran.
+    faithful: bool = Field(True, description="Whether the answer's claims are entailed by the contract text.")
+    faithfulness_method: str = Field(
+        "not_checked",
+        description="'nli' (real entailment head) | 'lexical_fallback' (NLI head not installed) | 'not_checked'.",
+    )
+    unsupported_claims: List[str] = Field(
+        default_factory=list,
+        description="Answer sentences a source contradicted or failed to support (NLI method only).",
+    )
 
 # ----- Risk Radar (/api/risk/scan) -----
 class RiskScanRequest(BaseModel):

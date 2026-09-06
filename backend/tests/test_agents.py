@@ -15,7 +15,7 @@ from app.agents.research import run_research
 from app.agents.risk_compliance import run_risk_compliance
 from app.agents.state import CaseState, RiskFinding
 from app.agents.summary import run_summary
-from app.agents.verifier import _lexical_overlap_faithfulness, run_verifier
+from app.agents.verifier import run_verifier
 
 SAMPLE_TEXT = (
     'The Tenant ("Tenant") shall indemnify the Landlord for damages.\n\n'
@@ -98,20 +98,6 @@ def test_run_summary_generates_and_counts_sources(monkeypatch):
 
     assert update["summary"] == "This is risky [1]."
     assert update["summary_citation_count"] == 1
-
-
-def test_lexical_overlap_faithfulness_true_with_shared_vocabulary():
-    assert _lexical_overlap_faithfulness(
-        "Security deposits are refundable less lawful deductions.",
-        ["Security deposits are refundable less lawful deductions for damages."],
-    ) is True
-
-
-def test_lexical_overlap_faithfulness_false_with_no_shared_vocabulary():
-    assert _lexical_overlap_faithfulness(
-        "Bananas grow on trees in tropical climates.",
-        ["Security deposits are refundable less lawful deductions for damages."],
-    ) is False
 
 
 def test_run_verifier_flags_invalid_citation_number():

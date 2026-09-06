@@ -91,7 +91,35 @@ def test_ask_endpoint(client, monkeypatch):
     )
 
     assert resp.status_code == 200
-    assert "30 days" in resp.json()["answer"]
+    body = resp.json()
+    assert "30 days" in body["answer"]
+    # Additive faithfulness fields (app/services/faithfulness.py) -- the
+    # fake answer restates the exact wording of the contract text, so even
+    # the weaker lexical-overlap fallback (NLI_ENABLED=false in tests)
+    # should call it faithful.
+    assert body["faithfulness_method"] == "lexical_fallback"
+    assert body["faithful"] is True
+    assert body["unsupported_claims"] == []
+
+
+def test_ask_endpoint_flags_an_answer_unrelated_to_the_contract(client, monkeypatch):
+    # Must be >= 25 chars (app/services/faithfulness.py's _MIN_CLAIM_CHARS) --
+    # a shorter "claim" is skipped as a trivial fragment before any check
+    # runs at all, which would vacuously pass instead of testing the flag.
+    monkeypatch.setattr(
+        "app.services.chatbot.generate_content",
+        lambda *a, **k: "Bananas grow on trees in tropical climates around the world.",
+    )
+
+    resp = client.post(
+        "/api/ask",
+        json={"contract_text": "Either party may terminate with 30 days notice.", "question": "How do I terminate?"},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["faithful"] is False
+    assert body["faithfulness_method"] == "lexical_fallback"
 
 
 def test_v1_routes_classify_sensitivity_on_the_fly(client, monkeypatch):

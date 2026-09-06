@@ -51,8 +51,8 @@ def test_entailment_capability_classifies_the_three_relations():
 
 
 def test_nli_head_beats_lexical_overlap_on_the_faithfulness_gold_set():
-    from app.agents.verifier import _lexical_overlap_faithfulness, _nli_faithfulness
     from app.eval.gold_set import FAITHFULNESS_GOLD
+    from app.services.faithfulness import _lexical_overlap_faithfulness, _nli_faithfulness
 
     nli_correct = sum(
         _nli_faithfulness(ex["summary"], ex["sources"])[0] == ex["is_faithful"]

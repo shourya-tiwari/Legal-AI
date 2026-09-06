@@ -141,7 +141,7 @@ fallback_chain: [B, A]     # if the B provider is unhealthy, degrade; never auto
 | Scanned-document understanding | Qwen2.5-VL-7B | Qwen2.5-VL-32B for degraded scans / complex layout | See `COMPUTER_VISION.md` |
 | Embeddings | Qwen3-Embedding-8B (0.6B constrained) | — | Single model covers the retrieval need; no external option needed or better |
 | Reranking | Qwen3-Reranker-4B | — | Standard open cross-encoder; no commercial dependency justified |
-| NLI faithfulness (Verifier) | Local DeBERTa/ModernBERT NLI head (Class A) — **shipped** (`local-nli`) | — | This must be local and deterministic — it is a safety gate, not a generation task |
+| NLI faithfulness (Verifier + `/api/ask`) | Local DeBERTa/ModernBERT NLI head (Class A) — **shipped** (`local-nli`), shared via `app/services/faithfulness.py` | — | This must be local and deterministic — it is a safety gate, not a generation task |
 | NER / entity resolution | GLiNER (Class B) — **shipped** (`local-ner`); + a Legal-BERT head (scaffolded) | Qwen3-8B for ambiguous entity disambiguation only | Structured extraction doesn't need a general LLM |
 | ASR | faster-whisper large-v3-turbo | Parakeet (English throughput) | Self-hosted, no exceptions |
 | TTS | Kokoro-82M (Piper air-gapped) | — | Self-hosted, no exceptions |

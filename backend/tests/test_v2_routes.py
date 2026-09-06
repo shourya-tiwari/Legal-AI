@@ -104,7 +104,13 @@ def test_v2_ask(client, document_id, monkeypatch):
     monkeypatch.setattr("app.services.chatbot.generate_content", fake_generate_content)
     resp = client.post(f"/api/v2/documents/{document_id}/ask", json={"question": "How do I terminate?"})
     assert resp.status_code == 200
-    assert resp.json()["answer"]
+    body = resp.json()
+    assert body["answer"]
+    # Additive faithfulness fields (app/services/faithfulness.py) reach the
+    # v2 surface too -- it's the same answer_question() call underneath.
+    assert body["faithfulness_method"] == "lexical_fallback"
+    assert "faithful" in body
+    assert "unsupported_claims" in body
 
 
 def test_v2_risk_scan(client, document_id, monkeypatch):
