@@ -191,3 +191,12 @@ export async function queryKgConflicts(term: string): Promise<KGConflictsRespons
     body: JSON.stringify({ term }),
   });
 }
+
+// ----- /api/v2/documents/{id}/consistency (Phase 8 embedding-similarity baseline) -----
+export type ConsistencyResponse = components["schemas"]["ConsistencyResponse"];
+
+export async function checkConsistency(id: number): Promise<ConsistencyResponse> {
+  return request<ConsistencyResponse>(`/v2/documents/${id}/consistency`, {
+    method: "POST",
+  });
+}

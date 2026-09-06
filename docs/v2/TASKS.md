@@ -261,7 +261,7 @@ This is a coherent choice: the docs' own thesis is that legal-domain quality com
 
 **Portfolio agents (`AGENTS.md`, `KNOWLEDGE_GRAPH.md`)**
 - [ ] Bitemporal graph versioning (valid time / transaction time) — the Phase 3 gap
-- [ ] Cross-Document Consistency agent (embedding-similarity baseline → learned `NOVELTY.md` #1)
+- [x] Cross-Document Consistency agent (embedding-similarity baseline → learned `NOVELTY.md` #1) — `app/services/consistency.py` + `POST /api/v2/documents/{id}/consistency` + `ConsistencyPanel` (`LEARNING_LOG.md` #30). 5 new service tests + 2 route tests (200 pass total). Caught a real cross-document match live that the KG's exact-term check can't see.
 - [ ] Simulation agent (deterministic discrete-event baseline → Monte-Carlo `NOVELTY.md` #2)
 - [ ] Negotiation/Drafting agent — static org-configured preferences first; learned playbook (`NOVELTY.md` #4) once redline history exists
 - [ ] Negotiation Studio frontend (Yjs collaborative editing)

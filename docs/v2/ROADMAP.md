@@ -226,7 +226,7 @@ The in-house models are the main lever on quality now that the served LLM is cap
 - [ ] **MLflow** registry + **DVC** data versioning; eval-gated model promotion wired into CI/CD; **model cards** for every trained model.
 
 **Portfolio agents** (`AGENTS.md`, `KNOWLEDGE_GRAPH.md`)
-- [ ] **Cross-Document Consistency** agent (embedding-similarity baseline → learned `NOVELTY.md` #1).
+- [x] **Cross-Document Consistency** — embedding-similarity baseline shipped (`app/services/consistency.py`, `POST /api/v2/documents/{id}/consistency`, `LEARNING_LOG.md` #30): embeds every deontic-tagged clause in a document and in each other document in the org, flags pairs above a cosine-similarity threshold, and marks the ones whose modality actively conflicts (obligation/prohibition, permission/prohibition). Catches what the KG's exact-term match (`kg/queries.py:find_potential_conflicts`) structurally can't: clauses that discuss the same thing in different words using different defined terms — verified live (a confidentiality clause phrased two different ways across two documents, different defined terms, correctly matched at 74.9% similarity). Not `NOVELTY.md` #1's learned Deontic GAT — a fixed threshold + rule-based modality check, honestly labelled as a baseline, same actor/action-resolution limitation as the KG check. Frontend: `ConsistencyPanel` on the document workspace.
 - [ ] **Simulation** agent (deterministic discrete-event baseline → Monte-Carlo `NOVELTY.md` #2).
 - [ ] **Negotiation/Drafting** agent — static org-configured preferences first; the learned playbook (`NOVELTY.md` #4) once redline history exists.
 - [ ] **Bitemporal** graph versioning (valid time / transaction time) — the Phase 3 gap; needed for simulation.

@@ -127,6 +127,40 @@ def test_v2_contextualize(client, document_id, monkeypatch):
     assert resp.json()["explanation"]
 
 
+def test_v2_consistency_flags_a_conflict_against_another_document(client, document_id, monkeypatch):
+    # fake_embed_content returns the same vector for every input, so every
+    # deontic-tagged clause pair is "maximally similar" -- this test checks
+    # the route wiring + real deontic tagging, not the similarity threshold
+    # itself (see tests/test_consistency.py for that).
+    monkeypatch.setattr("app.services.consistency.embed_content", fake_embed_content)
+
+    other = client.post(
+        "/api/upload",
+        files={"file": ("other.txt", b"The Tenant shall not indemnify the Landlord for any damages.", "text/plain")},
+    )
+    assert other.status_code == 200
+
+    resp = client.post(f"/api/v2/documents/{document_id}/consistency")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["document_id"] == document_id
+    assert body["other_documents_checked"] >= 1
+    assert any(f["is_conflict"] for f in body["findings"])
+
+
+def test_v2_consistency_never_compares_a_document_against_itself(client, document_id, monkeypatch):
+    # Every other test in this session uploads into the same shared default
+    # org (AUTH_REQUIRED=false, in-memory SQLite shared across the whole
+    # suite) -- so this can't assert an exact "no other documents" count.
+    # What's guaranteed regardless of test order: document_id never shows up
+    # as its own "other_document_id".
+    monkeypatch.setattr("app.services.consistency.embed_content", fake_embed_content)
+    resp = client.post(f"/api/v2/documents/{document_id}/consistency")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert all(f["other_document_id"] != document_id for f in body["findings"])
+
+
 # ---- sensitivity tiering ----
 
 PRIVILEGED_CONTRACT = (

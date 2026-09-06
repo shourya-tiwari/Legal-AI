@@ -351,6 +351,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/documents/{document_id}/consistency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cross-document consistency check (embedding-similarity baseline) */
+        post: operations["consistency_api_v2_documents__document_id__consistency_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -517,6 +534,43 @@ export interface components {
             ambiguity_flags?: components["schemas"]["AmbiguityFlag"][];
             /** Pronoun Candidates */
             pronoun_candidates?: string[];
+        };
+        /** ConsistencyFinding */
+        ConsistencyFinding: {
+            /** Document Id */
+            document_id: number;
+            /** Clause Id */
+            clause_id: number;
+            /** Clause Text */
+            clause_text: string;
+            /** Other Document Id */
+            other_document_id: number;
+            /** Other Document Filename */
+            other_document_filename: string;
+            /** Other Clause Id */
+            other_clause_id: number;
+            /** Other Clause Text */
+            other_clause_text: string;
+            /** Similarity */
+            similarity: number;
+            /** Modality */
+            modality: string;
+            /** Other Modality */
+            other_modality: string;
+            /**
+             * Is Conflict
+             * @default false
+             */
+            is_conflict: boolean;
+        };
+        /** ConsistencyResponse */
+        ConsistencyResponse: {
+            /** Document Id */
+            document_id: number;
+            /** Other Documents Checked */
+            other_documents_checked: number;
+            /** Findings */
+            findings?: components["schemas"]["ConsistencyFinding"][];
         };
         /** ContextualRiskFlag */
         ContextualRiskFlag: {
@@ -1682,6 +1736,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContextualizerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consistency_api_v2_documents__document_id__consistency_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsistencyResponse"];
                 };
             };
             /** @description Validation Error */

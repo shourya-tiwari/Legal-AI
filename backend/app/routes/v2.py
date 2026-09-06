@@ -23,6 +23,7 @@ from app.guard import api_guard
 from app.models import (
     AgentAnalyzeResponse,
     AskResponse,
+    ConsistencyResponse,
     ContextualizerResponse,
     MapResponse,
     RewriteResponse,
@@ -38,6 +39,7 @@ from app.models import (
 )
 from app.routes.agents import run_and_persist_analysis
 from app.services.chatbot import answer_question
+from app.services.consistency import MAX_OTHER_DOCUMENTS, find_cross_document_consistency
 from app.services.contextualizer.explainer import generate_contextualized_explanation
 from app.services.model_router import is_external_permitted
 from app.services.risk_radar.detector import generate_risk_radar_response
@@ -217,3 +219,25 @@ def contextualize(
     result = generate_contextualized_explanation(_block_text(doc, body.block_id), body.context,
                                                  sensitivity=doc.sensitivity_tier)
     return ContextualizerResponse(**result)
+
+
+@router.post("/documents/{document_id}/consistency", response_model=ConsistencyResponse,
+             summary="Cross-document consistency check (embedding-similarity baseline)")
+def consistency(
+    document_id: int,
+    org: OrgContext = Depends(api_guard),
+    db: Session = Depends(get_db),
+) -> ConsistencyResponse:
+    doc = _load_doc(document_id, org, db)
+    other_docs = (
+        db.query(Document)
+        .filter(Document.org_id == org.id, Document.id != doc.id)
+        .order_by(Document.created_at.desc())
+        .all()
+    )
+    findings = find_cross_document_consistency(doc, other_docs, sensitivity=doc.sensitivity_tier)
+    return ConsistencyResponse(
+        document_id=doc.id,
+        other_documents_checked=min(len(other_docs), MAX_OTHER_DOCUMENTS),
+        findings=findings,
+    )

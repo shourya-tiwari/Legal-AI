@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Union
 from pydantic import BaseModel, Field
 
 from app.agents.state import AgentStep, KGConflictFinding, RiskFinding
+from app.services.consistency import ConsistencyFinding
 from app.services.nlp.schema import ClauseObject
 
 # ----- Rewrite -----
@@ -256,3 +257,13 @@ class SensitivityResponse(BaseModel):
 class SensitivityOverrideRequest(BaseModel):
     tier: str = Field(..., pattern=_SENSITIVITY_TIER_PATTERN)
     reason: str = Field(..., min_length=1, max_length=500, description="Recorded in the audit log.")
+
+
+# ----- Cross-Document Consistency (/api/v2/documents/{id}/consistency) -----
+# Phase 8 embedding-similarity baseline -- ConsistencyFinding is defined once
+# in app/services/consistency.py and reused here (same pattern as AgentStep/
+# RiskFinding/KGConflictFinding, defined in app/agents/state.py above).
+class ConsistencyResponse(BaseModel):
+    document_id: int
+    other_documents_checked: int
+    findings: List[ConsistencyFinding] = Field(default_factory=list)

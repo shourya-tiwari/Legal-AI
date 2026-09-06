@@ -21,7 +21,14 @@ def fake_generate_content(prompt, **kwargs):
     return "This means the tenant must pay rent every month."
 
 
-def fake_embed_content(contents, model=None):
+def fake_embed_content(contents, model=None, task=None):
+    # Matches the real embed_content(contents, *, model=None, task=...)
+    # signature -- callers that wrap this in a try/except (e.g.
+    # contextualizer/rag.py's fail-soft embed_texts) previously masked a
+    # missing `task` kwarg here as a silently-swallowed TypeError. A caller
+    # that calls embed_content unguarded (app/services/consistency.py) surfaces
+    # a signature mismatch as a real test failure instead, which is what
+    # caught this.
     vecs = [SimpleNamespace(values=[0.1, 0.2, 0.3, 0.4]) for _ in contents]
     return SimpleNamespace(embeddings=vecs)
 
