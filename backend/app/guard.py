@@ -30,7 +30,25 @@ def api_guard(
     except RateLimitExceeded as e:
         raise HTTPException(status_code=429, detail=str(e))
 
-    db.add(AuditLog(org_id=org.id, action=request.method, resource=request.url.path))
+    db.add(AuditLog(org_id=org.id, actor_id=org.api_key_id,
+                    action=request.method, resource=request.url.path))
     db.commit()
 
     return org
+
+
+def require_role(*allowed_roles: str):
+    """Dependency factory gating a route on the caller's role (per-key RBAC,
+    docs/v2/ARCHITECTURE.md security item 5) -- use in place of
+    `Depends(api_guard)` on a route that's a privileged action, not any org
+    caller. Composes with api_guard rather than duplicating it: FastAPI
+    resolves a given dependency once per request, so this doesn't double the
+    rate-limit check or the audit-log row."""
+    def _check(org: OrgContext = Depends(api_guard)) -> OrgContext:
+        if org.role not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail=f"This action requires one of roles {allowed_roles!r}; caller has '{org.role}'.",
+            )
+        return org
+    return _check

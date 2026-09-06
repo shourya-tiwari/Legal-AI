@@ -87,3 +87,46 @@ def test_resolve_review_item_marks_it_reviewed(client, db_session):
 def test_resolve_unknown_analysis_is_404(client):
     resp = client.post("/api/review-queue/999999/resolve", json={})
     assert resp.status_code == 404
+
+
+def test_resolve_requires_admin_or_editor_role(client, db_session, monkeypatch):
+    from app.auth import create_api_key
+    from app.config import get_settings
+    from app.db_models import Organization
+
+    monkeypatch.setattr(get_settings(), "AUTH_REQUIRED", True)
+    org = Organization(name="rbac-review-org")
+    db_session.add(org)
+    db_session.commit()
+    db_session.refresh(org)
+
+    viewer_key = create_api_key(db_session, org, "viewer-key", role="viewer")
+    editor_key = create_api_key(db_session, org, "editor-key", role="editor")
+    admin_key = create_api_key(db_session, org, "admin-key", role="admin")
+
+    upload_resp = client.post(
+        "/api/upload", files={"file": ("q.txt", b"Some contract text.", "text/plain")},
+        headers={"Authorization": f"Bearer {admin_key}"},
+    )
+    doc_id = upload_resp.json()["document_id"]
+
+    analysis = CaseAnalysis(
+        org_id=org.id, document_id=doc_id, analysis_mode="full", summary="Needs a look.",
+        faithfulness_ok=False, faithfulness_method="lexical_fallback", needs_human_review=True,
+    )
+    db_session.add(analysis)
+    db_session.commit()
+    db_session.refresh(analysis)
+
+    resp = client.post(
+        f"/api/review-queue/{analysis.id}/resolve", json={"note": "viewer trying"},
+        headers={"Authorization": f"Bearer {viewer_key}"},
+    )
+    assert resp.status_code == 403
+
+    resp = client.post(
+        f"/api/review-queue/{analysis.id}/resolve", json={"note": "editor resolving"},
+        headers={"Authorization": f"Bearer {editor_key}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["reviewer_note"] == "editor resolving"

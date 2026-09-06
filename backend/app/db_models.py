@@ -32,6 +32,13 @@ class ApiKey(Base):
     org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
     name: Mapped[str] = mapped_column(String(255))
     key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    # Per-user RBAC (docs/v2/ARCHITECTURE.md security item 5), scoped to what
+    # actually exists: no login/session system, so a key -- not a logged-in
+    # user -- is the unit of identity, and its role is the caller's role.
+    # "admin" default keeps every key issued before this column existed at
+    # full access -- non-breaking. One of "admin" | "editor" | "viewer",
+    # validated in app.auth.create_api_key, not enforced at the DB level.
+    role: Mapped[str] = mapped_column(String(16), default="admin", server_default="admin")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     revoked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -80,6 +87,11 @@ class AuditLog(Base):
     # written by model_router/telemetry.py::record_egress. The provider name
     # a request actually left the perimeter to; null for every other action.
     egress_target: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Which specific API key performed this action, when known -- the
+    # `actor_id` ARCHITECTURE.md's schema sketch always named but the model
+    # never had. Null under the default (AUTH_REQUIRED=false) org, where
+    # there's no key to attribute to.
+    actor_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -249,6 +249,42 @@ def test_put_sensitivity_rejects_a_bad_tier(client, privileged_document_id):
                       json={"tier": "internal"}).status_code == 422  # reason required
 
 
+def test_put_sensitivity_requires_admin_role(client, db_session, monkeypatch):
+    # Note: doesn't reuse the privileged_document_id fixture -- that uploads
+    # under whatever org is active when the fixture runs (the default org,
+    # since AUTH_REQUIRED flips true inside *this* test body, after fixture
+    # setup). _load_doc is org-scoped, so the document and every key tested
+    # against it must belong to the same, freshly-created org.
+    from app.auth import create_api_key
+    from app.config import get_settings
+    from app.db_models import Organization
+
+    monkeypatch.setattr(get_settings(), "AUTH_REQUIRED", True)
+    org = Organization(name="rbac-sensitivity-org")
+    db_session.add(org)
+    db_session.commit()
+    db_session.refresh(org)
+
+    viewer_key = create_api_key(db_session, org, "viewer-key", role="viewer")
+    editor_key = create_api_key(db_session, org, "editor-key", role="editor")
+    admin_key = create_api_key(db_session, org, "admin-key", role="admin")
+
+    upload_resp = client.post(
+        "/api/upload",
+        files={"file": ("memo.txt", PRIVILEGED_CONTRACT.encode(), "text/plain")},
+        headers={"Authorization": f"Bearer {admin_key}"},
+    )
+    document_id = upload_resp.json()["document_id"]
+
+    body = {"tier": "internal", "reason": "reviewed"}
+    for key, expected in [(viewer_key, 403), (editor_key, 403), (admin_key, 200)]:
+        resp = client.put(
+            f"/api/v2/documents/{document_id}/sensitivity",
+            json=body, headers={"Authorization": f"Bearer {key}"},
+        )
+        assert resp.status_code == expected, (key, resp.text)
+
+
 def test_v2_analyze_surfaces_external_disabled_for_a_privileged_doc(client, privileged_document_id, monkeypatch):
     monkeypatch.setattr("app.services.contextualizer.rag.embed_content", fake_embed_content)
     resp = client.post(f"/api/v2/documents/{privileged_document_id}/analyze", json={"analysis_mode": "risk_only"})

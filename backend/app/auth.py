@@ -24,10 +24,23 @@ from app.db_models import ApiKey, Organization
 
 DEFAULT_ORG_NAME = "default"
 
+# Per-user RBAC (docs/v2/ARCHITECTURE.md security item 5), scoped to an
+# API-key-is-the-identity model -- no login/session system exists to attach
+# roles to an actual logged-in user yet.
+VALID_ROLES = ("admin", "editor", "viewer")
+
 
 class OrgContext(BaseModel):
     id: int
     name: str
+    # "admin" for the default (AUTH_REQUIRED=false) org and for every key
+    # issued before this field existed -- fully permissive, matching this
+    # app's existing "off by default so the public frontend keeps working"
+    # posture. Real restriction only kicks in for a key issued with a lower role.
+    role: str = "admin"
+    # The specific key that authenticated this request, for audit attribution
+    # (`AuditLog.actor_id`). None under the default org -- there's no key.
+    api_key_id: int | None = None
 
 
 def hash_api_key(raw_key: str) -> str:
@@ -48,11 +61,13 @@ def get_or_create_default_org(db: Session) -> Organization:
     return org
 
 
-def create_api_key(db: Session, org: Organization, name: str) -> str:
+def create_api_key(db: Session, org: Organization, name: str, role: str = "admin") -> str:
     """Issues a new API key for an org. Returns the raw key — it is never
     recoverable again once this returns, only its hash is stored."""
+    if role not in VALID_ROLES:
+        raise ValueError(f"role must be one of {VALID_ROLES}, got {role!r}")
     raw_key = generate_api_key()
-    db.add(ApiKey(org_id=org.id, name=name, key_hash=hash_api_key(raw_key)))
+    db.add(ApiKey(org_id=org.id, name=name, key_hash=hash_api_key(raw_key), role=role))
     db.commit()
     return raw_key
 
@@ -65,7 +80,7 @@ def get_current_org(
 
     if not settings.AUTH_REQUIRED:
         org = get_or_create_default_org(db)
-        return OrgContext(id=org.id, name=org.name)
+        return OrgContext(id=org.id, name=org.name, role="admin")
 
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing API key. Send 'Authorization: Bearer <key>'.")
@@ -79,4 +94,5 @@ def get_current_org(
     if key_row is None:
         raise HTTPException(status_code=401, detail="Invalid or revoked API key.")
 
-    return OrgContext(id=key_row.organization.id, name=key_row.organization.name)
+    return OrgContext(id=key_row.organization.id, name=key_row.organization.name,
+                      role=key_row.role, api_key_id=key_row.id)

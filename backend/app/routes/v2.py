@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.auth import OrgContext
 from app.db import get_db
 from app.db_models import AuditLog, Document
-from app.guard import api_guard
+from app.guard import api_guard, require_role
 from app.models import (
     AgentAnalyzeResponse,
     AskResponse,
@@ -118,10 +118,9 @@ def override_sensitivity(
     document_id: int,
     body: SensitivityOverrideRequest,
     request: Request,
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ) -> SensitivityResponse:
-    # No per-user RBAC yet -- any authenticated caller for the org can override.
     doc = _load_doc(document_id, org, db)
     old = doc.sensitivity_tier
     doc.sensitivity_tier = body.tier
@@ -129,7 +128,7 @@ def override_sensitivity(
     doc.sensitivity_signals = ([{"tier": body.tier, "phrase": body.reason, "category": "override"}]
                                + list(doc.sensitivity_signals or []))
     db.add(AuditLog(
-        org_id=org.id, action="PUT", resource=str(request.url.path),
+        org_id=org.id, actor_id=org.api_key_id, action="PUT", resource=str(request.url.path),
         detail=f"sensitivity {old} -> {body.tier}: {body.reason}",
     ))
     db.commit()

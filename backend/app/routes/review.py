@@ -5,9 +5,11 @@ Human-in-the-loop review queue (docs/v2/ROADMAP.md Phase 7).
 `CaseAnalysis.needs_human_review` (app/routes/agents.py) was computed and
 returned in the analyze() HTTP response every time but never persisted --
 this is the read side of persisting it: list every analysis that still
-needs a human's attention, and let a reviewer resolve it (org-scoped; no
-per-user RBAC yet, so a reviewer identifies themselves with a free-text
-note, same pattern as the sensitivity-override "reason" field).
+needs a human's attention, and let a reviewer resolve it (org-scoped;
+resolving requires admin or editor role -- per-key RBAC, app/guard.py --
+and the reviewer still identifies themselves with a free-text note, since
+there's still no logged-in-user identity to attach to the row, same
+pattern as the sensitivity-override "reason" field).
 """
 from __future__ import annotations
 
@@ -19,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.auth import OrgContext
 from app.db import get_db
 from app.db_models import CaseAnalysis, Document
-from app.guard import api_guard
+from app.guard import api_guard, require_role
 from app.models import ReviewQueueItem, ReviewQueueResponse, ReviewResolveRequest
 
 router = APIRouter(tags=["review-queue"])
@@ -68,7 +70,7 @@ def list_review_queue(
 def resolve_review_item(
     analysis_id: int,
     body: ReviewResolveRequest,
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_role("admin", "editor")),
     db: Session = Depends(get_db),
 ) -> ReviewQueueItem:
     analysis = db.query(CaseAnalysis).filter_by(id=analysis_id, org_id=org.id).first()
