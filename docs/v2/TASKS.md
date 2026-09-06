@@ -262,7 +262,7 @@ This is a coherent choice: the docs' own thesis is that legal-domain quality com
 **Portfolio agents (`AGENTS.md`, `KNOWLEDGE_GRAPH.md`)**
 - [ ] Bitemporal graph versioning (valid time / transaction time) — the Phase 3 gap
 - [x] Cross-Document Consistency agent (embedding-similarity baseline → learned `NOVELTY.md` #1) — `app/services/consistency.py` + `POST /api/v2/documents/{id}/consistency` + `ConsistencyPanel` (`LEARNING_LOG.md` #30). 5 new service tests + 2 route tests (200 pass total). Caught a real cross-document match live that the KG's exact-term check can't see.
-- [ ] Simulation agent (deterministic discrete-event baseline → Monte-Carlo `NOVELTY.md` #2)
+- [x] Simulation agent (deterministic discrete-event baseline → Monte-Carlo `NOVELTY.md` #2) — `app/services/simulation.py` + `POST /api/v2/documents/{id}/simulate` + `SimulationPanel` (`LEARNING_LOG.md` #31). Only resolved absolute dates become events (bare durations stay honestly unresolved, matching `temporal.py`'s existing design). Portfolio-scope `TRIGGERED_BY`-graph + Monte-Carlo version deferred — needs KG schema growth (`Obligation`/`TRIGGERED_BY` nodes) that doesn't exist yet. 5 new service tests + 2 route tests (207 pass total).
 - [ ] Negotiation/Drafting agent — static org-configured preferences first; learned playbook (`NOVELTY.md` #4) once redline history exists
 - [ ] Negotiation Studio frontend (Yjs collaborative editing)
 - [ ] Risk Dashboard spider/radar chart (closes the V1 README promise)

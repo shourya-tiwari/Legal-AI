@@ -200,3 +200,16 @@ export async function checkConsistency(id: number): Promise<ConsistencyResponse>
     method: "POST",
   });
 }
+
+// ----- /api/v2/documents/{id}/simulate (Phase 8 discrete-event baseline) -----
+export type SimulationResponse = components["schemas"]["SimulationResponse"];
+
+export async function simulateTimeline(
+  id: number,
+  opts?: { reference_date?: string; warning_window_days?: number },
+): Promise<SimulationResponse> {
+  return request<SimulationResponse>(`/v2/documents/${id}/simulate`, {
+    method: "POST",
+    body: JSON.stringify(opts ?? {}),
+  });
+}

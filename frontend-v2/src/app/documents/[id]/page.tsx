@@ -14,6 +14,7 @@ import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { StructuredAnalysisPanel } from "@/components/StructuredAnalysisPanel";
 import { KnowledgeGraphPanel } from "@/components/KnowledgeGraphPanel";
 import { ConsistencyPanel } from "@/components/ConsistencyPanel";
+import { SimulationPanel } from "@/components/SimulationPanel";
 
 interface PageQuality {
   page: number;
@@ -119,6 +120,7 @@ export default function DocumentPage() {
             <StructuredAnalysisPanel fullText={data.full_text} />
             <KnowledgeGraphPanel documentId={documentId} />
             <ConsistencyPanel documentId={documentId} />
+            <SimulationPanel documentId={documentId} />
           </section>
         </div>
       </main>

@@ -11,6 +11,7 @@ function as its V1 counterpart -- no service logic changes here.
 """
 from __future__ import annotations
 
+import datetime
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -30,6 +31,8 @@ from app.models import (
     RiskScanResponse,
     SensitivityOverrideRequest,
     SensitivityResponse,
+    SimulationRequest,
+    SimulationResponse,
     V2AnalyzeRequest,
     V2AskRequest,
     V2ContextualizeRequest,
@@ -45,6 +48,7 @@ from app.services.model_router import is_external_permitted
 from app.services.risk_radar.detector import generate_risk_radar_response
 from app.services.rewriter import rewrite_text
 from app.services.sensitivity import classify_sensitivity
+from app.services.simulation import simulate_obligation_timeline
 from app.services.timeline import generate_map
 
 logger = logging.getLogger("legalai.routes.v2")
@@ -240,4 +244,28 @@ def consistency(
         document_id=doc.id,
         other_documents_checked=min(len(other_docs), MAX_OTHER_DOCUMENTS),
         findings=findings,
+    )
+
+
+@router.post("/documents/{document_id}/simulate", response_model=SimulationResponse,
+             summary="Obligation timeline simulation (deterministic discrete-event baseline)")
+def simulate(
+    document_id: int,
+    body: SimulationRequest = SimulationRequest(),
+    org: OrgContext = Depends(api_guard),
+    db: Session = Depends(get_db),
+) -> SimulationResponse:
+    doc = _load_doc(document_id, org, db)
+    reference_date = (
+        datetime.date.fromisoformat(body.reference_date) if body.reference_date else datetime.date.today()
+    )
+    events = simulate_obligation_timeline(
+        doc, reference_date=reference_date, warning_window_days=body.warning_window_days,
+        sensitivity=doc.sensitivity_tier,
+    )
+    return SimulationResponse(
+        document_id=doc.id,
+        reference_date=reference_date.isoformat(),
+        warning_window_days=body.warning_window_days,
+        events=events,
     )

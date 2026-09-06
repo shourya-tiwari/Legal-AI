@@ -161,6 +161,27 @@ def test_v2_consistency_never_compares_a_document_against_itself(client, documen
     assert all(f["other_document_id"] != document_id for f in body["findings"])
 
 
+def test_v2_simulate_classifies_events_relative_to_a_reference_date(client, document_id):
+    # CONTRACT has "January 1, 2025" -- from a 2025-06-01 vantage point that's past.
+    resp = client.post(
+        f"/api/v2/documents/{document_id}/simulate",
+        json={"reference_date": "2025-06-01", "warning_window_days": 30},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["document_id"] == document_id
+    assert body["reference_date"] == "2025-06-01"
+    assert any(e["date"] == "2025-01-01" and e["status"] == "past" for e in body["events"])
+
+
+def test_v2_simulate_defaults_to_today(client, document_id):
+    resp = client.post(f"/api/v2/documents/{document_id}/simulate", json={})
+    assert resp.status_code == 200
+    import datetime
+
+    assert resp.json()["reference_date"] == datetime.date.today().isoformat()
+
+
 # ---- sensitivity tiering ----
 
 PRIVILEGED_CONTRACT = (

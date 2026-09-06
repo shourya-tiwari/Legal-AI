@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from app.agents.state import AgentStep, KGConflictFinding, RiskFinding
 from app.services.consistency import ConsistencyFinding
 from app.services.nlp.schema import ClauseObject
+from app.services.simulation import DEFAULT_WARNING_WINDOW_DAYS, SimulatedEvent
 
 # ----- Rewrite -----
 class RewriteRequest(BaseModel):
@@ -267,3 +268,19 @@ class ConsistencyResponse(BaseModel):
     document_id: int
     other_documents_checked: int
     findings: List[ConsistencyFinding] = Field(default_factory=list)
+
+
+# ----- Simulation (/api/v2/documents/{id}/simulate) -----
+# Phase 8 deterministic discrete-event baseline -- see app/services/simulation.py.
+class SimulationRequest(BaseModel):
+    reference_date: Optional[str] = Field(
+        None, description="ISO date to simulate from; defaults to today. Mainly for testing/demo."
+    )
+    warning_window_days: int = Field(DEFAULT_WARNING_WINDOW_DAYS, ge=1, le=365)
+
+
+class SimulationResponse(BaseModel):
+    document_id: int
+    reference_date: str
+    warning_window_days: int
+    events: List[SimulatedEvent] = Field(default_factory=list)

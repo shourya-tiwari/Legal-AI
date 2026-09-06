@@ -368,6 +368,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/documents/{document_id}/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Obligation timeline simulation (deterministic discrete-event baseline) */
+        post: operations["simulate_api_v2_documents__document_id__simulate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -891,6 +908,47 @@ export interface components {
              * @description False => every model call for this document stays on self-hosted providers.
              */
             external_providers_permitted: boolean;
+        };
+        /** SimulatedEvent */
+        SimulatedEvent: {
+            /** Clause Id */
+            clause_id: number;
+            /** Clause Type */
+            clause_type: string;
+            /** Date */
+            date: string;
+            /** Date Text */
+            date_text: string;
+            /** Clause Text */
+            clause_text: string;
+            /** Modality */
+            modality: string;
+            /** Status */
+            status: string;
+        };
+        /** SimulationRequest */
+        SimulationRequest: {
+            /**
+             * Reference Date
+             * @description ISO date to simulate from; defaults to today. Mainly for testing/demo.
+             */
+            reference_date?: string | null;
+            /**
+             * Warning Window Days
+             * @default 30
+             */
+            warning_window_days: number;
+        };
+        /** SimulationResponse */
+        SimulationResponse: {
+            /** Document Id */
+            document_id: number;
+            /** Reference Date */
+            reference_date: string;
+            /** Warning Window Days */
+            warning_window_days: number;
+            /** Events */
+            events?: components["schemas"]["SimulatedEvent"][];
         };
         /** TemporalExpression */
         TemporalExpression: {
@@ -1769,6 +1827,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsistencyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simulate_api_v2_documents__document_id__simulate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SimulationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationResponse"];
                 };
             };
             /** @description Validation Error */
