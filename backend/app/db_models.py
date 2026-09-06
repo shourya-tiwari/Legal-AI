@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -138,4 +138,32 @@ class AgentTrace(Base):
     step_no: Mapped[int] = mapped_column(Integer)
     input_summary: Mapped[str] = mapped_column(Text)
     output_summary: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CaseAnalysis(Base):
+    """One row per `run_and_persist_analysis()` call -- the run-level outcome
+    (`AgentTrace` above is per-step). Phase 7's human-in-the-loop review
+    queue needs this: `needs_human_review` was computed and returned in the
+    HTTP response every time but never persisted anywhere, so nothing could
+    ever list "which analyses still need a human to look at them" -- the
+    exact same computed-then-discarded shape as `Document.quality` before it
+    was persisted (see CLAUDE.md's sensitivity-tiering section for the
+    pattern this follows)."""
+    __tablename__ = "case_analyses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
+    analysis_mode: Mapped[str] = mapped_column(String(32))
+    plan: Mapped[list] = mapped_column(JSON, default=list)
+    summary: Mapped[str] = mapped_column(Text)
+    faithfulness_ok: Mapped[bool] = mapped_column(Boolean, default=True)
+    faithfulness_method: Mapped[str] = mapped_column(String(32), default="lexical_fallback")
+    unsupported_claims: Mapped[list] = mapped_column(JSON, default=list)
+    invalid_citation_numbers: Mapped[list] = mapped_column(JSON, default=list)
+    needs_human_review: Mapped[bool] = mapped_column(Boolean, default=False)
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    reviewed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewer_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

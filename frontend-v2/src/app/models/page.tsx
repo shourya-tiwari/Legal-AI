@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getModelsStatus } from "@/lib/api";
+import { getModelsStatus, getEvalRuns } from "@/lib/api";
 import { SiteHeader } from "@/components/SiteHeader";
 
 const CLASS_STYLE: Record<string, string> = {
@@ -20,6 +20,11 @@ export default function ModelsStatusPage() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["models-status"],
     queryFn: getModelsStatus,
+  });
+
+  const { data: evalData } = useQuery({
+    queryKey: ["eval-runs"],
+    queryFn: getEvalRuns,
   });
 
   return (
@@ -105,6 +110,65 @@ export default function ModelsStatusPage() {
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        <h2 className="mt-14 text-xl font-semibold text-white">Eval scores behind the policy</h2>
+        <p className="mt-2 max-w-xl text-sm text-zinc-400">
+          The cutover gate&apos;s evidence for whether a self-hosted model actually beats the
+          Gemini baseline for a task — most recent run per task/provider, from{" "}
+          <code className="rounded bg-white/10 px-1 py-0.5 text-xs">GET /api/models/eval-runs</code>.
+        </p>
+
+        {evalData && (evalData.runs ?? []).length === 0 && (
+          <p className="mt-6 text-sm text-zinc-500">
+            No eval runs recorded yet — run <code className="rounded bg-white/10 px-1 py-0.5 text-xs">
+            python -m app.eval.cutover_gate</code> against a served model to populate this.
+          </p>
+        )}
+
+        {evalData && (evalData.runs ?? []).length > 0 && (
+          <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-zinc-500">
+                  <th className="px-4 py-3 font-medium">Task</th>
+                  <th className="px-4 py-3 font-medium">Provider</th>
+                  <th className="px-4 py-3 font-medium">Model</th>
+                  <th className="px-4 py-3 font-medium">Score</th>
+                  <th className="px-4 py-3 font-medium">Baseline</th>
+                  <th className="px-4 py-3 font-medium">Verdict</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(evalData.runs ?? []).map((r, i) => (
+                  <tr key={i} className="border-b border-white/5 last:border-0">
+                    <td className="px-4 py-3 font-mono text-zinc-200">{r.task}</td>
+                    <td className="px-4 py-3 text-zinc-300">{r.provider}</td>
+                    <td className="px-4 py-3 text-zinc-400">{r.model}</td>
+                    <td className="px-4 py-3 text-zinc-200">
+                      {r.score.toFixed(3)} <span className="text-zinc-500">({r.metric}, n={r.n_examples})</span>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-400">
+                      {r.baseline_score != null ? r.baseline_score.toFixed(3) : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.passed === true && (
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                          ✅ pass
+                        </span>
+                      )}
+                      {r.passed === false && (
+                        <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-300">
+                          ❌ fail
+                        </span>
+                      )}
+                      {r.passed == null && <span className="text-xs text-zinc-500">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </main>

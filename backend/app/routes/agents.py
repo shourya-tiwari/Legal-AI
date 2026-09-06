@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.agents.graph import run_case_analysis
 from app.auth import OrgContext
 from app.db import get_db
-from app.db_models import AgentTrace, Document
+from app.db_models import AgentTrace, CaseAnalysis, Document
 from app.guard import api_guard
 from app.models import AgentAnalyzeRequest, AgentAnalyzeResponse
 from app.services.model_router import is_external_permitted
@@ -43,6 +43,20 @@ def run_and_persist_analysis(
                 output_summary=step.output_summary,
             )
         )
+    db.add(
+        CaseAnalysis(
+            org_id=org.id,
+            document_id=document.id,
+            analysis_mode=analysis_mode,
+            plan=result.plan,
+            summary=result.summary,
+            faithfulness_ok=result.faithfulness_ok,
+            faithfulness_method=result.faithfulness_method,
+            unsupported_claims=result.unsupported_claims,
+            invalid_citation_numbers=result.invalid_citation_numbers,
+            needs_human_review=result.needs_human_review,
+        )
+    )
     db.commit()
 
     return AgentAnalyzeResponse(

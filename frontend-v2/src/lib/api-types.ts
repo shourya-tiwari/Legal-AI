@@ -214,6 +214,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/models/eval-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Eval scores behind the routing policy (most recent per task/provider) */
+        get: operations["eval_runs_api_models_eval_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/review-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List analyses flagged needs_human_review, unresolved first */
+        get: operations["list_review_queue_api_review_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/review-queue/{analysis_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a flagged analysis as reviewed */
+        post: operations["resolve_review_item_api_review_queue__analysis_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/documents/{document_id}": {
         parameters: {
             query?: never;
@@ -680,6 +731,40 @@ export interface components {
             /** Type */
             type: string;
         };
+        /** EvalRunSummary */
+        EvalRunSummary: {
+            /** Task */
+            task: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Metric */
+            metric: string;
+            /** Score */
+            score: number;
+            /** N Examples */
+            n_examples: number;
+            /** Baseline Score */
+            baseline_score?: number | null;
+            /**
+             * Passed
+             * @description For a cutover-gate row: candidate >= baseline * ratio. Null for a non-cutover eval run.
+             */
+            passed?: boolean | null;
+            /** Notes */
+            notes?: string | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** EvalRunsResponse */
+        EvalRunsResponse: {
+            /**
+             * Runs
+             * @description Most recent run per (task, provider) pair -- a snapshot, not the full history.
+             */
+            runs?: components["schemas"]["EvalRunSummary"][];
+        };
         /** FlaggedClause */
         FlaggedClause: {
             /** Clause */
@@ -827,6 +912,49 @@ export interface components {
         NlpAnalyzeResponse: {
             /** Clauses */
             clauses: components["schemas"]["ClauseObject"][];
+        };
+        /** ReviewQueueItem */
+        ReviewQueueItem: {
+            /** Id */
+            id: number;
+            /** Document Id */
+            document_id: number;
+            /** Document Filename */
+            document_filename: string;
+            /** Analysis Mode */
+            analysis_mode: string;
+            /** Plan */
+            plan?: string[];
+            /** Summary */
+            summary: string;
+            /** Faithfulness Ok */
+            faithfulness_ok: boolean;
+            /** Faithfulness Method */
+            faithfulness_method: string;
+            /** Unsupported Claims */
+            unsupported_claims?: string[];
+            /** Invalid Citation Numbers */
+            invalid_citation_numbers?: number[];
+            /** Needs Human Review */
+            needs_human_review: boolean;
+            /** Reviewed */
+            reviewed: boolean;
+            /** Reviewed At */
+            reviewed_at?: string | null;
+            /** Reviewer Note */
+            reviewer_note?: string | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** ReviewQueueResponse */
+        ReviewQueueResponse: {
+            /** Items */
+            items?: components["schemas"]["ReviewQueueItem"][];
+        };
+        /** ReviewResolveRequest */
+        ReviewResolveRequest: {
+            /** Note */
+            note?: string | null;
         };
         /** RewriteRequest */
         RewriteRequest: {
@@ -1473,6 +1601,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelsStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    eval_runs_api_models_eval_runs_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRunsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_review_queue_api_review_queue_get: {
+        parameters: {
+            query?: {
+                include_resolved?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewQueueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_review_item_api_review_queue__analysis_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                analysis_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewQueueItem"];
                 };
             };
             /** @description Validation Error */

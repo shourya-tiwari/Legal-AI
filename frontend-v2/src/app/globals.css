@@ -1,14 +1,17 @@
 @import "tailwindcss";
 
-/* Font mapping only -- background/text color are set directly as Tailwind
-   utility classes on <body> in layout.tsx. A plain unlayered `body {...}`
-   rule here would beat those utilities regardless of specificity (Tailwind
-   v4 utilities live inside `@layer utilities`, and unlayered CSS always
-   wins over layered CSS) -- that bug is exactly what made the page render
-   with a black background under prefers-color-scheme: dark despite
-   `bg-zinc-50` being present on the element. Don't add unlayered rules
-   back here without checking that trap first. */
-@theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* No custom font here on purpose: font-sans/font-mono use Tailwind v4's own
+   default system-font stack (ui-sans-serif/-apple-system/Segoe UI/... --
+   see the compiled CSS's `--default-font-family`), not a Google-Fonts-
+   loaded typeface. Zero font files to vendor, zero network origin, so a
+   Privileged-tier page truly has no third-party asset dependency
+   (docs/v2/FRONTEND.md "fully self-hosted frontend assets").
+
+   Background/text color are set directly as Tailwind utility classes on
+   <body> in layout.tsx, not here. A plain unlayered `body {...}` rule
+   would beat those utilities regardless of specificity (Tailwind v4
+   utilities live inside `@layer utilities`, and unlayered CSS always wins
+   over layered CSS) -- that bug is exactly what made the page render with
+   a black background under prefers-color-scheme: dark despite `bg-zinc-50`
+   being present on the element. Don't add unlayered rules back here
+   without checking that trap first. */

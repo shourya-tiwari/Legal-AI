@@ -185,6 +185,31 @@ class ModelsStatusResponse(BaseModel):
     strict_local_only: bool
 
 
+# ----- Eval runs behind the routing policy (/api/models/eval-runs) -----
+# Phase 7 "Provider & Model admin": the eval_runs table (app/eval/) already
+# has this data -- the routing policy previously had no view showing it.
+class EvalRunSummary(BaseModel):
+    task: str
+    provider: str
+    model: str
+    metric: str
+    score: float
+    n_examples: int
+    baseline_score: Optional[float] = None
+    passed: Optional[bool] = Field(
+        None, description="For a cutover-gate row: candidate >= baseline * ratio. Null for a non-cutover eval run."
+    )
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class EvalRunsResponse(BaseModel):
+    runs: List[EvalRunSummary] = Field(
+        default_factory=list,
+        description="Most recent run per (task, provider) pair -- a snapshot, not the full history.",
+    )
+
+
 # ----- Contextualizer (/api/contextualize) -----
 class ContextualizerRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Contract clause text to explain")
@@ -284,3 +309,34 @@ class SimulationResponse(BaseModel):
     reference_date: str
     warning_window_days: int
     events: List[SimulatedEvent] = Field(default_factory=list)
+
+
+# ----- Human-in-the-loop review queue (/api/review-queue) -----
+# Phase 7 -- CaseAnalysis persists the run-level outcome of an agent
+# analysis (app/routes/agents.py) so "needs_human_review" runs can actually
+# be listed and resolved, instead of only appearing in the one HTTP
+# response at analysis time.
+class ReviewQueueItem(BaseModel):
+    id: int
+    document_id: int
+    document_filename: str
+    analysis_mode: str
+    plan: List[str] = Field(default_factory=list)
+    summary: str
+    faithfulness_ok: bool
+    faithfulness_method: str
+    unsupported_claims: List[str] = Field(default_factory=list)
+    invalid_citation_numbers: List[int] = Field(default_factory=list)
+    needs_human_review: bool
+    reviewed: bool
+    reviewed_at: Optional[str] = None
+    reviewer_note: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class ReviewQueueResponse(BaseModel):
+    items: List[ReviewQueueItem] = Field(default_factory=list)
+
+
+class ReviewResolveRequest(BaseModel):
+    note: Optional[str] = Field(None, max_length=1000)

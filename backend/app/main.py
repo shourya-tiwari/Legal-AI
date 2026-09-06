@@ -26,6 +26,7 @@ from .routes import nlp
 from .routes import kg
 from .routes import agents
 from .routes import models as models_route
+from .routes import review
 from .routes import v2 as v2_routes
 
 settings = get_settings()
@@ -67,6 +68,7 @@ app.include_router(nlp.router, prefix="/api", tags=["nlp"])
 app.include_router(kg.router, prefix="/api", tags=["knowledge-graph"])
 app.include_router(agents.router, prefix="/api", tags=["agents"])
 app.include_router(models_route.router, prefix="/api", tags=["models"])
+app.include_router(review.router, prefix="/api", tags=["review-queue"])
 app.include_router(v2_routes.router, prefix="/api", tags=["v2"])  # router carries /v2
 
 # ---- Health Endpoint ----

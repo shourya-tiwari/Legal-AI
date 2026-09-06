@@ -213,3 +213,26 @@ export async function simulateTimeline(
     body: JSON.stringify(opts ?? {}),
   });
 }
+
+// ----- /api/models/eval-runs (Phase 7 Provider & Model admin, partial) -----
+export type EvalRunsResponse = components["schemas"]["EvalRunsResponse"];
+
+export async function getEvalRuns(): Promise<EvalRunsResponse> {
+  return request<EvalRunsResponse>("/models/eval-runs");
+}
+
+// ----- /api/review-queue (Phase 7 human-in-the-loop review queue) -----
+export type ReviewQueueResponse = components["schemas"]["ReviewQueueResponse"];
+export type ReviewQueueItem = components["schemas"]["ReviewQueueItem"];
+
+export async function getReviewQueue(includeResolved = false): Promise<ReviewQueueResponse> {
+  const qs = includeResolved ? "?include_resolved=true" : "";
+  return request<ReviewQueueResponse>(`/review-queue${qs}`);
+}
+
+export async function resolveReviewItem(id: number, note?: string): Promise<ReviewQueueItem> {
+  return request<ReviewQueueItem>(`/review-queue/${id}/resolve`, {
+    method: "POST",
+    body: JSON.stringify({ note: note ?? null }),
+  });
+}

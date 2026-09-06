@@ -47,3 +47,40 @@ def test_models_status_shows_the_self_hosted_server_providers_unavailable_offlin
     assert by_name["local-embed-remote"]["available"] is False
     assert by_name["local-rerank-remote"]["available"] is False
     assert by_name["local-rerank-remote"]["capabilities"] == ["rerank"]
+
+
+def test_eval_runs_returns_empty_when_nothing_recorded(client):
+    resp = client.get("/api/models/eval-runs")
+    assert resp.status_code == 200
+    assert resp.json() == {"runs": []}
+
+
+def test_eval_runs_returns_only_the_most_recent_per_task_and_provider(client, db_session):
+    from app.db_models import EvalRun
+
+    db_session.add_all([
+        EvalRun(task="qa", dataset="legalbench_qa", provider="gemini", model="gemini-flash-latest",
+                metric="accuracy", score=0.80, n_examples=25, baseline_score=None, passed=None,
+                notes="baseline"),
+        EvalRun(task="qa", dataset="legalbench_qa", provider="local-llm", model="qwen3:8b",
+                metric="accuracy", score=0.70, n_examples=25, baseline_score=0.80, passed=False,
+                notes="first attempt"),
+        EvalRun(task="qa", dataset="legalbench_qa", provider="local-llm", model="qwen3:8b",
+                metric="accuracy", score=0.85, n_examples=25, baseline_score=0.80, passed=True,
+                notes="retrained"),
+    ])
+    db_session.commit()
+
+    resp = client.get("/api/models/eval-runs")
+    assert resp.status_code == 200
+    runs = resp.json()["runs"]
+
+    qa_local = [r for r in runs if r["task"] == "qa" and r["provider"] == "local-llm"]
+    assert len(qa_local) == 1
+    assert qa_local[0]["score"] == 0.85
+    assert qa_local[0]["passed"] is True
+    assert qa_local[0]["notes"] == "retrained"
+
+    qa_gemini = [r for r in runs if r["task"] == "qa" and r["provider"] == "gemini"]
+    assert len(qa_gemini) == 1
+    assert qa_gemini[0]["passed"] is None

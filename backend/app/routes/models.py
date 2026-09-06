@@ -14,11 +14,14 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
 from app.auth import OrgContext
 from app.config import get_settings
+from app.db import get_db
+from app.db_models import EvalRun
 from app.guard import api_guard
-from app.models import ModelProviderStatus, ModelsStatusResponse
+from app.models import EvalRunsResponse, EvalRunSummary, ModelProviderStatus, ModelsStatusResponse
 from app.services.model_router.policy import get_policy
 from app.services.model_router.registry import get_registry
 
@@ -57,3 +60,30 @@ def models_status(org: OrgContext = Depends(api_guard)) -> ModelsStatusResponse:
         external_providers_enabled=settings.EXTERNAL_PROVIDERS_ENABLED,
         strict_local_only=settings.STRICT_LOCAL_ONLY,
     )
+
+
+@router.get("/models/eval-runs", response_model=EvalRunsResponse,
+            summary="Eval scores behind the routing policy (most recent per task/provider)")
+def eval_runs(org: OrgContext = Depends(api_guard), db: Session = Depends(get_db)) -> EvalRunsResponse:
+    # eval_runs isn't org-scoped (a system-level eval artifact, not tenant
+    # data) -- `org` is only here so this endpoint sits behind api_guard
+    # like every other route.
+    # created_at can tie within the same commit (SQLite's CURRENT_TIMESTAMP
+    # resolution) -- id.desc() as a stable tiebreaker so "most recent" always
+    # means "most recently inserted", not an arbitrary tie order.
+    rows = db.query(EvalRun).order_by(EvalRun.created_at.desc(), EvalRun.id.desc()).all()
+    latest_per_key: dict[tuple[str, str], EvalRun] = {}
+    for row in rows:
+        key = (row.task, row.provider)
+        if key not in latest_per_key:  # rows are already newest-first
+            latest_per_key[key] = row
+    summaries = [
+        EvalRunSummary(
+            task=r.task, provider=r.provider, model=r.model, metric=r.metric, score=r.score,
+            n_examples=r.n_examples, baseline_score=r.baseline_score, passed=r.passed,
+            notes=r.notes, created_at=r.created_at.isoformat() if r.created_at else None,
+        )
+        for r in latest_per_key.values()
+    ]
+    summaries.sort(key=lambda s: (s.task, s.provider))
+    return EvalRunsResponse(runs=summaries)
