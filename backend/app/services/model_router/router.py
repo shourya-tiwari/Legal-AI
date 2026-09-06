@@ -9,6 +9,7 @@ No service imports a provider. No service names a vendor. (docs/v2/AI_STACK.md)
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
 import time
 from functools import lru_cache
@@ -138,7 +139,23 @@ class Router:
 
     def generate(self, req: GenerateRequest) -> GenerateResult:
         def _call(p: ModelProvider):
-            r = p.generate(req)
+            effective_req = req
+            if getattr(p, "hosting_class", HostingClass.B) == HostingClass.C:
+                # PII/PHI redaction gate (docs/v2/ARCHITECTURE.md Security
+                # architecture item 3) -- deferred import to avoid a cycle
+                # with app.services.redaction, which itself calls back into
+                # this package's public API (ner_extract).
+                from app.services.redaction import redact_pii
+
+                redaction = redact_pii(req.prompt)
+                if redaction.categories_found:
+                    logger.warning(
+                        "PII redaction gate masked %s before an external call "
+                        "(task=%s, provider=%s).",
+                        redaction.categories_found, req.task, p.name,
+                    )
+                effective_req = dataclasses.replace(req, prompt=redaction.redacted_text)
+            r = p.generate(effective_req)
             return r, r.model, r.hosting_class
 
         result, _decision = self._pick_and_call(

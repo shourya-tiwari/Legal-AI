@@ -22,7 +22,7 @@ from app.services.model_router import (
 )
 from app.services.model_router.policy import RoutingPolicy, get_policy
 from app.services.model_router.router import get_router
-from app.services.model_router.types import EmbedRequest, GenerateRequest, RerankRequest
+from app.services.model_router.types import EmbedRequest, GenerateRequest, NERResult, RerankRequest
 
 
 @pytest.fixture(autouse=True)
@@ -390,6 +390,103 @@ def test_router_fails_closed_if_a_c_provider_is_somehow_chained(monkeypatch):
         r._fail_closed_on_external(SensitivityTier.PRIVILEGED, "fake-c", HostingClass.C, "qa")
     # internal is fine
     r._fail_closed_on_external(SensitivityTier.INTERNAL, "fake-c", HostingClass.C, "qa")
+
+
+# --------------------------------------------------------------------------
+# PII/PHI redaction gate (app/services/redaction.py): applies only to a
+# Class C dispatch, never to a self-hosted (Class B) one.
+# --------------------------------------------------------------------------
+
+def test_generate_redacts_pii_before_a_class_c_dispatch(monkeypatch):
+    from app.services.model_router.base import ModelProvider
+    from app.services.model_router.policy import RoutingPolicy
+    from app.services.model_router.router import Router
+    from app.services.model_router.types import GenerateRequest, GenerateResult, ProviderCard
+
+    monkeypatch.setenv("EXTERNAL_PROVIDERS_ENABLED", "true")
+    get_settings.cache_clear()
+
+    captured = {}
+
+    class _FakeC(ModelProvider):
+        name = "fake-c"
+        hosting_class = HostingClass.C
+
+        def describe(self):
+            return ProviderCard(name=self.name, hosting_class=HostingClass.C,
+                                capabilities=["generate"], leaves_perimeter=True)
+
+        def generate(self, req):
+            captured["prompt"] = req.prompt
+            return GenerateResult(text="ok", provider=self.name, model="x",
+                                  hosting_class=HostingClass.C)
+
+    policy = RoutingPolicy({
+        "class_c_allowed_tiers": ["public"],
+        "tasks": {"qa": {"capability": "generate", "chain": [], "class_c": ["fake-c"]}},
+    })
+    monkeypatch.setattr("app.services.model_router.router.get_policy", lambda: policy)
+    monkeypatch.setattr("app.services.model_router.router.get_provider",
+                        lambda name: _FakeC() if name == "fake-c" else None)
+    monkeypatch.setattr(
+        "app.services.redaction.ner_extract",
+        lambda *a, **k: NERResult(entities=[], provider="local-ner", model="x", hosting_class=HostingClass.B),
+    )
+
+    req = GenerateRequest(prompt="Contact jane.doe@example.com re: the lease.",
+                          task="qa", sensitivity=SensitivityTier.PUBLIC)
+    result = Router().generate(req)
+
+    assert result.text == "ok"
+    assert "jane.doe@example.com" not in captured["prompt"]
+    assert "[REDACTED:EMAIL]" in captured["prompt"]
+    # the original request object is untouched -- callers reusing `req` are safe
+    assert "jane.doe@example.com" in req.prompt
+
+
+def test_generate_does_not_redact_for_a_class_b_dispatch(monkeypatch):
+    from app.services.model_router.base import ModelProvider
+    from app.services.model_router.policy import RoutingPolicy
+    from app.services.model_router.router import Router
+    from app.services.model_router.types import GenerateRequest, GenerateResult, ProviderCard
+
+    captured = {}
+
+    class _FakeB(ModelProvider):
+        name = "fake-b"
+        hosting_class = HostingClass.B
+
+        def describe(self):
+            return ProviderCard(name=self.name, hosting_class=HostingClass.B,
+                                capabilities=["generate"], leaves_perimeter=False)
+
+        def generate(self, req):
+            captured["prompt"] = req.prompt
+            return GenerateResult(text="ok", provider=self.name, model="x",
+                                  hosting_class=HostingClass.B)
+
+    policy = RoutingPolicy({
+        "class_c_allowed_tiers": ["public"],
+        "tasks": {"qa": {"capability": "generate", "chain": ["fake-b"], "class_c": []}},
+    })
+    monkeypatch.setattr("app.services.model_router.router.get_policy", lambda: policy)
+    monkeypatch.setattr("app.services.model_router.router.get_provider",
+                        lambda name: _FakeB() if name == "fake-b" else None)
+
+    called = {"ner": False}
+
+    def spy(*a, **k):
+        called["ner"] = True
+        return NERResult(entities=[], provider="local-ner", model="x", hosting_class=HostingClass.B)
+
+    monkeypatch.setattr("app.services.redaction.ner_extract", spy)
+
+    req = GenerateRequest(prompt="Contact jane.doe@example.com re: the lease.",
+                          task="qa", sensitivity=SensitivityTier.PUBLIC)
+    Router().generate(req)
+
+    assert "jane.doe@example.com" in captured["prompt"]  # self-hosted: full fidelity, no redaction
+    assert called["ner"] is False
 
 
 def test_registry_runs_without_external_providers(monkeypatch):

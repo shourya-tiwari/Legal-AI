@@ -79,6 +79,8 @@ A document tagged `Privileged` can never be routed to Class C. This is enforced 
 
 **Shipped (Phase 7):** the tier is now real. `app/services/sensitivity/` classifies every document on upload (rule-based Tier-0 — privilege markers → `privileged`, confidentiality phrases / PII density → `confidential`, SEC/press markers → `public`, else `internal`); `documents.sensitivity_tier` persists it; every text-generating service call threads it to the Model Router. `policy.candidates()` drops Class C for a disallowed tier, and `router._pick_and_call` **fails closed** (raises, logs ERROR) if a Class C provider is somehow handed a `confidential`/`privileged` request. `GET`/`PUT /api/v2/documents/{id}/sensitivity` is the org-admin override (audit-logged). The `Confidential`/`Privileged` per-document *upgrade* to Class C described above is deliberately **not** implemented — those tiers are hard-blocked.
 
+Sensitivity tiering is a document-level gate (all or nothing); it says nothing about incidental PII sitting inside a `public`/`internal` document that *is* allowed to reach Class C. **Shipped (Phase 7):** `app/services/redaction.py` closes that gap — a regex floor (SSN, credit card, email, phone) merged with optional GLiNER zero-shot spans (person names, physical addresses, via `ner_extract`) masks personal identifiers in the prompt the moment `Router.generate()` resolves a Class C provider, before that provider is dispatched. A self-hosted (Class B) call never passes through this check.
+
 ## The routing policy engine
 
 The Router's decision is driven by a **declarative policy**, hot-reloadable, versioned in git (`packages/policies/routing.yaml`), and logged with every call so any routing decision is reproducible.

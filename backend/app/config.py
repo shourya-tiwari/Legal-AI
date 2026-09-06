@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     STRICT_LOCAL_ONLY: bool = False
     ROUTING_POLICY_PATH: str = ""
 
+    # PII/PHI redaction gate (app/services/redaction.py, docs/v2/ARCHITECTURE.md
+    # Security architecture item 3). Applies only to a Class C (external)
+    # provider call -- self-hosted (Class B) calls never pass through this, so
+    # an on-prem/air-gapped deployment sees zero behavior change either way.
+    PII_REDACTION_ENABLED: bool = True
+
     # Document sensitivity classification (app/services/sensitivity/). The tier
     # a document gets is what the Class C gate keys on -- confidential/privileged
     # documents are never routed to an external provider. Disabled => every
