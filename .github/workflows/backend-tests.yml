@@ -56,3 +56,60 @@ jobs:
         env:
           GOOGLE_API_KEY: ""
         run: pytest -v -k "provider_isolation or model_router or rag_hybrid or nlp_pipeline or eval_gate or eval_metrics or models_status"
+
+  sbom-and-image:
+    # Build-level proof that the on-prem/air-gapped image genuinely excludes
+    # legalai-providers-external -- not just "no source file imports it"
+    # (core-only-smoke, above) but "the SDK isn't even installed in the
+    # image that ships" (docs/v2/ROADMAP.md Phase 7 "Build & supply chain",
+    # docs/v2/ARCHITECTURE.md Security architecture item 2).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the core (air-gapped) image
+        run: docker build -t legalai-backend:core backend/
+
+      - name: Build the external (Class C) image
+        run: docker build -t legalai-backend:external --build-arg PROVIDER_PROFILE=external backend/
+
+      - name: SBOM allowlist -- core image must be clean
+        run: docker run --rm legalai-backend:core python scripts/check_sbom_allowlist.py
+
+      - name: SBOM allowlist -- negative control (the check must actually have teeth)
+        # Checking the *external* image against the *core* policy must FAIL
+        # (it genuinely has google-genai installed) -- proves the allowlist
+        # script isn't vacuously passing everything.
+        run: |
+          if docker run --rm legalai-backend:external python scripts/check_sbom_allowlist.py --profile core; then
+            echo "FAIL: the allowlist check passed an image that has google-genai installed"
+            exit 1
+          fi
+
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          image: legalai-backend:core
+          format: spdx-json
+          output-file: legalai-backend-core.spdx.json
+
+      - name: Scan for known vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: legalai-backend:core
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"  # report-only for now -- flip to "1" once a triage/allowlist process for findings exists
+
+      - name: Sign the image (cosign, keyless/OIDC)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # Signing needs a real registry to push the (already-built) image to
+        # first -- this repo doesn't publish images anywhere yet, so this
+        # step is wired but has nothing to sign against in this environment.
+        # Left in place, gated to main, for the day a registry exists.
+        run: echo "cosign signing needs a pushed image + registry -- not wired up yet, see docs/v2/TASKS.md"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: legalai-backend-core-sbom
+          path: legalai-backend-core.spdx.json

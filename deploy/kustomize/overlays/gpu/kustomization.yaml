@@ -1,0 +1,15 @@
+# Layers on top of the on-prem overlay (bundled data layer) and adds the
+# self-hosted inference stack. A cloud-profile-plus-GPU combination would
+# need a small third overlay composing gpu-inference.yaml with ../cloud
+# instead -- not written here since no current deployment target needs it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: legalai
+
+resources:
+  - ../on-prem
+  - gpu-inference.yaml
+
+patches:
+  - path: secret-patch.yaml

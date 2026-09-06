@@ -1,0 +1,80 @@
+# Default values -- the on-prem/air-gapped profile (core image, bundled
+# data layer, no Class C). Override with -f values-cloud.yaml / --set for
+# the other profiles.
+profile: on-prem  # on-prem | cloud | gpu
+
+image:
+  repository: legalai-backend
+  tag: core
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+config:
+  authRequired: true
+  externalProvidersEnabled: false
+  strictLocalOnly: true
+  piiRedactionEnabled: true
+  sensitivityEnabled: true
+  modelCallLogging: true
+  rateLimitPerMinute: 60
+
+# Data layer: bundled (on-prem) or external/managed (cloud) -- see
+# postgres.external.
+postgres:
+  bundled: true
+  image: postgres:16-alpine
+  database: legalai
+  user: legalai
+  # Required when postgres.bundled is true or postgres.external.enabled is
+  # true -- there is no default, on purpose (no committed password).
+  password: ""
+  storage: 10Gi
+  external:
+    enabled: false
+    host: ""
+    port: 5432
+
+redis:
+  bundled: true
+  image: redis:7-alpine
+  external:
+    enabled: false
+    url: ""
+
+memgraph:
+  bundled: true
+  image: memgraph/memgraph:2.18.1
+  storage: 5Gi
+  external:
+    enabled: false
+    uri: ""
+
+# GPU inference stack (profile: gpu) -- docs/v2/AI_STACK.md.
+gpu:
+  enabled: false
+  ollama:
+    image: ollama/ollama:latest
+    modelStorage: 20Gi
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.5
+    embedModel: BAAI/bge-m3
+    rerankModel: BAAI/bge-reranker-v2-m3
+
+# Secrets not composable from the values above (docs/v2/ARCHITECTURE.md
+# "Secrets management": real values come from Vault/KMS/External Secrets at
+# deploy time, never committed -- these are the empty placeholders `--set`
+# or a values override file supplies).
+secrets:
+  googleApiKey: ""
+  llmBaseUrl: ""       # ignored when profile: gpu -- templated to the in-chart Ollama Service instead
+  embeddingBaseUrl: ""  # ditto, the in-chart TEI-embed Service
+  rerankerBaseUrl: ""   # ditto, the in-chart TEI-rerank Service

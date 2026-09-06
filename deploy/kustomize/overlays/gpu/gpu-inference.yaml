@@ -1,0 +1,149 @@
+# Self-hosted generation + embeddings/reranking (docs/v2/AI_STACK.md,
+# docker-compose.yml's `gpu` profile is the local-dev equivalent of this
+# overlay). `nvidia.com/gpu: 1` requires the NVIDIA device plugin installed
+# on the target cluster -- not something this manifest can provide, just
+# request.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-ollama
+  template:
+    metadata:
+      labels:
+        app: legalai-ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: legalai-ollama-models
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: legalai-ollama-models
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi  # Qwen3-8B + 14B-AWQ, docs/v2/ROADMAP.md Phase 6 hardware ceiling
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-ollama
+spec:
+  selector:
+    app: legalai-ollama
+  ports:
+    - port: 11434
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-tei-embed
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-tei-embed
+  template:
+    metadata:
+      labels:
+        app: legalai-tei-embed
+    spec:
+      containers:
+        - name: tei
+          image: ghcr.io/huggingface/text-embeddings-inference:1.5  # swap to a -cuda tag for GPU
+          args: ["--model-id", "BAAI/bge-m3"]
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-tei-embed
+spec:
+  selector:
+    app: legalai-tei-embed
+  ports:
+    - port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-tei-rerank
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-tei-rerank
+  template:
+    metadata:
+      labels:
+        app: legalai-tei-rerank
+    spec:
+      containers:
+        - name: tei
+          image: ghcr.io/huggingface/text-embeddings-inference:1.5
+          args: ["--model-id", "BAAI/bge-reranker-v2-m3"]
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-tei-rerank
+spec:
+  selector:
+    app: legalai-tei-rerank
+  ports:
+    - port: 80
+---
+# Additive to on-prem's legalai-backend-egress NetworkPolicy -- multiple
+# NetworkPolicy objects selecting the same pod for the same policyType are
+# unioned (OR'd) by Kubernetes, not replaced, so this only *adds* the
+# inference-stack access on-prem's base policy doesn't grant, rather than
+# needing to patch or duplicate the existing rule set.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: legalai-backend-egress-gpu-inference
+spec:
+  podSelector:
+    matchLabels:
+      app: legalai-backend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: legalai-ollama
+        - podSelector:
+            matchLabels:
+              app: legalai-tei-embed
+        - podSelector:
+            matchLabels:
+              app: legalai-tei-rerank

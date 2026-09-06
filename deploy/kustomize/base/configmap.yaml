@@ -1,0 +1,16 @@
+# Non-secret settings only (docs/v2/ARCHITECTURE.md "Secrets management":
+# no secrets in this file, ever -- DATABASE_URL/REDIS_URL/GOOGLE_API_KEY
+# etc. belong in legalai-backend-secrets, injected by Vault/KMS/sealed-
+# secrets in a real deployment, never committed).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: legalai-backend-config
+data:
+  AUTH_REQUIRED: "true"
+  EXTERNAL_PROVIDERS_ENABLED: "false"  # overridden to "true" only by the cloud overlay
+  STRICT_LOCAL_ONLY: "true"
+  PII_REDACTION_ENABLED: "true"
+  SENSITIVITY_ENABLED: "true"
+  MODEL_CALL_LOGGING: "true"
+  RATE_LIMIT_PER_MINUTE: "60"

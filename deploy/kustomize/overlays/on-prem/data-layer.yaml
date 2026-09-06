@@ -1,0 +1,139 @@
+# The on-prem profile bundles its own data layer (docs/v2/ROADMAP.md Phase 7
+# "Collapsed data layer" note: this is the *standard*, not collapsed,
+# profile -- Postgres + Redis + Memgraph, same images docker-compose.yml
+# already runs for local dev). The collapsed (pgvector/KùzuDB/LanceDB)
+# profile is a separate overlay once that substitution work lands
+# (docs/v2/TASKS.md "Support pgvector... as a Qdrant substitute" etc.).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-postgres
+  template:
+    metadata:
+      labels:
+        app: legalai-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: legalai
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: legalai-backend-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: legalai
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: legalai-postgres-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: legalai-postgres-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-postgres
+spec:
+  selector:
+    app: legalai-postgres
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-redis
+  template:
+    metadata:
+      labels:
+        app: legalai-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-redis
+spec:
+  selector:
+    app: legalai-redis
+  ports:
+    - port: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-memgraph
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-memgraph
+  template:
+    metadata:
+      labels:
+        app: legalai-memgraph
+    spec:
+      containers:
+        - name: memgraph
+          image: memgraph/memgraph:2.18.1
+          ports:
+            - containerPort: 7687
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/memgraph
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: legalai-memgraph-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: legalai-memgraph-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-memgraph
+spec:
+  selector:
+    app: legalai-memgraph
+  ports:
+    - port: 7687

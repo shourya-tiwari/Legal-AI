@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: legalai-backend-config
+  labels:
+    {{- include "legalai.labels" . | nindent 4 }}
+data:
+  AUTH_REQUIRED: {{ .Values.config.authRequired | quote }}
+  EXTERNAL_PROVIDERS_ENABLED: {{ .Values.config.externalProvidersEnabled | quote }}
+  STRICT_LOCAL_ONLY: {{ .Values.config.strictLocalOnly | quote }}
+  PII_REDACTION_ENABLED: {{ .Values.config.piiRedactionEnabled | quote }}
+  SENSITIVITY_ENABLED: {{ .Values.config.sensitivityEnabled | quote }}
+  MODEL_CALL_LOGGING: {{ .Values.config.modelCallLogging | quote }}
+  RATE_LIMIT_PER_MINUTE: {{ .Values.config.rateLimitPerMinute | quote }}

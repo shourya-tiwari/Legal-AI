@@ -1,0 +1,39 @@
+# The cloud profile legitimately reaches a Class C provider (Gemini,
+# generativelanguage.googleapis.com) plus external-managed data services,
+# so its egress policy is "DNS + HTTPS only" rather than on-prem's
+# "nothing but the in-namespace data layer." This still doesn't allowlist
+# by destination *hostname* -- a plain NetworkPolicy can't do FQDN-based
+# egress filtering (that needs a CNI-specific extension, e.g. Cilium's
+# CiliumNetworkPolicy `toFQDNs`, or a forward proxy pod) -- so this is the
+# coarse-grained "port 443 to anywhere" version of the policy, not the
+# fully-scoped "provider endpoints only" one docs/v2/ARCHITECTURE.md
+# describes. Tightening it further is real remaining work, not done here,
+# and specifically depends on which CNI a real target cluster runs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: legalai-backend-egress
+spec:
+  podSelector:
+    matchLabels:
+      app: legalai-backend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - ports:
+        - port: 443
+          protocol: TCP
+    - ports:
+        - port: 5432
+          protocol: TCP
+        - port: 6379
+          protocol: TCP
+        - port: 7687
+          protocol: TCP

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-backend
+  labels:
+    {{- include "legalai.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: legalai-backend
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP

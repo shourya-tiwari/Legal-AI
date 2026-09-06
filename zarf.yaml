@@ -1,0 +1,78 @@
+# Zarf package definition (docs/v2/ROADMAP.md Phase 7 "Build & supply
+# chain" -- "Zarf packaging of the full application into one installable
+# artifact"). Written against Zarf's documented schema (zarf.dev); the
+# `zarf` CLI is not installed in this environment, so `zarf package create`
+# / `zarf package deploy` have not been run here -- that's the one
+# unverifiable-in-this-environment part of this item, the manifest's
+# structure and content are real. See docs/v2/TASKS.md for what's
+# confirmed vs. not.
+#
+# Intended flow on a real air-gapped target:
+#   zarf package create .                 # bundles images + this repo's k8s manifests
+#   zarf package deploy zarf-package-*.tar.zst   # on the disconnected cluster
+
+kind: ZarfPackageConfig
+metadata:
+  name: legalai
+  description: >-
+    Legal Demystifier backend (air-gapped profile) -- FastAPI app, Postgres,
+    Redis, Memgraph, and (optionally, the `gpu` component) a self-hosted
+    Ollama + TEI inference layer. No commercial-provider SDK in this package
+    -- built from the `core` Docker profile (backend/Dockerfile).
+  version: "0.1.0"
+
+components:
+  - name: legalai-backend
+    required: true
+    description: The FastAPI backend, built from the core (air-gapped) profile.
+    images:
+      - legalai-backend:core
+    manifests:
+      - name: legalai-backend-k8s
+        namespace: legalai
+        files:
+          - deploy/kustomize/base
+
+  - name: legalai-data-layer
+    required: true
+    description: Postgres + Redis + Memgraph, the profile's default data layer.
+    images:
+      - postgres:16-alpine
+      - redis:7-alpine
+      - memgraph/memgraph:2.18.1
+    manifests:
+      - name: legalai-data-layer-k8s
+        namespace: legalai
+        files:
+          - deploy/kustomize/overlays/on-prem
+
+  - name: legalai-gpu-inference
+    required: false
+    description: >-
+      Self-hosted generation + embeddings/reranking (Ollama + TEI, Qwen3-8B +
+      bge-m3 + bge-reranker-v2-m3, docs/v2/AI_STACK.md). Optional component --
+      omit it for a CPU-only install that relies on the Class-A offline
+      floor (hashing embedder, lexical reranker) and routes generation to a
+      human-review-required state until a self-hosted LLM is configured.
+    images:
+      - ollama/ollama:latest
+      - ghcr.io/huggingface/text-embeddings-inference:cpu-1.5  # replace with the -cuda tag on a GPU node
+    manifests:
+      - name: legalai-gpu-inference-k8s
+        namespace: legalai
+        files:
+          - deploy/kustomize/overlays/gpu
+
+  - name: legalai-seed-corpus
+    required: false
+    description: >-
+      The hybrid-RAG seed corpus (app/services/rag/corpus.py's legal
+      knowledge base) and the eval gold sets (app/eval/gold_set.py) -- not
+      model weights (those are the separate KitOps ModelKit, Kitfile at
+      repo root), just the small, versioned data files this repo already
+      commits in source.
+    files:
+      - source: backend/app/services/rag/corpus.py
+        target: seed/corpus.py
+      - source: backend/app/eval/gold_set.py
+        target: seed/gold_set.py

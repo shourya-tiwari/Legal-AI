@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: legalai-backend-config
+data:
+  EXTERNAL_PROVIDERS_ENABLED: "true"
+  STRICT_LOCAL_ONLY: "false"

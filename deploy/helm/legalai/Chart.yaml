@@ -1,0 +1,16 @@
+apiVersion: v2
+name: legalai
+description: >-
+  Legal Demystifier backend (docs/v2/ROADMAP.md Phase 7 "Build & supply
+  chain"). Handles the one thing plain Kustomize (deploy/kustomize/) can't:
+  composing a DATABASE_URL that embeds a templated password, and switching
+  profiles (onProfile/cloud/gpu) via a single values.yaml rather than a
+  directory of overlay patches. Prefer this chart when a target needs that
+  composition; prefer the Kustomize overlays when it doesn't -- both render
+  the same underlying resources, kept in sync by hand (no `helm` binary is
+  installed in the environment this chart was authored in, so it has not
+  been run through `helm lint`/`helm template` -- see docs/v2/TASKS.md for
+  exactly what's verified vs. not).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

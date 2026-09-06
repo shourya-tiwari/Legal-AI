@@ -1,0 +1,18 @@
+# The cloud/hybrid profile: no bundled data layer (a managed Postgres/Redis/
+# Memgraph-or-substitute is assumed, its connection strings injected via
+# legalai-backend-secrets by whatever secrets pipeline the cloud target
+# uses -- Vault, cloud-provider KMS + External Secrets Operator, etc.), and
+# the `external` image profile (google-genai present, Class C reachable
+# for public/internal-tier documents per docs/v2/AI_STACK.md).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: legalai
+
+resources:
+  - ../../base
+  - network-policy.yaml
+
+patches:
+  - path: deployment-patch.yaml
+  - path: config-patch.yaml

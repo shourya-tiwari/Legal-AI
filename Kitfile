@@ -1,0 +1,47 @@
+# KitOps ModelKit manifest (docs/v2/ROADMAP.md Phase 7 "Build & supply
+# chain" -- "Model weights as signed KitOps ModelKit OCI artifacts via
+# Harbor; no pip / huggingface-cli on the target"). Written against
+# KitOps's documented Kitfile schema (kitops.org); the `kit` CLI is not
+# installed in this environment, so `kit pack` / `kit push` have not been
+# run here. The point of this artifact: on the deployed target, model
+# weights arrive as a signed OCI blob pulled by `kit unpack`, never via
+# `pip install`/`huggingface-cli download` reaching out to the internet --
+# a real air-gapped/Harbor-only target has neither of those tools able to
+# reach anywhere.
+manifestVersion: "1.0.0"
+
+package:
+  name: legalai-models
+  version: "0.1.0"
+  description: >-
+    Every self-hosted model this deployment serves (docs/v2/AI_STACK.md),
+    packaged as one signed, versioned OCI artifact instead of each being
+    pulled ad hoc by whatever tool happens to be installed on the target.
+  authors:
+    - Legal Demystifier project
+
+model:
+  name: qwen3-8b
+  path: ./models/qwen3-8b
+  description: >-
+    The self-hosted generation default (docs/v2/ROADMAP.md Phase 6 hardware
+    ceiling: one 16 GB card, no 32B). Served via Ollama in this repo's
+    docker-compose.yml `gpu` profile today (a `Modelfile`-based pull, not
+    yet this OCI artifact) -- this Kitfile is the documented target shape
+    for the on-prem/air-gapped profile, not yet the actual serving path.
+  parts:
+    - path: ./models/qwen3-8b/weights
+      type: weights
+    - path: ./models/qwen3-8b/Modelfile
+      type: config
+
+datasets:
+  - name: rag-seed-corpus
+    path: ./backend/app/services/rag/corpus.py
+    description: The hybrid-RAG seed corpus -- source-committed, small, versioned alongside the app itself.
+
+code:
+  - path: ./backend/app/services/model_router/providers/nli_local.py
+    description: The NLI faithfulness head's provider adapter (references NLI_MODEL, MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli).
+  - path: ./backend/app/services/model_router/providers/gliner_local.py
+    description: The GLiNER zero-shot NER provider adapter (references NER_MODEL, urchade/gliner_multi-v2.1).

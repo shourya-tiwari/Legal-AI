@@ -1,0 +1,23 @@
+# helm install legalai deploy/helm/legalai -f deploy/helm/legalai/values-cloud.yaml
+profile: cloud
+image:
+  tag: external
+config:
+  externalProvidersEnabled: true
+  strictLocalOnly: false
+postgres:
+  bundled: false
+  external:
+    enabled: true
+    host: ""  # e.g. a managed Cloud SQL / RDS host
+    port: 5432
+redis:
+  bundled: false
+  external:
+    enabled: true
+    url: ""  # e.g. a managed Redis/Memorystore URL
+memgraph:
+  bundled: false
+  external:
+    enabled: true
+    uri: ""  # e.g. a managed Memgraph Cloud / self-run instance elsewhere

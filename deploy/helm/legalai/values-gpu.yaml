@@ -1,0 +1,7 @@
+# helm install legalai deploy/helm/legalai -f deploy/helm/legalai/values-gpu.yaml
+# Layers on top of the default (on-prem) values -- bundled data layer stays,
+# self-hosted generation/embeddings/reranking is added. Needs the NVIDIA
+# device plugin installed on the target cluster (not this chart's job).
+profile: gpu
+gpu:
+  enabled: true

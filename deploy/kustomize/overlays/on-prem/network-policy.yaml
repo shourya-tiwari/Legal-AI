@@ -1,0 +1,41 @@
+# Egress network policy -- the network-enforcement half of docs/v2/
+# ARCHITECTURE.md Security architecture item 2 ("an egress proxy/network
+# policy denies all outbound traffic except to the explicitly configured
+# provider endpoints"). This is real, valid Kubernetes config (rendered and
+# checked with `kubectl kustomize`, same as every other manifest in this
+# tree) -- what it can't be is *enforced and verified* here: NetworkPolicy
+# is a no-op unless the cluster's CNI actually implements it (Calico,
+# Cilium, etc.), and there is no cluster in this environment to confirm a
+# CNI honors it. The air-gapped/on-prem profile denies ALL egress from the
+# backend pod except to the in-namespace data layer + DNS -- correct,
+# since this profile never routes to a Class C provider at all
+# (STRICT_LOCAL_ONLY=true, no google-genai even installed in the `core`
+# image).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: legalai-backend-egress
+spec:
+  podSelector:
+    matchLabels:
+      app: legalai-backend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: legalai-postgres
+        - podSelector:
+            matchLabels:
+              app: legalai-redis
+        - podSelector:
+            matchLabels:
+              app: legalai-memgraph

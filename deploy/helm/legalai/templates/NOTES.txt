@@ -1,0 +1,5 @@
+Legal Demystifier backend deployed (profile: {{ .Values.profile }}).
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/legalai-backend 8000:80
+
+Then GET http://127.0.0.1:8000/ should return the health message.

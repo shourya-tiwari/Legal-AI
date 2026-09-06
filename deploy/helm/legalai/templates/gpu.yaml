@@ -1,0 +1,119 @@
+{{- if .Values.gpu.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-ollama
+  template:
+    metadata:
+      labels:
+        app: legalai-ollama
+    spec:
+      containers:
+        - name: ollama
+          image: {{ .Values.gpu.ollama.image }}
+          ports:
+            - containerPort: 11434
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: legalai-ollama-models
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: legalai-ollama-models
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.gpu.ollama.modelStorage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-ollama
+spec:
+  selector:
+    app: legalai-ollama
+  ports:
+    - port: 11434
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-tei-embed
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-tei-embed
+  template:
+    metadata:
+      labels:
+        app: legalai-tei-embed
+    spec:
+      containers:
+        - name: tei
+          image: {{ .Values.gpu.tei.image }}
+          args: ["--model-id", {{ .Values.gpu.tei.embedModel | quote }}]
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-tei-embed
+spec:
+  selector:
+    app: legalai-tei-embed
+  ports:
+    - port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legalai-tei-rerank
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legalai-tei-rerank
+  template:
+    metadata:
+      labels:
+        app: legalai-tei-rerank
+    spec:
+      containers:
+        - name: tei
+          image: {{ .Values.gpu.tei.image }}
+          args: ["--model-id", {{ .Values.gpu.tei.rerankModel | quote }}]
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legalai-tei-rerank
+spec:
+  selector:
+    app: legalai-tei-rerank
+  ports:
+    - port: 80
+{{- end }}
