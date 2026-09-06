@@ -121,6 +121,12 @@ class Settings(BaseSettings):
     MEMGRAPH_URI: str = "bolt://127.0.0.1:7687"  # IP literal, not "localhost" -- skips a slow dual-stack DNS/connect attempt when Memgraph isn't running
     MEMGRAPH_USER: str = ""
     MEMGRAPH_PASSWORD: str = ""
+    # Collapsed data layer (Phase 7, docs/v2/ROADMAP.md "Collapsed data
+    # layer" -- the laptop/single-binary profile): "kuzu" swaps the KG
+    # backend for an embedded, in-process graph database (app/services/kg/
+    # kuzu_client.py) needing no server at all, instead of Memgraph.
+    KG_BACKEND: str = "memgraph"  # "memgraph" | "kuzu"
+    KUZU_DB_PATH: str = "./kuzu_data"
 
     # ---- Observability (Phase 5, docs/v2/MODEL_STACK.md "Observability") -----
     # MODEL_CALL_LOGGING persists one row per routing decision to the

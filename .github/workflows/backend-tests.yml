@@ -57,6 +57,31 @@ jobs:
           GOOGLE_API_KEY: ""
         run: pytest -v -k "provider_isolation or model_router or rag_hybrid or nlp_pipeline or eval_gate or eval_metrics or models_status"
 
+  collapsed-data-layer-smoke:
+    # The laptop/single-binary profile (docs/v2/ROADMAP.md Phase 7
+    # "Collapsed data layer"): KG_BACKEND=kuzu substitutes an embedded,
+    # in-process graph database for the Memgraph server, needing no
+    # separate service at all. Unlike the Helm/OpenTofu/Zarf artifacts in
+    # the sbom-and-image job, this one genuinely runs here -- kuzu is a
+    # pure-Python-installable embedded database, no external service.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install core + the collapsed data layer extra
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-collapsed.txt
+      - name: Real end-to-end test against an actual embedded Kuzu database
+        env:
+          GOOGLE_API_KEY: ""
+        run: pytest -v tests/test_kg_kuzu_client.py
+
   sbom-and-image:
     # Build-level proof that the on-prem/air-gapped image genuinely excludes
     # legalai-providers-external -- not just "no source file imports it"

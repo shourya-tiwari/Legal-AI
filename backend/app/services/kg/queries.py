@@ -17,22 +17,47 @@ from .client import KGClient
 def find_clauses_using_term(client: KGClient, org_id: int, term: str) -> List[Dict[str, Any]]:
     """All clauses across the org's portfolio that use a defined term with
     this name, including clauses in documents whose matching term was
-    SAME_AS-linked to this one (see builder.link_portfolio_terms)."""
-    return client.run_query(
-        f"MATCH (t:{schema.DEFINED_TERM} {{org_id: $org_id}}) "
-        f"WHERE toLower(t.term) = $term "
-        f"OPTIONAL MATCH (t)-[:{schema.SAME_AS}]-(linked:{schema.DEFINED_TERM}) "
-        f"WITH collect(DISTINCT t) + collect(DISTINCT linked) AS terms "
-        f"UNWIND terms AS term "
-        f"WITH term WHERE term IS NOT NULL "
-        f"MATCH (c:{schema.CLAUSE})-[:{schema.USES_TERM}]->(term) "
-        f"MATCH (c)-[:{schema.PART_OF}]->(d:{schema.DOCUMENT}) "
-        # `text` is reserved in Memgraph's Cypher grammar -- needs backticks
-        # even as a plain RETURN alias, not just for property access.
-        f"RETURN DISTINCT c.id AS clause_id, c.content AS `text`, c.clause_type AS clause_type, "
-        f"d.document_id AS document_id",
-        org_id=org_id, term=normalize_term(term),
-    )
+    SAME_AS-linked to this one (see builder.link_portfolio_terms).
+
+    Two query variants, picked by `client.backend`: Memgraph/Neo4j allow a
+    bound node object (`t`/`linked`) to flow through WITH/UNWIND and be
+    reused directly as a MATCH pattern later in the same query. Kuzu's
+    binder rejects that ("Cannot bind term as node pattern") -- confirmed
+    empirically against a real embedded Kuzu database, not assumed from
+    docs -- so the Kuzu variant collects `.id` (a plain string) instead and
+    re-MATCHes by id. Every other query in this module runs unchanged
+    against both backends; this is the one genuine Cypher-dialect
+    difference between them that this codebase's queries hit."""
+    if getattr(client, "backend", "memgraph") == "kuzu":
+        cypher = (
+            f"MATCH (t:{schema.DEFINED_TERM} {{org_id: $org_id}}) "
+            f"WHERE toLower(t.term) = $term "
+            f"OPTIONAL MATCH (t)-[:{schema.SAME_AS}]-(linked:{schema.DEFINED_TERM}) "
+            f"WITH collect(DISTINCT t.id) + coalesce(collect(DISTINCT linked.id), []) AS term_ids "
+            f"UNWIND term_ids AS term_id "
+            f"WITH DISTINCT term_id WHERE term_id IS NOT NULL "
+            f"MATCH (term:{schema.DEFINED_TERM} {{id: term_id}}) "
+            f"MATCH (c:{schema.CLAUSE})-[:{schema.USES_TERM}]->(term) "
+            f"MATCH (c)-[:{schema.PART_OF}]->(d:{schema.DOCUMENT}) "
+            f"RETURN DISTINCT c.id AS clause_id, c.content AS `text`, c.clause_type AS clause_type, "
+            f"d.document_id AS document_id"
+        )
+    else:
+        cypher = (
+            f"MATCH (t:{schema.DEFINED_TERM} {{org_id: $org_id}}) "
+            f"WHERE toLower(t.term) = $term "
+            f"OPTIONAL MATCH (t)-[:{schema.SAME_AS}]-(linked:{schema.DEFINED_TERM}) "
+            f"WITH collect(DISTINCT t) + collect(DISTINCT linked) AS terms "
+            f"UNWIND terms AS term "
+            f"WITH term WHERE term IS NOT NULL "
+            f"MATCH (c:{schema.CLAUSE})-[:{schema.USES_TERM}]->(term) "
+            f"MATCH (c)-[:{schema.PART_OF}]->(d:{schema.DOCUMENT}) "
+            # `text` is reserved in Memgraph's Cypher grammar -- needs
+            # backticks even as a plain RETURN alias, not just for property access.
+            f"RETURN DISTINCT c.id AS clause_id, c.content AS `text`, c.clause_type AS clause_type, "
+            f"d.document_id AS document_id"
+        )
+    return client.run_query(cypher, org_id=org_id, term=normalize_term(term))
 
 
 def find_potential_conflicts(client: KGClient, org_id: int, term: str) -> List[Dict[str, Any]]:

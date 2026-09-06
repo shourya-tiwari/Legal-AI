@@ -1,0 +1,13 @@
+# ---------------------------------------------------------------------------
+# Collapsed data layer (docs/v2/ROADMAP.md Phase 7 "Collapsed data layer" --
+# the laptop/single-binary profile: fewer services to run). Installing this
+# and setting KG_BACKEND=kuzu substitutes the Memgraph server for an
+# embedded, in-process, disk-backed graph database -- app/services/kg/
+# kuzu_client.py -- needing no separate service at all.
+#
+# Not installed by default: the standard profile still targets Memgraph
+# (docker-compose.yml), which is the more feature-complete, multi-writer-
+# capable graph engine. This is for the profile that specifically wants to
+# run with fewer moving parts.
+# ---------------------------------------------------------------------------
+kuzu==0.11.3

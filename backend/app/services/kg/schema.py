@@ -35,7 +35,16 @@ SAME_AS = "SAME_AS"
 
 def ensure_constraints(client) -> None:
     """Idempotent uniqueness constraints. Safe to call repeatedly (e.g. on
-    every app startup) -- Memgraph no-ops if a constraint already exists."""
+    every app startup) -- Memgraph no-ops if a constraint already exists.
+
+    No-ops entirely for the Kuzu backend (Settings.KG_BACKEND="kuzu",
+    docs/v2/ROADMAP.md Phase 7 "Collapsed data layer"): Kuzu doesn't support
+    Memgraph's `CREATE CONSTRAINT ... ASSERT ... IS UNIQUE` syntax at all,
+    and doesn't need to -- every Kuzu node table already declares
+    `PRIMARY KEY(id)` at creation time (kuzu_client.py's `_SCHEMA_DDL`),
+    which enforces the identical uniqueness guarantee up front."""
+    if getattr(client, "backend", "memgraph") == "kuzu":
+        return
     statements = [
         f"CREATE CONSTRAINT ON (d:{DOCUMENT}) ASSERT d.id IS UNIQUE",
         f"CREATE CONSTRAINT ON (c:{CLAUSE}) ASSERT c.id IS UNIQUE",
