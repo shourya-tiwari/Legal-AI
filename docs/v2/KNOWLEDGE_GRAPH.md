@@ -17,6 +17,8 @@ Verify the current licence of Memgraph against the deployment model before commi
 
 ## Schema
 
+**Status**: this is the full target schema. `app/services/kg/schema.py` (shipped, Phase 3) implements only `Document`/`Clause`/`DefinedTerm`/`CrossReferenceTarget` nodes and `PART_OF`/`DEFINES`/`USES_TERM`/`REFERENCES`/`SAME_AS` edges — deliberately, per its own docstring: no `Obligation`/`Party`/`Statute`/`Jurisdiction`/`RiskFlag`/`ContractType`/`DateEvent`/`CaseLaw` nodes, no `OBLIGATES`/`TRIGGERED_BY`/`CONFLICTS_WITH`/`CITES`/`AMENDS`/`SUPERSEDES`/`GOVERNED_BY` edges, and no bitemporal versioning. `Obligation`/`TRIGGERED_BY` specifically don't exist because the deontic tagger (`NLP.md`) doesn't resolve actor/action — modeling them now would mean guessing. This is also why the Simulation agent's Phase 8 baseline (`AGENTS.md`) works over clause-level dates directly rather than walking `TRIGGERED_BY` edges, and why `find_potential_conflicts` (below) is a term-string match, not a `CONFLICTS_WITH` edge query. Growing the schema toward this table is real, scoped, future work (Phase 8), not assumed-done.
+
 ### Node types
 
 | Node | Key properties |

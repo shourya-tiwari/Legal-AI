@@ -92,9 +92,9 @@ Memgraph needs no GPU, so this phase's infrastructure is real. Scoped down: enti
 A fixed LangGraph pipeline wiring Phases 0-3 into one verified agent workflow.
 
 - LangGraph orchestration deployed: Extraction → Risk & Compliance → Clause Research → Summary → Verifier as a fixed sequence. **Since made planner-driven in Phase 7** (`app/agents/planner.py` chooses which middle agents run). **Still not done**: a durable-execution engine (runs synchronously in-request — acceptable at current runtimes, revisit in Phase 7).
-- Verifier ships citation check + KG consistency check (both real); the NLI faithfulness check is an honestly-labelled lexical-overlap stand-in — real local NLI head → **Phase 6**.
-- Memory Service — **not started** → Phase 7.
-- Frontend Agent Trace Viewer — **not started**; the whole project is backend-only through Phase 4 → Phase 7.
+- Verifier ships citation check + KG consistency check (both real) + **real local NLI faithfulness head, shipped Phase 6** (`_lexical_overlap_faithfulness` kept only as the labelled fallback when the head isn't installed). `needs_human_review` is now **persisted and reviewable**, not just returned once — Phase 7's `CaseAnalysis` table + review queue.
+- Memory Service — **not started** → Phase 7 (still blocked on infra — see Phase 7's status).
+- Frontend Agent Trace Viewer — **post-hoc version shipped Phase 7** (`AgentTraceViewer`); real-time (session WebSocket) still blocked on the Memory Service above.
 - `agent_traces` persistence — **done**, one row per step, verified live.
 
 **Exit criteria**: a full single-document analysis runs as an auditable agent workflow with every claim citation-checked before reaching the UI — **met at the backend level** (no UI yet — Phase 7).

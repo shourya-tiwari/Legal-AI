@@ -106,7 +106,7 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 - [x] Extraction agent — `app/agents/extraction.py`, wraps Phase 2's `build_clause_objects`
 - [x] Risk & Compliance agent — `app/agents/risk_compliance.py`: keyword flags (`risk_radar/rules.py`) + KG candidate-conflict lookup. AI risk pass not invoked here (Tier-0 keyword sweep only)
 - [x] Clause Research agent — `app/agents/research.py`; only runs on already-flagged clauses
-- [~] Verifier/Critic agent — citation check (real, reuses `citation_validator.py`) + KG consistency check (real — a KG conflict forces `needs_human_review`) ship now; **NLI faithfulness check is a lexical-overlap stand-in** (`_lexical_overlap_faithfulness`), honestly labelled → real cross-encoder **Phase 6**
+- [x] Verifier/Critic agent — citation check (real, reuses `citation_validator.py`) + KG consistency check (real — a KG conflict forces `needs_human_review`) + **real NLI faithfulness check** (shipped Phase 6: `providers/nli_local.py`, in-process DeBERTa-v3-MNLI, 0.91 MNLI acc) with `_lexical_overlap_faithfulness` kept as the honestly-labelled fallback (`faithfulness_method="lexical_fallback"`) when the head isn't installed. `needs_human_review`'s outcome is now persisted too (`CaseAnalysis`, Phase 7) and listable via the review queue, not just returned once.
 - [ ] Typed tool interfaces (KG query, vector search, statute lookup, date math, clause diff, human-approval) — **not built as a formal typed-tool-calling layer**; agents call services as plain Python functions → **Phase 7** (when a real planner needs to choose tools)
 - [x] Persist full agent trace to `agent_traces` — new table in `db_models.py`; one row per step, verified live against Postgres
 
@@ -118,8 +118,8 @@ Actionable, checkbox-level backlog for `ROADMAP.md`. Grouped by phase, then by a
 **Frontend (`FRONTEND.md`)** → all **Phase 7**
 - [x] Scaffold Next.js + TypeScript; generate API client from OpenAPI — `frontend-v2/` (Next.js App Router + TS + Tailwind + TanStack Query), `npm run codegen` dumps `app.main.app.openapi()` and runs `openapi-typescript` over it (`src/lib/api-types.ts`, committed; `openapi.json` regenerated, gitignored). V1's `frontend/` untouched, still deployed.
 - [x] Workspace + Document Analyzer modules (V1 parity) — upload → `/documents/[id]` workspace: per-clause actions (rewrite/risk-scan/contextualize via `block_id`, something V1's UI structurally couldn't do) + whole-document rewrite/timeline/risk-scan/ask, a sensitivity badge, and a bonus full-agent-analysis panel (`plan`/`trace`/`risk_findings`/`kg_conflicts`/faithfulness — zero backend work, the endpoint already returned everything). Verified against the real backend via curl (Gemini was intermittently 503-ing during the session; every endpoint succeeded on retry with the exact request/response shapes the client expects) plus a clean `next build`/`lint`; no browser extension was connected this session to click through it live — that's still open.
-- [ ] Agent Trace Viewer (real-time via session WebSocket)
-- [ ] Human-in-the-loop review queue UI
+- [~] Agent Trace Viewer — post-hoc version shipped Phase 7 (`AgentTraceViewer`); real-time (session WebSocket) still ⛔ blocked on infra (see Phase 7)
+- [x] Human-in-the-loop review queue UI — shipped Phase 7 (`CaseAnalysis` table + `/api/review-queue` + `/review` page)
 - [ ] Feature-flag `/api/v2` usage per org
 
 **Backend** → **Phase 7**
