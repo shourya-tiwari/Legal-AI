@@ -489,6 +489,110 @@ def test_generate_does_not_redact_for_a_class_b_dispatch(monkeypatch):
     assert called["ner"] is False
 
 
+# --------------------------------------------------------------------------
+# Egress audit trail (app/services/model_router/telemetry.py::record_egress,
+# docs/v2/ARCHITECTURE.md item 2 "log every byte sent" + item 9 "audit
+# trail"): one audit_log row per Class C dispatch, never for Class B.
+# --------------------------------------------------------------------------
+
+def test_generate_writes_an_egress_audit_row_for_a_class_c_dispatch(client, db_session, monkeypatch):
+    import json
+
+    from app.db_models import AuditLog
+    from app.services.model_router.base import ModelProvider
+    from app.services.model_router.policy import RoutingPolicy
+    from app.services.model_router.router import Router
+    from app.services.model_router.types import GenerateRequest, GenerateResult, ProviderCard
+
+    monkeypatch.setenv("EXTERNAL_PROVIDERS_ENABLED", "true")
+    get_settings.cache_clear()
+
+    class _FakeC(ModelProvider):
+        name = "fake-c"
+        hosting_class = HostingClass.C
+
+        def describe(self):
+            return ProviderCard(name=self.name, hosting_class=HostingClass.C,
+                                capabilities=["generate"], leaves_perimeter=True)
+
+        def generate(self, req):
+            return GenerateResult(text="ok", provider=self.name, model="fake-model-x",
+                                  hosting_class=HostingClass.C)
+
+    policy = RoutingPolicy({
+        "version": 7,
+        "class_c_allowed_tiers": ["public"],
+        "tasks": {"qa": {"capability": "generate", "chain": [], "class_c": ["fake-c"]}},
+    })
+    monkeypatch.setattr("app.services.model_router.router.get_policy", lambda: policy)
+    monkeypatch.setattr("app.services.model_router.router.get_provider",
+                        lambda name: _FakeC() if name == "fake-c" else None)
+    monkeypatch.setattr(
+        "app.services.redaction.ner_extract",
+        lambda *a, **k: NERResult(entities=[], provider="local-ner", model="x", hosting_class=HostingClass.B),
+    )
+
+    before = db_session.query(AuditLog).filter_by(action="model_egress").count()
+    req = GenerateRequest(prompt="Contact jane.doe@example.com re: the lease.",
+                          task="qa", sensitivity=SensitivityTier.PUBLIC)
+    Router().generate(req)
+
+    rows = (
+        db_session.query(AuditLog).filter_by(action="model_egress")
+        .order_by(AuditLog.id.desc()).all()
+    )
+    assert len(rows) == before + 1
+    row = rows[0]
+    assert row.resource == "qa"
+    assert row.egress_target == "fake-c"
+    detail = json.loads(row.detail)
+    assert detail["model"] == "fake-model-x"
+    assert detail["sensitivity"] == "public"
+    assert detail["policy_version"] == 7
+    assert detail["redacted_categories"] == {"email": 1}
+    assert "payload_sha256" in detail
+    # the hash matches what was actually sent (the redacted prompt), not the original
+    import hashlib
+    assert detail["payload_sha256"] == hashlib.sha256(
+        "Contact [REDACTED:EMAIL] re: the lease.".encode("utf-8")
+    ).hexdigest()
+
+
+def test_generate_writes_no_egress_row_for_a_class_b_dispatch(client, db_session, monkeypatch):
+    from app.db_models import AuditLog
+    from app.services.model_router.base import ModelProvider
+    from app.services.model_router.policy import RoutingPolicy
+    from app.services.model_router.router import Router
+    from app.services.model_router.types import GenerateRequest, GenerateResult, ProviderCard
+
+    class _FakeB(ModelProvider):
+        name = "fake-b-egress-test"
+        hosting_class = HostingClass.B
+
+        def describe(self):
+            return ProviderCard(name=self.name, hosting_class=HostingClass.B,
+                                capabilities=["generate"], leaves_perimeter=False)
+
+        def generate(self, req):
+            return GenerateResult(text="ok", provider=self.name, model="x",
+                                  hosting_class=HostingClass.B)
+
+    policy = RoutingPolicy({
+        "class_c_allowed_tiers": ["public"],
+        "tasks": {"qa": {"capability": "generate", "chain": ["fake-b-egress-test"], "class_c": []}},
+    })
+    monkeypatch.setattr("app.services.model_router.router.get_policy", lambda: policy)
+    monkeypatch.setattr("app.services.model_router.router.get_provider",
+                        lambda name: _FakeB() if name == "fake-b-egress-test" else None)
+
+    before = db_session.query(AuditLog).filter_by(action="model_egress").count()
+    req = GenerateRequest(prompt="Contact jane.doe@example.com re: the lease.",
+                          task="qa", sensitivity=SensitivityTier.PUBLIC)
+    Router().generate(req)
+
+    assert db_session.query(AuditLog).filter_by(action="model_egress").count() == before
+
+
 def test_registry_runs_without_external_providers(monkeypatch):
     # Simulate the on-prem / air-gapped install: no gemini provider.
     import app.services.model_router.registry as reg

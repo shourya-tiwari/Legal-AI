@@ -75,6 +75,11 @@ class AuditLog(Base):
     # free-text context for actions that need it (e.g. a sensitivity override
     # reason). Nullable -- most audit rows are just method+path from guard.py.
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Populated only for a Class C (external provider) dispatch -- the "log
+    # every byte sent" half of ARCHITECTURE.md's egress control (item 2),
+    # written by model_router/telemetry.py::record_egress. The provider name
+    # a request actually left the perimeter to; null for every other action.
+    egress_target: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

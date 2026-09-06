@@ -18,7 +18,7 @@ Memgraph handling:
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Dict, Optional
 
 from app.config import get_settings
 
@@ -67,6 +67,64 @@ def _persist(decision: RoutingDecision, *, latency_ms: int, ok: bool,
     db = SessionLocal()
     try:
         db.add(row)
+        db.commit()
+    finally:
+        db.close()
+
+
+def record_egress(
+    *,
+    task: str,
+    provider: str,
+    model: str,
+    sensitivity: str,
+    policy_version: int,
+    payload: str,
+    redacted_categories: Dict[str, int],
+) -> None:
+    """Persist one `audit_log` row for a Class C (external provider) dispatch
+    -- the "log every byte sent" half of ARCHITECTURE.md's egress control
+    (item 2), never the payload itself, only its hash. Called once per
+    successful Class C generate call (router.py::Router.generate), right
+    alongside the PII redaction gate (app/services/redaction.py) it's paired
+    with -- `redacted_categories` is that gate's output, so this row also
+    proves what was masked before the request left. Fail-soft, matching every
+    other model-router persistence path."""
+    try:
+        _persist_egress(
+            task=task, provider=provider, model=model, sensitivity=sensitivity,
+            policy_version=policy_version, payload=payload,
+            redacted_categories=redacted_categories,
+        )
+    except Exception as e:  # pragma: no cover - defensive, never propagate
+        logger.debug("egress audit log skipped (%s)", e)
+
+
+def _persist_egress(*, task: str, provider: str, model: str, sensitivity: str,
+                    policy_version: int, payload: str, redacted_categories: Dict[str, int]) -> None:
+    import hashlib
+    import json
+
+    from app.auth import get_or_create_default_org
+    from app.db import SessionLocal
+    from app.db_models import AuditLog
+
+    detail = json.dumps({
+        "model": model,
+        "sensitivity": sensitivity,
+        "policy_version": policy_version,
+        "payload_sha256": hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+        "redacted_categories": redacted_categories,
+    })
+    db = SessionLocal()
+    try:
+        # The router doesn't carry request/org context yet (same documented
+        # gap as ModelCall.org_id) -- the default org is the exact org on a
+        # single-tenant (AUTH_REQUIRED=false) deployment, and an honest,
+        # explicit stand-in on a multi-org one until that's threaded through.
+        org = get_or_create_default_org(db)
+        db.add(AuditLog(org_id=org.id, action="model_egress", resource=task,
+                        egress_target=provider, detail=detail))
         db.commit()
     finally:
         db.close()

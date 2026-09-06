@@ -52,6 +52,7 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("documents", "sensitivity_signals", "JSON"),
     ("documents", "quality", "JSON"),
     ("audit_log", "detail", "TEXT"),
+    ("audit_log", "egress_target", "VARCHAR(64)"),
 ]
 
 

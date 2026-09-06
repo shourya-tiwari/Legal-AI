@@ -140,7 +140,9 @@ class Router:
     def generate(self, req: GenerateRequest) -> GenerateResult:
         def _call(p: ModelProvider):
             effective_req = req
-            if getattr(p, "hosting_class", HostingClass.B) == HostingClass.C:
+            is_class_c = getattr(p, "hosting_class", HostingClass.B) == HostingClass.C
+            redaction = None
+            if is_class_c:
                 # PII/PHI redaction gate (docs/v2/ARCHITECTURE.md Security
                 # architecture item 3) -- deferred import to avoid a cycle
                 # with app.services.redaction, which itself calls back into
@@ -155,7 +157,19 @@ class Router:
                         redaction.categories_found, req.task, p.name,
                     )
                 effective_req = dataclasses.replace(req, prompt=redaction.redacted_text)
+
             r = p.generate(effective_req)
+
+            if is_class_c:
+                # Egress audit trail (ARCHITECTURE.md item 2 "log every byte
+                # sent" + item 9 audit trail) -- paired with the redaction
+                # gate above so the row also proves what was masked.
+                telemetry.record_egress(
+                    task=req.task, provider=p.name, model=r.model,
+                    sensitivity=req.sensitivity.value, policy_version=get_policy().version,
+                    payload=effective_req.prompt,
+                    redacted_categories=redaction.categories_found if redaction else {},
+                )
             return r, r.model, r.hosting_class
 
         result, _decision = self._pick_and_call(

@@ -265,6 +265,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/audit/egress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every request that left the perimeter to a Class C provider */
+        get: operations["list_egress_log_api_audit_egress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/documents/{document_id}": {
         parameters: {
             query?: never;
@@ -740,6 +757,46 @@ export interface components {
             content_summary: string;
             /** Subsections */
             subsections?: components["schemas"]["DocumentSection"][];
+        };
+        /** EgressLogEntry */
+        EgressLogEntry: {
+            /** Id */
+            id: number;
+            /**
+             * Task
+             * @description The Model Router task, e.g. 'qa', 'clause_rewrite'.
+             */
+            task: string;
+            /**
+             * Provider
+             * @description The Class C provider this request was dispatched to.
+             */
+            provider: string;
+            /** Model */
+            model?: string | null;
+            /** Sensitivity */
+            sensitivity?: string | null;
+            /** Policy Version */
+            policy_version?: number | null;
+            /**
+             * Payload Sha256
+             * @description SHA-256 of the exact text sent -- proves what left without storing it.
+             */
+            payload_sha256?: string | null;
+            /**
+             * Redacted Categories
+             * @description PII categories the redaction gate masked before this call, with counts.
+             */
+            redacted_categories?: {
+                [key: string]: unknown;
+            };
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** EgressLogResponse */
+        EgressLogResponse: {
+            /** Entries */
+            entries?: components["schemas"]["EgressLogEntry"][];
         };
         /** EntityMention */
         EntityMention: {
@@ -1719,6 +1776,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewQueueItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_egress_log_api_audit_egress_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EgressLogResponse"];
                 };
             };
             /** @description Validation Error */

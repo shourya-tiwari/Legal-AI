@@ -352,5 +352,27 @@ class ReviewQueueResponse(BaseModel):
     items: List[ReviewQueueItem] = Field(default_factory=list)
 
 
+# ----- Egress audit log (GET /api/audit/egress) -----
+class EgressLogEntry(BaseModel):
+    id: int
+    task: str = Field(..., description="The Model Router task, e.g. 'qa', 'clause_rewrite'.")
+    provider: str = Field(..., description="The Class C provider this request was dispatched to.")
+    model: Optional[str] = None
+    sensitivity: Optional[str] = None
+    policy_version: Optional[int] = None
+    payload_sha256: Optional[str] = Field(
+        None, description="SHA-256 of the exact text sent -- proves what left without storing it."
+    )
+    redacted_categories: dict = Field(
+        default_factory=dict,
+        description="PII categories the redaction gate masked before this call, with counts.",
+    )
+    created_at: Optional[str] = None
+
+
+class EgressLogResponse(BaseModel):
+    entries: List[EgressLogEntry] = Field(default_factory=list)
+
+
 class ReviewResolveRequest(BaseModel):
     note: Optional[str] = Field(None, max_length=1000)
