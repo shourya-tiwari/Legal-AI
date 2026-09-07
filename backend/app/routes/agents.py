@@ -44,6 +44,10 @@ def run_and_persist_analysis(
     individually checkpointed to Postgres so a crashed process resumes from
     the last completed node. LangGraph stays the default; the import is
     lazy so the default path never requires `dbos` or a Postgres connection."""
+    negotiation_preferences = (
+        db.query(Organization).filter_by(id=org.id).first().negotiation_preferences or {}
+    )
+
     if get_settings().DURABLE_EXECUTION_ENABLED:
         from app.services.durable.dbos_engine import run_case_analysis_durable
 
@@ -54,6 +58,7 @@ def run_and_persist_analysis(
             analysis_mode=analysis_mode,
             use_ai_planner=use_ai_planner,
             sensitivity_tier=document.sensitivity_tier,
+            negotiation_preferences=negotiation_preferences,
         )
     else:
         result = run_case_analysis(
@@ -63,6 +68,7 @@ def run_and_persist_analysis(
             analysis_mode=analysis_mode,
             use_ai_planner=use_ai_planner,
             sensitivity_tier=document.sensitivity_tier,
+            negotiation_preferences=negotiation_preferences,
         )
 
     for step_no, step in enumerate(result.trace, start=1):
@@ -88,6 +94,7 @@ def run_and_persist_analysis(
             unsupported_claims=result.unsupported_claims,
             invalid_citation_numbers=result.invalid_citation_numbers,
             risk_findings=[f.model_dump() for f in result.risk_findings],
+            negotiation_suggestions=[s.model_dump() for s in result.negotiation_suggestions],
             needs_human_review=result.needs_human_review,
         )
     )
@@ -116,6 +123,7 @@ def run_and_persist_analysis(
         faithfulness_method=result.faithfulness_method,
         unsupported_claims=result.unsupported_claims,
         invalid_citation_numbers=result.invalid_citation_numbers,
+        negotiation_suggestions=result.negotiation_suggestions,
         needs_human_review=result.needs_human_review,
         trace=result.trace,
     )

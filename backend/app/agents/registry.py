@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, Tuple
 
 from .extraction import run_extraction
+from .negotiation import run_negotiation_drafting
 from .research import run_research
 from .risk_compliance import run_risk_compliance
 from .summary import run_summary
@@ -53,6 +54,11 @@ AGENT_REGISTRY: Dict[str, AgentSpec] = {
         "summarize", run_summary,
         description="Generate a plain-English risk summary citing retrieved sources.",
     ),
+    "negotiation_drafting": AgentSpec(
+        "negotiation_drafting", run_negotiation_drafting,
+        description="Flag clauses that deviate from the org's configured preferred language "
+                    "(no-ops if the org has none configured).",
+    ),
     "verifier": AgentSpec(
         "verifier", run_verifier, always=True,
         description="Mandatory gate: citation check, KG consistency, NLI faithfulness.",
@@ -61,7 +67,7 @@ AGENT_REGISTRY: Dict[str, AgentSpec] = {
 
 # The agents the planner may include or drop (order matters -- it's the
 # execution order within a plan).
-PLANNABLE: Tuple[str, ...] = ("risk_compliance", "research", "summarize")
+PLANNABLE: Tuple[str, ...] = ("risk_compliance", "research", "summarize", "negotiation_drafting")
 
 # Node ids for graph wiring / plan validation.
 EXECUTABLE_NODE_IDS: Tuple[str, ...] = tuple(

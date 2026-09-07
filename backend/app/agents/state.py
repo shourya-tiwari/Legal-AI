@@ -38,6 +38,20 @@ class KGConflictFinding(BaseModel):
     prohibition_document_id: int
 
 
+class NegotiationSuggestion(BaseModel):
+    """One clause that deviates from the org's configured preferred
+    language for its clause type -- never auto-applied, always
+    `status="pending_review"` (app/agents/negotiation.py)."""
+    clause_id: int
+    clause_type: str
+    current_language: str
+    suggested_language: str
+    rationale: str
+    similarity: float
+    diff_lines: List[str]
+    status: str
+
+
 class CaseState(BaseModel):
     document_id: int
     org_id: int
@@ -64,6 +78,12 @@ class CaseState(BaseModel):
     kg_conflicts: List[KGConflictFinding] = Field(default_factory=list)
     # clause id -> list of {text, topic, citation} dicts retrieved for it
     research_citations: Dict[int, List[dict]] = Field(default_factory=dict)
+
+    # Negotiation/Drafting agent (Phase 8) -- {clause_type: {"preferred_language",
+    # "rationale"}}, read once from Organization.negotiation_preferences at
+    # run_case_analysis() call time (agents don't query the SQL DB directly).
+    negotiation_preferences: Dict[str, dict] = Field(default_factory=dict)
+    negotiation_suggestions: List[NegotiationSuggestion] = Field(default_factory=list)
 
     summary: str = ""
     summary_citation_count: int = 0

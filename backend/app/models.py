@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import List, Optional, Dict, Union
 from pydantic import BaseModel, Field
 
-from app.agents.state import AgentStep, KGConflictFinding, RiskFinding
+from app.agents.state import AgentStep, KGConflictFinding, NegotiationSuggestion, RiskFinding
 from app.services.consistency import ConsistencyFinding
 from app.services.nlp.schema import ClauseObject
 from app.services.simulation import DEFAULT_WARNING_WINDOW_DAYS, SimulatedEvent
@@ -202,6 +202,11 @@ class AgentAnalyzeResponse(BaseModel):
     invalid_citation_numbers: List[int] = Field(
         default_factory=list, description="Non-empty means the summary cited a source it was never given"
     )
+    negotiation_suggestions: List[NegotiationSuggestion] = Field(
+        default_factory=list,
+        description="Clauses deviating from the org's configured preferred language (Organization."
+        "negotiation_preferences). Always status='pending_review' -- never auto-applied.",
+    )
     needs_human_review: bool
     trace: List[AgentStep] = Field(default_factory=list)
 
@@ -268,11 +273,19 @@ class OrgSettingsResponse(BaseModel):
     org_id: int
     feature_flags: dict = Field(default_factory=dict)
     webhook_url: Optional[str] = None
+    negotiation_preferences: dict = Field(
+        default_factory=dict,
+        description="{clause_type: {preferred_language, rationale}} -- the Negotiation/Drafting "
+        "agent's static-preferences input (docs/v2/ROADMAP.md Phase 8).",
+    )
 
 
 class UpdateOrgSettingsRequest(BaseModel):
     feature_flags: Optional[dict] = Field(None, description="Merged into the existing flags, not replaced wholesale.")
     webhook_url: Optional[str] = Field(None, description="Pass an empty string to clear it.")
+    negotiation_preferences: Optional[dict] = Field(
+        None, description="Merged into the existing preferences, keyed by clause_type, not replaced wholesale."
+    )
 
 
 # ----- Eval runs behind the routing policy (/api/models/eval-runs) -----

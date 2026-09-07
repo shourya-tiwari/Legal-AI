@@ -107,6 +107,7 @@ def run_case_analysis_durable(
     analysis_mode: str = "full",
     use_ai_planner: bool = False,
     sensitivity_tier: str = "internal",
+    negotiation_preferences: dict | None = None,
 ) -> CaseState:
     """Same signature and contract as app.agents.graph.run_case_analysis,
     driven by DBOS instead of LangGraph -- each agent node is an
@@ -116,6 +117,7 @@ def run_case_analysis_durable(
         document_id=document_id, org_id=org_id, full_text=full_text,
         analysis_mode=analysis_mode, use_ai_planner=use_ai_planner,
         sensitivity_tier=sensitivity_tier,
+        negotiation_preferences=negotiation_preferences or {},
     )
     result_dict = _case_analysis_workflow(initial_state.model_dump())
     return CaseState(**result_dict)

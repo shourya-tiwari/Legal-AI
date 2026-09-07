@@ -48,7 +48,30 @@ def test_rule_plan_benign_but_with_defined_terms_keeps_the_kg_check():
     st = _state([_clause(1, 'The "Company" and the "Client" will meet quarterly.', terms=["Company", "Client"])])
     plan, why = _rule_plan(st, "full")
     assert plan == ["risk_compliance"]
-    assert "KG conflict check only" in why
+    assert "defined terms" in why
+
+
+def test_rule_plan_full_includes_negotiation_drafting_when_org_has_preferences():
+    # Independent of the risk/ambiguity signal -- a benign document with a
+    # configured negotiation preference should still get the check.
+    st = _state(
+        [_clause(1, "Nothing risky here at all.")],
+        negotiation_preferences={"governing_law": {"preferred_language": "...", "rationale": "..."}},
+    )
+    plan, why = _rule_plan(st, "full")
+    assert plan == ["negotiation_drafting"]
+    assert "negotiation preference" in why
+
+
+def test_rule_plan_quick_mode_never_includes_negotiation_drafting():
+    # negotiation_drafting is scoped to "full" mode only -- "quick"/"risk_only"/
+    # "extract_only" have an explicitly narrower contract.
+    st = _state(
+        [_clause(1, "The Tenant shall indemnify the Landlord.")],
+        negotiation_preferences={"governing_law": {"preferred_language": "...", "rationale": "..."}},
+    )
+    plan, _ = _rule_plan(st, "quick")
+    assert "negotiation_drafting" not in plan
 
 
 @pytest.mark.parametrize("mode", list(ANALYSIS_MODES))

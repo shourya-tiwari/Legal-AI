@@ -25,6 +25,7 @@ def _to_response(organization: Organization) -> OrgSettingsResponse:
         org_id=organization.id,
         feature_flags=dict(organization.feature_flags or {}),
         webhook_url=organization.webhook_url,
+        negotiation_preferences=dict(organization.negotiation_preferences or {}),
     )
 
 
@@ -47,6 +48,10 @@ def update_org_settings(
         organization.feature_flags = merged
     if body.webhook_url is not None:
         organization.webhook_url = body.webhook_url or None
+    if body.negotiation_preferences is not None:
+        merged_prefs = dict(organization.negotiation_preferences or {})
+        merged_prefs.update(body.negotiation_preferences)
+        organization.negotiation_preferences = merged_prefs
     db.commit()
     db.refresh(organization)
     return _to_response(organization)

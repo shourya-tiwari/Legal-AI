@@ -61,27 +61,40 @@ def _rule_plan(state: CaseState, mode: str) -> Tuple[List[str], str]:
     base = list(ANALYSIS_MODES.get(mode, ANALYSIS_MODES[DEFAULT_MODE]))
     sig = _signals(state)
 
+    # negotiation_drafting is decided independently of the risk/ambiguity
+    # branches below -- an org's preferred-language deviation can exist in
+    # an otherwise "boring" document -- but only for "full" mode (the other
+    # presets have an explicitly narrower contract: "risk_only" is just the
+    # flags, "extract_only" is structure only, neither promises drafting
+    # suggestions) and only when the org actually has preferences configured,
+    # since otherwise it's a guaranteed no-op not worth a plan/trace entry.
+    negotiation_step = ["negotiation_drafting"] if (mode == "full" and state.negotiation_preferences) else []
+
     if mode != "full":
         return base, f"analysis_mode={mode} preset over {sig['clauses']} clauses"
 
     has_risk_signal = sig["keyword_hits"] > 0 or sig["ambiguous_clauses"] > 0
     if has_risk_signal:
-        return base, (
+        plan = base + negotiation_step
+        return plan, (
             f"{sig['keyword_hits']} risky-term hit(s), {sig['ambiguous_clauses']} ambiguous "
             f"clause(s) in {sig['clauses']} clauses -> full analysis"
         )
 
     # Nothing to research or summarize. Keep the risk sweep only if there are
     # defined terms whose cross-document KG conflict check is still worth it.
-    if sig["clauses_with_defined_terms"] > 0:
-        return ["risk_compliance"], (
+    pruned = (["risk_compliance"] if sig["clauses_with_defined_terms"] > 0 else []) + negotiation_step
+
+    if pruned:
+        return pruned, (
             f"no risk/ambiguity signal in {sig['clauses']} clauses; "
-            f"{sig['clauses_with_defined_terms']} clause(s) use defined terms -> "
-            f"KG conflict check only, no research/summary"
+            f"{sig['clauses_with_defined_terms']} clause(s) use defined terms, "
+            f"{len(state.negotiation_preferences)} negotiation preference(s) configured -> "
+            f"{pruned}, no research/summary"
         )
     return [], (
-        f"no risk/ambiguity signal and no defined terms in {sig['clauses']} clauses -> "
-        f"structural extraction only"
+        f"no risk/ambiguity signal, no defined terms, and no negotiation preferences "
+        f"configured for {sig['clauses']} clauses -> structural extraction only"
     )
 
 

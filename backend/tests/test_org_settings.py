@@ -131,6 +131,30 @@ def test_org_settings_round_trip_and_admin_only_write(client, db_session, monkey
                          headers={"Authorization": f"Bearer {admin_key}"})
     assert cleared.json()["webhook_url"] is None
 
+    # negotiation_preferences round-trips and merges by clause_type, same as feature_flags
+    assert cleared.json()["negotiation_preferences"] == {}
+    set3 = client.put(
+        "/api/org/settings",
+        json={"negotiation_preferences": {
+            "governing_law": {"preferred_language": "...Delaware.", "rationale": "Org standard."},
+        }},
+        headers={"Authorization": f"Bearer {admin_key}"},
+    )
+    assert set3.status_code == 200
+    assert set3.json()["negotiation_preferences"] == {
+        "governing_law": {"preferred_language": "...Delaware.", "rationale": "Org standard."},
+    }
+
+    set4 = client.put(
+        "/api/org/settings",
+        json={"negotiation_preferences": {
+            "termination": {"preferred_language": "...30 days notice.", "rationale": "Org standard."},
+        }},
+        headers={"Authorization": f"Bearer {admin_key}"},
+    )
+    assert set4.status_code == 200
+    assert set(set4.json()["negotiation_preferences"].keys()) == {"governing_law", "termination"}
+
 
 def test_disabling_api_v2_enabled_blocks_v2_routes(client, db_session, monkeypatch):
     from app.auth import create_api_key
@@ -205,3 +229,43 @@ def test_analyze_fires_a_webhook_when_one_is_configured(client, db_session, monk
     assert captured.get("event") == "analysis.completed"
     assert captured.get("org_id") == org.id
     assert captured["payload"]["document_id"] == document_id
+
+
+def test_analyze_surfaces_negotiation_suggestions_when_org_has_preferences(client, db_session, monkeypatch):
+    from app.auth import create_api_key
+
+    monkeypatch.setattr(get_settings(), "AUTH_REQUIRED", True)
+    org = Organization(
+        name="negotiation-prefs-test-org",
+        negotiation_preferences={
+            "governing_law": {
+                "preferred_language": "This Agreement shall be governed by the laws of the State of Delaware.",
+                "rationale": "Org standard is Delaware law.",
+            },
+        },
+    )
+    db_session.add(org)
+    db_session.commit()
+    db_session.refresh(org)
+    admin_key = create_api_key(db_session, org, "admin-key", role="admin")
+
+    upload_resp = client.post(
+        "/api/upload",
+        files={"file": ("q.txt", b"This Agreement shall be governed by the laws of the State of California.",
+                        "text/plain")},
+        headers={"Authorization": f"Bearer {admin_key}"},
+    )
+    document_id = upload_resp.json()["document_id"]
+
+    resp = client.post("/api/agents/analyze", json={"document_id": document_id},
+                       headers={"Authorization": f"Bearer {admin_key}"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "negotiation_drafting" in body["plan"]
+    assert len(body["negotiation_suggestions"]) == 1
+    suggestion = body["negotiation_suggestions"][0]
+    assert suggestion["clause_type"] == "governing_law"
+    assert "Delaware" in suggestion["suggested_language"]
+    assert suggestion["status"] == "pending_review"
+    assert body["needs_human_review"] is True

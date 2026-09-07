@@ -29,6 +29,11 @@ class Organization(Base):
     # Phase 7 "Notification/Webhook Service for async job completion" --
     # None means notifications are off for this org (the default).
     webhook_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    # Phase 8 "Negotiation/Drafting agent -- static org-configured
+    # preferences first" (docs/v2/ROADMAP.md) -- {clause_type: {"preferred_language":
+    # str, "rationale": str}}. Empty dict means the agent has nothing
+    # configured to check against and no-ops (app/agents/negotiation.py).
+    negotiation_preferences: Mapped[dict] = mapped_column(JSON, default=dict)
 
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="organization")
     users: Mapped[list["User"]] = relationship(back_populates="organization")
@@ -237,6 +242,10 @@ class CaseAnalysis(Base):
     # consolidation worker (app/services/memory/consolidation.py) needs to
     # detect a term recurring across documents.
     risk_findings: Mapped[list] = mapped_column(JSON, default=list)
+    # Phase 8 Negotiation/Drafting agent (LEARNING_LOG.md #51) -- same
+    # "don't repeat the computed-then-discarded mistake" discipline as
+    # risk_findings above, persisted from day one rather than found missing later.
+    negotiation_suggestions: Mapped[list] = mapped_column(JSON, default=list)
     needs_human_review: Mapped[bool] = mapped_column(Boolean, default=False)
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     reviewed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

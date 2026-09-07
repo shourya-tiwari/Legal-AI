@@ -37,6 +37,13 @@ def run_verifier(state: CaseState) -> dict:
 
     needs_human_review = (
         bool(invalid_citations) or bool(state.kg_conflicts) or not result.ok
+        # Negotiation/Drafting suggestions are never auto-applied
+        # (docs/v2/AGENTS.md: "Human approval gate (always, for any
+        # suggested edit sent externally)") -- the Verifier is what makes
+        # that gate actually load-bearing, the same way it already does
+        # for KG conflicts, rather than trusting every future caller to
+        # remember to check `negotiation_suggestions` itself.
+        or bool(state.negotiation_suggestions)
     )
 
     step = AgentStep(
@@ -45,6 +52,7 @@ def run_verifier(state: CaseState) -> dict:
         output_summary=(
             f"invalid_citations={invalid_citations} faithfulness_ok={result.ok} "
             f"method={result.method} unsupported_claims={len(result.unsupported_claims)} "
+            f"negotiation_suggestions={len(state.negotiation_suggestions)} "
             f"needs_human_review={needs_human_review}"
         ),
     )
