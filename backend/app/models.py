@@ -166,6 +166,18 @@ class KGVersionHistoryResponse(BaseModel):
     document_id: int
     versions: List[dict] = Field(default_factory=list)
 
+class KGGraphResponse(BaseModel):
+    document_id: int
+    nodes: List[dict] = Field(
+        default_factory=list,
+        description="{id, label, type} -- type is one of Document/Clause/DefinedTerm/CrossReferenceTarget.",
+    )
+    edges: List[dict] = Field(
+        default_factory=list,
+        description="{source, target, type} -- type is one of PART_OF/DEFINES/USES_TERM/REFERENCES/SAME_AS.",
+    )
+    kg_available: bool
+
 # ----- Agentic Case Analysis (/api/agents/analyze) -----
 _ANALYSIS_MODE_PATTERN = "^(full|quick|risk_only|extract_only)$"
 

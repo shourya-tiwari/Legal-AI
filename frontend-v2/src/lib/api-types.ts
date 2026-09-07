@@ -214,6 +214,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/kg/documents/{document_id}/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Node/edge-shaped graph export for the Knowledge Graph Explorer */
+        get: operations["document_graph_api_kg_documents__document_id__graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agents/analyze": {
         parameters: {
             query?: never;
@@ -1136,6 +1153,27 @@ export interface components {
             conflicts?: {
                 [key: string]: unknown;
             }[];
+        };
+        /** KGGraphResponse */
+        KGGraphResponse: {
+            /** Document Id */
+            document_id: number;
+            /**
+             * Nodes
+             * @description {id, label, type} -- type is one of Document/Clause/DefinedTerm/CrossReferenceTarget.
+             */
+            nodes?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Edges
+             * @description {source, target, type} -- type is one of PART_OF/DEFINES/USES_TERM/REFERENCES/SAME_AS.
+             */
+            edges?: {
+                [key: string]: unknown;
+            }[];
+            /** Kg Available */
+            kg_available: boolean;
         };
         /** KGIngestRequest */
         KGIngestRequest: {
@@ -2123,6 +2161,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KGVersionHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    document_graph_api_kg_documents__document_id__graph_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KGGraphResponse"];
                 };
             };
             /** @description Validation Error */

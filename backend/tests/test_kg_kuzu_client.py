@@ -20,6 +20,7 @@ from app.services.kg.builder import link_portfolio_terms, write_document_graph
 from app.services.kg.kuzu_client import KuzuKGClient
 from app.services.kg.queries import find_clauses_using_term, find_potential_conflicts, get_document_graph_summary
 from app.services.kg.schema import ensure_constraints
+from app.services.kg.graph_export import get_document_graph
 from app.services.kg.versioning import find_clauses_valid_as_of, find_document_version_history, mark_document_superseded
 from app.services.nlp.pipeline import build_clause_objects
 
@@ -138,6 +139,34 @@ def test_bitemporal_versioning_round_trips_on_real_kuzu(kuzu_client):
 
     history = find_document_version_history(kuzu_client, document_id=200)
     assert sorted(h["document_id"] for h in history) == [100, 200]
+
+
+def test_graph_export_round_trips_on_real_kuzu(kuzu_client):
+    # Real, empirically-verified (LEARNING_LOG.md #53) proof that the
+    # Knowledge Graph Explorer's node/edge export works identically on
+    # Kuzu, not just Memgraph -- including the cross-document SAME_AS hop.
+    write_document_graph(kuzu_client, org_id=1, document_id=10,
+                         defined_terms={"Provider": "Alpha Solutions Pvt. Ltd. (\"Provider\")"},
+                         clauses=build_clause_objects(
+                             'This Agreement is between Alpha Solutions Pvt. Ltd. ("Provider") and the '
+                             "Client. Provider shall deliver the goods within 30 days, as described in "
+                             "Section 4.2."))
+    write_document_graph(kuzu_client, org_id=1, document_id=20,
+                         defined_terms={"Provider": "Alpha Solutions Pvt. Ltd. (\"Provider\")"},
+                         clauses=[])
+    link_portfolio_terms(kuzu_client, org_id=1, document_id=20,
+                         defined_terms={"Provider": "Alpha Solutions Pvt. Ltd. (\"Provider\")"})
+
+    graph = get_document_graph(kuzu_client, document_id=10)
+
+    assert graph["kg_available"] is True
+    node_types = {n["type"] for n in graph["nodes"]}
+    assert node_types == {"Document", "Clause", "DefinedTerm", "CrossReferenceTarget"}
+    edge_types = {e["type"] for e in graph["edges"]}
+    assert edge_types == {"PART_OF", "DEFINES", "USES_TERM", "REFERENCES", "SAME_AS"}
+    linked = [n for n in graph["nodes"] if n.get("portfolio_linked")]
+    assert len(linked) == 1
+    assert linked[0]["label"] == "Provider"
 
 
 def test_get_kg_client_dispatches_to_kuzu_when_configured(monkeypatch, tmp_path):

@@ -204,6 +204,13 @@ export async function queryKgConflicts(term: string): Promise<KGConflictsRespons
   });
 }
 
+// ----- /api/kg/documents/{id}/graph (Phase 8 Knowledge Graph Explorer) -----
+export type KGGraphResponse = components["schemas"]["KGGraphResponse"];
+
+export async function getKgGraph(documentId: number): Promise<KGGraphResponse> {
+  return request<KGGraphResponse>(`/kg/documents/${documentId}/graph`);
+}
+
 // ----- /api/v2/documents/{id}/consistency (Phase 8 embedding-similarity baseline) -----
 export type ConsistencyResponse = components["schemas"]["ConsistencyResponse"];
 

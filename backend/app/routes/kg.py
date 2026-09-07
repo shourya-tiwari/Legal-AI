@@ -6,11 +6,12 @@ from app.db import get_db
 from app.db_models import Document
 from app.guard import api_guard
 from app.models import (
-    KGConflictsResponse, KGIngestRequest, KGIngestResponse, KGQueryRequest, KGQueryResponse,
+    KGConflictsResponse, KGGraphResponse, KGIngestRequest, KGIngestResponse, KGQueryRequest, KGQueryResponse,
     KGSupersedeRequest, KGSupersedeResponse, KGVersionHistoryResponse,
 )
 from app.services.kg.builder import link_portfolio_terms, write_document_graph
 from app.services.kg.client import get_kg_client
+from app.services.kg.graph_export import get_document_graph
 from app.services.kg.queries import find_clauses_using_term, find_potential_conflicts
 from app.services.kg.versioning import find_clauses_valid_as_of, find_document_version_history, mark_document_superseded
 from app.services.nlp.defined_terms import extract_defined_terms
@@ -102,3 +103,20 @@ def document_version_history(
     client = get_kg_client()
     versions = find_document_version_history(client, document_id)
     return KGVersionHistoryResponse(document_id=document_id, versions=versions)
+
+
+@router.get(
+    "/kg/documents/{document_id}/graph", response_model=KGGraphResponse,
+    summary="Node/edge-shaped graph export for the Knowledge Graph Explorer",
+)
+def document_graph(
+    document_id: int,
+    org: OrgContext = Depends(api_guard),
+    db: Session = Depends(get_db),
+) -> KGGraphResponse:
+    if db.query(Document).filter_by(id=document_id, org_id=org.id).first() is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    client = get_kg_client()
+    graph = get_document_graph(client, document_id)
+    return KGGraphResponse(document_id=document_id, **graph)

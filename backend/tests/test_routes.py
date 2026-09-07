@@ -263,6 +263,25 @@ def test_kg_version_history_endpoint_unknown_document_returns_404(client):
     assert resp.status_code == 404
 
 
+def test_kg_graph_endpoint_returns_empty_without_memgraph_running(client):
+    files = {"file": ("lease.txt", b'The Tenant ("Tenant") shall pay rent within 30 days.', "text/plain")}
+    document_id = client.post("/api/upload", files=files).json()["document_id"]
+
+    resp = client.get(f"/api/kg/documents/{document_id}/graph")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["document_id"] == document_id
+    assert body["nodes"] == []
+    assert body["edges"] == []
+    assert body["kg_available"] is False
+
+
+def test_kg_graph_endpoint_unknown_document_returns_404(client):
+    resp = client.get("/api/kg/documents/999999/graph")
+    assert resp.status_code == 404
+
+
 def test_agents_analyze_endpoint(client, monkeypatch):
     monkeypatch.setattr("app.services.contextualizer.rag.embed_content", fake_embed_content)
     monkeypatch.setattr("app.agents.summary.generate_content", lambda *a, **k: "Risk summary, no citations.")
