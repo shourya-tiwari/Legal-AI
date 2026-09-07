@@ -80,3 +80,52 @@ for the full result and failure analysis, and `LEARNING_LOG.md` #43. The
 honest next step this roadmap line names ("fine-tune a transformer only if
 classical underperforms") is real, GPU-blocked follow-up work, not skipped
 by choice.
+
+## MLflow registry + DVC data versioning (Phase 8, genuinely local — no server)
+
+Both tools run entirely on the local filesystem; neither needed
+infrastructure this environment lacks.
+
+**MLflow** (`training/train_sensitivity_classifier.py`) logs every training
+run — params (vectorizer config, model type, split sizes), metrics
+(`weak_val_accuracy`, `weak_val_macro_f1`, `classical_model_gold_accuracy`,
+`rule_baseline_gold_accuracy`, `passed_cutover_gate`), and artifacts (the
+eval JSON, the model card) — to a local sqlite-backed store
+(`training/mlruns.db` + `training/mlruns/`, both gitignored; sqlite because
+MLflow's plain filesystem store is maintenance-mode as of the installed
+version). Browse runs with:
+
+```bash
+mlflow ui --backend-store-uri sqlite:///training/mlruns.db
+```
+
+Skips silently (falls back to just the script's own stdout log line) if
+`mlflow` isn't installed — it's a queryable history layered on top of the
+eval-gate result, not a dependency of it. This is the pattern every future
+trained model in this directory should follow, not something specific to
+sensitivity classification.
+
+**DVC** versions the actual data/model blobs `git` deliberately excludes
+(`backend/training/data/`, `backend/training/models/*.joblib`) — `git`
+keeps the small pointer files (`*.dvc`, content-hash + size), DVC's local
+remote (`../dvc-storage` from `.dvc/config`, i.e. `<repo-root>/dvc-storage/`,
+gitignored) holds the actual bytes, so a fresh clone can `dvc pull` and get
+back the exact training data/model that produced a given eval result,
+without either bloating git history with binary blobs or leaving the
+result unreproducible.
+
+```bash
+dvc pull                                    # from repo root, after a fresh clone
+python training/prepare_sensitivity_data.py # or: regenerate from scratch (both work; same seed=13)
+dvc add backend/training/data backend/training/models/sensitivity_classifier.joblib
+dvc push                                    # after any regeneration that changes the hash
+```
+
+**Eval-gated promotion in CI/CD**: not built — there's no CI workflow that
+runs `train_sensitivity_classifier.py` and blocks a merge on
+`passed_cutover_gate`, matching `app/eval/cutover_gate.py`'s existing
+manual-invocation pattern for Model Router tasks (`.github/workflows/
+backend-tests.yml` runs `pytest`, not the training scripts). Wiring a
+training run into CI is real, buildable follow-up work — not infra-blocked,
+just not yet done — tracked as a separate `TASKS.md` line rather than
+silently folded into this one.

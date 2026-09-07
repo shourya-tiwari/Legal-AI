@@ -35,6 +35,14 @@ kuzu_data/
 # actually worth keeping in git, not the binary artifact itself -----
 backend/training/models/*.joblib
 
+# ----- DVC local remote storage (Phase 8, `dvc init` at repo root) -- the
+# actual data/model blobs DVC pushes to; only the .dvc pointer files (small,
+# hash + size) are meant to live in git -----
+/dvc-storage/
+
+# ----- MLflow local file-based tracking store -----
+backend/training/mlruns/
+
 # ----- Local-only AI assistant working files (not published to the repo) -----
 CLAUDE.md
 LEARNING_LOG.md

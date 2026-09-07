@@ -1,0 +1,5 @@
+outs:
+- md5: 12220fdc036a8b0e458e5c78a5f5db0a
+  size: 134140
+  hash: md5
+  path: sensitivity_classifier.joblib

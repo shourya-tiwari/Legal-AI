@@ -19,13 +19,30 @@ the same "never a false PASS, never an automatic cutover" discipline
 app/eval/cutover_gate.py already established for Model Router tasks.
 
     python training/train_sensitivity_classifier.py [--dry-run]
+
+MLflow tracking (docs/v2/ROADMAP.md Phase 8 "MLflow registry ... eval-gated
+model promotion"): every run logs params/metrics/artifacts to a local
+sqlite-backed store (`training/mlruns.db` + `training/mlruns/`, both
+gitignored -- no tracking server needed; sqlite because MLflow's plain
+filesystem store is deprecated/maintenance-mode as of this mlflow version).
+Run `mlflow ui --backend-store-uri sqlite:///training/mlruns.db` from
+`backend/` to browse runs. Skips silently if `mlflow` isn't installed
+(`--dry-run` doesn't need it either) -- this script's own eval-gate log
+line stays the source of truth either way, MLflow is a queryable history
+on top of it, not a dependency.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
+
+os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
 
 from _common import DATA_DIR, log, read_jsonl
+
+MLFLOW_DB = DATA_DIR.parent / "mlruns.db"
+MLFLOW_ARTIFACTS_DIR = DATA_DIR.parent / "mlruns"
 
 
 def _load_split(name: str) -> tuple[list[str], list[str]]:
@@ -84,15 +101,57 @@ def train_and_evaluate(dry_run: bool = False) -> dict:
              model_accuracy, rule_accuracy,
              "PASS (classical >= rule)" if passed else "FAIL (rule baseline stays production)")
 
+    eval_path = None
     if not dry_run:
         import joblib
 
         model_path = DATA_DIR.parent / "models"
         model_path.mkdir(exist_ok=True)
         joblib.dump(pipeline, model_path / "sensitivity_classifier.joblib")
-        with open(model_path / "sensitivity_classifier_eval.json", "w", encoding="utf-8") as fh:
+        eval_path = model_path / "sensitivity_classifier_eval.json"
+        with open(eval_path, "w", encoding="utf-8") as fh:
             json.dump(result, fh, indent=2)
         log.info("saved model + eval report -> %s", model_path)
+
+    try:
+        import mlflow
+    except ImportError:
+        log.info("mlflow not installed -- skipping run tracking (eval-gate result above is unaffected)")
+        return result
+
+    mlflow.set_tracking_uri(f"sqlite:///{MLFLOW_DB.resolve().as_posix()}")
+    experiment_name = "sensitivity-classifier"
+    if mlflow.get_experiment_by_name(experiment_name) is None:
+        mlflow.create_experiment(
+            experiment_name,
+            artifact_location=f"file:///{MLFLOW_ARTIFACTS_DIR.resolve().as_posix()}",
+        )
+    mlflow.set_experiment(experiment_name)
+    with mlflow.start_run(run_name="dry-run" if dry_run else None):
+        mlflow.log_params({
+            "vectorizer": "tfidf",
+            "ngram_range": "(1, 2)",
+            "max_features": 5000,
+            "classifier": "logistic_regression",
+            "class_weight": "balanced",
+            "n_train": len(X_train),
+            "n_val": len(X_val),
+            "gold_n": result["gold_n"],
+            "dry_run": dry_run,
+        })
+        mlflow.log_metrics({
+            "weak_val_accuracy": result["weak_val_accuracy"],
+            "weak_val_macro_f1": result["weak_val_macro_f1"],
+            "classical_model_gold_accuracy": result["classical_model_gold_accuracy"],
+            "rule_baseline_gold_accuracy": result["rule_baseline_gold_accuracy"],
+            "passed_cutover_gate": float(passed),
+        })
+        if eval_path is not None:
+            mlflow.log_artifact(str(eval_path))
+        card_path = DATA_DIR.parent / "models" / "sensitivity_classifier_card.md"
+        if card_path.exists():
+            mlflow.log_artifact(str(card_path))
+        log.info("logged run to mlflow (sqlite:///%s, experiment=sensitivity-classifier)", MLFLOW_DB.resolve().as_posix())
 
     return result
 
