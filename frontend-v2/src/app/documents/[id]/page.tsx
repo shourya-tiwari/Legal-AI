@@ -15,6 +15,7 @@ import { StructuredAnalysisPanel } from "@/components/StructuredAnalysisPanel";
 import { KnowledgeGraphPanel } from "@/components/KnowledgeGraphPanel";
 import { ConsistencyPanel } from "@/components/ConsistencyPanel";
 import { SimulationPanel } from "@/components/SimulationPanel";
+import { RiskDashboardPanel } from "@/components/RiskDashboardPanel";
 
 interface PageQuality {
   page: number;
@@ -121,6 +122,7 @@ export default function DocumentPage() {
             <KnowledgeGraphPanel documentId={documentId} />
             <ConsistencyPanel documentId={documentId} />
             <SimulationPanel documentId={documentId} />
+            <RiskDashboardPanel documentId={documentId} />
           </section>
         </div>
       </main>

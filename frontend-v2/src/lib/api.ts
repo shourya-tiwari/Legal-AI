@@ -106,6 +106,18 @@ export async function riskScanDocument(
   });
 }
 
+// ----- /api/v2/documents/{id}/risk-dashboard (Phase 8 Risk Dashboard) -----
+export type RiskDashboardResponse =
+  components["schemas"]["RiskDashboardResponse"];
+
+export async function getRiskDashboard(
+  id: number,
+): Promise<RiskDashboardResponse> {
+  return request<RiskDashboardResponse>(`/v2/documents/${id}/risk-dashboard`, {
+    method: "POST",
+  });
+}
+
 export async function askDocument(
   id: number,
   question: string,

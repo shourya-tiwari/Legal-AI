@@ -180,6 +180,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/kg/supersede": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a Document as Superseded by a Newer Version (Bitemporal Versioning) */
+        post: operations["supersede_document_api_kg_supersede_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kg/documents/{document_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a Document's Full Version History (Bitemporal Versioning) */
+        get: operations["document_version_history_api_kg_documents__document_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agents/analyze": {
         parameters: {
             query?: never;
@@ -225,6 +259,58 @@ export interface paths {
         get: operations["eval_runs_api_models_eval_runs_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/models/class-c-overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active per-task Class C overrides */
+        get: operations["list_class_c_overrides_api_models_class_c_overrides_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/models/class-c-overrides/{task}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set a per-task Class C override (admin only) */
+        put: operations["set_class_c_override_route_api_models_class_c_overrides__task__put"];
+        post?: never;
+        /** Remove a per-task Class C override (admin only) */
+        delete: operations["clear_class_c_override_route_api_models_class_c_overrides__task__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/models/delta-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run the self-hosted-vs-external delta report (admin only -- makes real provider calls) */
+        post: operations["run_delta_report_api_models_delta_report_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -351,6 +437,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/org/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the caller's org settings */
+        get: operations["get_org_settings_api_org_settings_get"];
+        /** Update the caller's org settings (admin only) */
+        put: operations["update_org_settings_api_org_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/documents/{document_id}": {
         parameters: {
             query?: never;
@@ -465,6 +569,23 @@ export interface paths {
         put?: never;
         /** Rule + AI risk scan of the document or one block */
         post: operations["risk_scan_api_v2_documents__document_id__risk_scan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/documents/{document_id}/risk-dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Per-category risk-flag counts for the Risk Dashboard spider/radar chart */
+        post: operations["risk_dashboard_api_v2_documents__document_id__risk_dashboard_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -616,6 +737,11 @@ export interface components {
              * @description Non-empty means the summary cited a source it was never given
              */
             invalid_citation_numbers?: number[];
+            /**
+             * Negotiation Suggestions
+             * @description Clauses deviating from the org's configured preferred language (Organization.negotiation_preferences). Always status='pending_review' -- never auto-applied.
+             */
+            negotiation_suggestions?: components["schemas"]["NegotiationSuggestion"][];
             /** Needs Human Review */
             needs_human_review: boolean;
             /** Trace */
@@ -678,6 +804,22 @@ export interface components {
              */
             file: string;
         };
+        /** ClassCOverrideItem */
+        ClassCOverrideItem: {
+            /** Task */
+            task: string;
+            /** Class C Disabled */
+            class_c_disabled: boolean;
+            /** Reason */
+            reason?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** ClassCOverridesResponse */
+        ClassCOverridesResponse: {
+            /** Overrides */
+            overrides?: components["schemas"]["ClassCOverrideItem"][];
+        };
         /** ClauseObject */
         ClauseObject: {
             /** Id */
@@ -705,6 +847,17 @@ export interface components {
             ambiguity_flags?: components["schemas"]["AmbiguityFlag"][];
             /** Pronoun Candidates */
             pronoun_candidates?: string[];
+        };
+        /** ClauseRiskFinding */
+        ClauseRiskFinding: {
+            /** Clause Id */
+            clause_id: number;
+            /** Category */
+            category: string;
+            /** Term */
+            term: string;
+            /** Explanation */
+            explanation: string;
         };
         /** ConsistencyFinding */
         ConsistencyFinding: {
@@ -814,6 +967,30 @@ export interface components {
         CrossReference: {
             /** Text */
             text: string;
+        };
+        /** DeltaReportResponse */
+        DeltaReportResponse: {
+            /** Rows */
+            rows?: components["schemas"]["DeltaReportRow"][];
+        };
+        /** DeltaReportRow */
+        DeltaReportRow: {
+            /** Task */
+            task: string;
+            /** Local Ms */
+            local_ms?: number | null;
+            /** External Ms */
+            external_ms?: number | null;
+            /** Local Len */
+            local_len: number;
+            /** External Len */
+            external_len: number;
+            /** Agreement F1 */
+            agreement_f1: number;
+            /** Local Error */
+            local_error?: string | null;
+            /** External Error */
+            external_error?: string | null;
         };
         /** DeonticTag */
         DeonticTag: {
@@ -987,13 +1164,57 @@ export interface components {
         KGQueryRequest: {
             /** Term */
             term: string;
+            /**
+             * As Of
+             * @description ISO date/datetime string. If set, returns clauses valid as of this point in time instead of the current graph state (bitemporal versioning, LEARNING_LOG.md #50).
+             */
+            as_of?: string | null;
         };
         /** KGQueryResponse */
         KGQueryResponse: {
             /** Term */
             term: string;
+            /** As Of */
+            as_of?: string | null;
             /** Clauses */
             clauses?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** KGSupersedeRequest */
+        KGSupersedeRequest: {
+            /** Old Document Id */
+            old_document_id: number;
+            /** New Document Id */
+            new_document_id: number;
+            /**
+             * Valid From
+             * @description ISO date/datetime the new version took effect. Defaults to now.
+             */
+            valid_from?: string | null;
+        };
+        /** KGSupersedeResponse */
+        KGSupersedeResponse: {
+            /** Old Document Id */
+            old_document_id: number;
+            /** New Document Id */
+            new_document_id: number;
+            /** Valid From */
+            valid_from?: string | null;
+            /**
+             * Clauses Closed
+             * @default 0
+             */
+            clauses_closed: number;
+            /** Kg Available */
+            kg_available: boolean;
+        };
+        /** KGVersionHistoryResponse */
+        KGVersionHistoryResponse: {
+            /** Document Id */
+            document_id: number;
+            /** Versions */
+            versions?: {
                 [key: string]: unknown;
             }[];
         };
@@ -1067,6 +1288,17 @@ export interface components {
              * @default
              */
             note: string;
+            /**
+             * Recent Avg Latency Ms
+             * @description Average latency_ms over this provider's most recent model_calls rows, if any.
+             */
+            recent_avg_latency_ms?: number | null;
+            /**
+             * Recent Call Count
+             * @description How many recent model_calls rows the average above is based on.
+             * @default 0
+             */
+            recent_call_count: number;
         };
         /** ModelsStatusResponse */
         ModelsStatusResponse: {
@@ -1078,6 +1310,30 @@ export interface components {
             external_providers_enabled: boolean;
             /** Strict Local Only */
             strict_local_only: boolean;
+        };
+        /**
+         * NegotiationSuggestion
+         * @description One clause that deviates from the org's configured preferred
+         *     language for its clause type -- never auto-applied, always
+         *     `status="pending_review"` (app/agents/negotiation.py).
+         */
+        NegotiationSuggestion: {
+            /** Clause Id */
+            clause_id: number;
+            /** Clause Type */
+            clause_type: string;
+            /** Current Language */
+            current_language: string;
+            /** Suggested Language */
+            suggested_language: string;
+            /** Rationale */
+            rationale: string;
+            /** Similarity */
+            similarity: number;
+            /** Diff Lines */
+            diff_lines: string[];
+            /** Status */
+            status: string;
         };
         /** NlpAnalyzeRequest */
         NlpAnalyzeRequest: {
@@ -1094,6 +1350,24 @@ export interface components {
         NlpAnalyzeResponse: {
             /** Clauses */
             clauses: components["schemas"]["ClauseObject"][];
+        };
+        /** OrgSettingsResponse */
+        OrgSettingsResponse: {
+            /** Org Id */
+            org_id: number;
+            /** Feature Flags */
+            feature_flags?: {
+                [key: string]: unknown;
+            };
+            /** Webhook Url */
+            webhook_url?: string | null;
+            /**
+             * Negotiation Preferences
+             * @description {clause_type: {preferred_language, rationale}} -- the Negotiation/Drafting agent's static-preferences input (docs/v2/ROADMAP.md Phase 8).
+             */
+            negotiation_preferences?: {
+                [key: string]: unknown;
+            };
         };
         /** ReviewQueueItem */
         ReviewQueueItem: {
@@ -1157,6 +1431,23 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** RiskDashboardResponse */
+        RiskDashboardResponse: {
+            /**
+             * Categories
+             * @description Every category name (app/services/risk_radar/rules.py::RISK_CATEGORY_NAMES) mapped to its keyword-flag count across the whole document -- always present, zero-filled if nothing was flagged, so a spider/radar chart's axes stay stable across documents.
+             */
+            categories: {
+                [key: string]: number;
+            };
+            /** Total Flags */
+            total_flags: number;
+            /**
+             * Clause Findings
+             * @description Per-clause detail for drill-down from a chart axis/category.
+             */
+            clause_findings?: components["schemas"]["ClauseRiskFinding"][];
+        };
         /** RiskFinding */
         RiskFinding: {
             /** Clause Id */
@@ -1219,6 +1510,13 @@ export interface components {
              */
             external_providers_permitted: boolean;
         };
+        /** SetClassCOverrideRequest */
+        SetClassCOverrideRequest: {
+            /** Class C Disabled */
+            class_c_disabled: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
         /** SimulatedEvent */
         SimulatedEvent: {
             /** Clause Id */
@@ -1273,6 +1571,28 @@ export interface components {
             date_description: string;
             /** Event */
             event: string;
+        };
+        /** UpdateOrgSettingsRequest */
+        UpdateOrgSettingsRequest: {
+            /**
+             * Feature Flags
+             * @description Merged into the existing flags, not replaced wholesale.
+             */
+            feature_flags?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Webhook Url
+             * @description Pass an empty string to clear it.
+             */
+            webhook_url?: string | null;
+            /**
+             * Negotiation Preferences
+             * @description Merged into the existing preferences, keyed by clause_type, not replaced wholesale.
+             */
+            negotiation_preferences?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** UserSummary */
         UserSummary: {
@@ -1748,6 +2068,74 @@ export interface operations {
             };
         };
     };
+    supersede_document_api_kg_supersede_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KGSupersedeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KGSupersedeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    document_version_history_api_kg_documents__document_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KGVersionHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     analyze_case_api_agents_analyze_post: {
         parameters: {
             query?: never;
@@ -1832,6 +2220,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvalRunsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_class_c_overrides_api_models_class_c_overrides_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassCOverridesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_class_c_override_route_api_models_class_c_overrides__task__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                task: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetClassCOverrideRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassCOverrideItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_class_c_override_route_api_models_class_c_overrides__task__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                task: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_delta_report_api_models_delta_report_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeltaReportResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2100,6 +2622,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_org_settings_api_org_settings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgSettingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_org_settings_api_org_settings_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrgSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgSettingsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2384,6 +2972,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RiskScanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    risk_dashboard_api_v2_documents__document_id__risk_dashboard_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskDashboardResponse"];
                 };
             };
             /** @description Validation Error */

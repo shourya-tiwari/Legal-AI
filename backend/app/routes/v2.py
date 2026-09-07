@@ -28,6 +28,7 @@ from app.models import (
     ContextualizerResponse,
     MapResponse,
     RewriteResponse,
+    RiskDashboardResponse,
     RiskScanResponse,
     SensitivityOverrideRequest,
     SensitivityResponse,
@@ -45,7 +46,8 @@ from app.services.chatbot import answer_question
 from app.services.consistency import MAX_OTHER_DOCUMENTS, find_cross_document_consistency
 from app.services.contextualizer.explainer import generate_contextualized_explanation
 from app.services.model_router import is_external_permitted
-from app.services.risk_radar.detector import generate_risk_radar_response
+from app.services.nlp.pipeline import build_clause_objects
+from app.services.risk_radar.detector import generate_risk_dashboard, generate_risk_radar_response
 from app.services.rewriter import rewrite_text
 from app.services.sensitivity import classify_sensitivity
 from app.services.simulation import simulate_obligation_timeline
@@ -212,6 +214,18 @@ def risk_scan(
     doc = _load_doc(document_id, org, db)
     return generate_risk_radar_response(_block_text(doc, body.block_id),
                                         sensitivity=doc.sensitivity_tier)
+
+
+@router.post("/documents/{document_id}/risk-dashboard", response_model=RiskDashboardResponse,
+             summary="Per-category risk-flag counts for the Risk Dashboard spider/radar chart")
+def risk_dashboard(
+    document_id: int,
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
+    db: Session = Depends(get_db),
+) -> RiskDashboardResponse:
+    doc = _load_doc(document_id, org, db)
+    clauses = build_clause_objects(doc.full_text)
+    return generate_risk_dashboard(clauses)
 
 
 @router.post("/documents/{document_id}/contextualize", response_model=ContextualizerResponse,

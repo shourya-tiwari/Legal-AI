@@ -89,6 +89,23 @@ class RiskScanResponse(BaseModel):
     flagged_clauses: List[FlaggedClause]
     risk_summary: str
 
+class ClauseRiskFinding(BaseModel):
+    clause_id: int
+    category: str
+    term: str
+    explanation: str
+
+class RiskDashboardResponse(BaseModel):
+    categories: Dict[str, int] = Field(
+        description="Every category name (app/services/risk_radar/rules.py::RISK_CATEGORY_NAMES) "
+        "mapped to its keyword-flag count across the whole document -- always present, zero-filled "
+        "if nothing was flagged, so a spider/radar chart's axes stay stable across documents.",
+    )
+    total_flags: int
+    clause_findings: List[ClauseRiskFinding] = Field(
+        default_factory=list, description="Per-clause detail for drill-down from a chart axis/category.",
+    )
+
 # ----- Structured Clause Analysis (/api/nlp/analyze) -----
 class NlpAnalyzeRequest(BaseModel):
     contract_text: str = Field(..., min_length=1, max_length=50000)

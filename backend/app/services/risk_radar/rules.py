@@ -60,6 +60,85 @@ RISKY_TERMS: Dict[str, str] = {
 }
 
 
+# Category taxonomy for the Risk Dashboard spider/radar chart (docs/v2/
+# ROADMAP.md Phase 8 "Risk Dashboard spider/radar chart -- closes the V1
+# README promise"; docs/v2/FRONTEND.md flagged this as the specific missing
+# piece: "risk_radar/rules.py's risky-term list has no category taxonomy
+# for a spider chart's axes"). A separate mapping, not a change to
+# RISKY_TERMS' own shape -- RISKY_TERMS is used elsewhere (training data
+# prep, tests) as a flat {term: explanation} dict, and changing that shape
+# would be a breaking change for no benefit when a parallel lookup works
+# just as well. Every term in RISKY_TERMS has exactly one category here,
+# verified by a test that diffs the two dicts' keysets.
+RISK_CATEGORIES: Dict[str, str] = {
+    # Liability & Indemnification
+    "indemnify": "Liability & Indemnification",
+    "liability": "Liability & Indemnification",
+    "damages": "Liability & Indemnification",
+    "limitation of liability": "Liability & Indemnification",
+    "damages cap": "Liability & Indemnification",
+    "hold harmless": "Liability & Indemnification",
+    "subrogation": "Liability & Indemnification",
+    "liquidated damages": "Liability & Indemnification",
+    "insurance requirements": "Liability & Indemnification",
+    # Termination & Renewal
+    "terminate": "Termination & Renewal",
+    "cancellation": "Termination & Renewal",
+    "termination for convenience": "Termination & Renewal",
+    "renewal obligation": "Termination & Renewal",
+    "renewal period": "Termination & Renewal",
+    "extension denial": "Termination & Renewal",
+    "default": "Termination & Renewal",
+    "breach": "Termination & Renewal",
+    # Payment & Financial
+    "penalty": "Payment & Financial",
+    "late fee": "Payment & Financial",
+    "security deposit": "Payment & Financial",
+    "deposit forfeiture": "Payment & Financial",
+    "rent escalation": "Payment & Financial",
+    "per diem": "Payment & Financial",
+    # Confidentiality & IP
+    "confidentiality breach": "Confidentiality & IP",
+    "proprietary": "Confidentiality & IP",
+    # Dispute Resolution & Jurisdiction
+    "dispute resolution": "Dispute Resolution & Jurisdiction",
+    "arbitration": "Dispute Resolution & Jurisdiction",
+    "governing law": "Dispute Resolution & Jurisdiction",
+    "jurisdiction": "Dispute Resolution & Jurisdiction",
+    "injunctive relief": "Dispute Resolution & Jurisdiction",
+    "equitable remedies": "Dispute Resolution & Jurisdiction",
+    "without prejudice": "Dispute Resolution & Jurisdiction",
+    # Restrictive Covenants
+    "non-compete": "Restrictive Covenants",
+    "exclusivity": "Restrictive Covenants",
+    "assignment restriction": "Restrictive Covenants",
+    "successors and assigns": "Restrictive Covenants",
+    # Ambiguous Language
+    "best efforts": "Ambiguous Language",
+    "reasonable efforts": "Ambiguous Language",
+    "commercially reasonable": "Ambiguous Language",
+    "material adverse change": "Ambiguous Language",
+    "sole discretion": "Ambiguous Language",
+    "good faith": "Ambiguous Language",
+    "notwithstanding": "Ambiguous Language",
+    "hereto": "Ambiguous Language",
+    "hereinafter": "Ambiguous Language",
+    "thereof": "Ambiguous Language",
+    "whereas": "Ambiguous Language",
+    "forthwith": "Ambiguous Language",
+    "as is": "Ambiguous Language",
+    "time is of the essence": "Ambiguous Language",
+    "to the fullest extent permitted by law": "Ambiguous Language",
+    "severability": "Ambiguous Language",
+    # Compliance & Force Majeure
+    "force majeure": "Compliance & Force Majeure",
+    "waiver": "Compliance & Force Majeure",
+    "notice requirements": "Compliance & Force Majeure",
+}
+
+RISK_CATEGORY_NAMES: List[str] = sorted(set(RISK_CATEGORIES.values()))
+
+
 def normalize_text(text: str) -> str:
     return re.sub(r"[^\w\s]", "", text.lower())
 
@@ -67,7 +146,16 @@ def find_keyword_flags(clause_text: str, risky_terms: Dict[str, str]) -> List[di
     normalized = normalize_text(clause_text)
     flags: List[dict] = []
     for term, explanation in risky_terms.items():
-        pattern = rf"\b{re.escape(term)}\b"
+        # The term itself must go through the same normalization as the
+        # text it's matched against -- a real bug, found while building the
+        # Risk Dashboard (LEARNING_LOG.md #52): "non-compete" (the only
+        # hyphenated entry in RISKY_TERMS) could never match, because
+        # normalize_text() strips the hyphen from clause_text ("noncompete")
+        # while the un-normalized term still searched for the literal
+        # hyphen. This has been live and silently broken since the term was
+        # added -- every real "non-compete" clause this scanner has ever
+        # been run against was invisible to it.
+        pattern = rf"\b{re.escape(normalize_text(term))}\b"
         if re.search(pattern, normalized):
             flags.append({"term": term, "predefined_explanation": explanation})
     return flags

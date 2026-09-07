@@ -4,7 +4,7 @@ import json
 from typing import List, Dict
 
 from app.services.model_router import generate_content
-from app.services.risk_radar.rules import RISKY_TERMS, find_keyword_flags
+from app.services.risk_radar.rules import RISK_CATEGORIES, RISK_CATEGORY_NAMES, RISKY_TERMS, find_keyword_flags
 
 def _ai_risk_flags(clause_text: str, sensitivity: str = "internal") -> List[Dict]:
     # The AI risk pass -- routed via the Model Router (not Gemini-specific).
@@ -23,6 +23,45 @@ def _ai_risk_flags(clause_text: str, sensitivity: str = "internal") -> List[Dict
             return []
     except Exception:
         return []
+
+def generate_risk_dashboard(clauses: List) -> Dict:
+    """Per-category risk-flag counts across every clause in a document, for
+    the Risk Dashboard spider/radar chart (docs/v2/ROADMAP.md Phase 8,
+    docs/v2/FRONTEND.md's flagged gap). Rule-based only (Tier 0 keyword
+    sweep, `find_keyword_flags`) -- the AI risk pass is a per-clause Gemini
+    call and isn't invoked here, same posture as `risk_compliance.py`'s
+    agent-level sweep.
+
+    `clauses` is a list of ClauseObject (or anything with `.id`/`.text`) --
+    typed loosely here rather than importing app.services.nlp.schema, to
+    keep this module import-light the way the rest of risk_radar/ already is.
+
+    Every category in RISK_CATEGORY_NAMES is always present in the output
+    (zero-filled if nothing was flagged) so the frontend's radar chart has a
+    stable, complete set of axes to draw regardless of what a given
+    document actually triggers -- a chart with a variable axis count from
+    one document to the next would be far harder to read or compare."""
+    category_counts: Dict[str, int] = {name: 0 for name in RISK_CATEGORY_NAMES}
+    clause_level: List[Dict] = []
+
+    for clause in clauses:
+        flags = find_keyword_flags(clause.text, RISKY_TERMS)
+        for flag in flags:
+            category = RISK_CATEGORIES.get(flag["term"], "Uncategorized")
+            category_counts[category] = category_counts.get(category, 0) + 1
+            clause_level.append({
+                "clause_id": clause.id,
+                "category": category,
+                "term": flag["term"],
+                "explanation": flag["predefined_explanation"],
+            })
+
+    return {
+        "categories": category_counts,
+        "total_flags": sum(category_counts.values()),
+        "clause_findings": clause_level,
+    }
+
 
 def generate_risk_radar_response(clause_text: str, *, sensitivity: str = "internal") -> Dict:
     keyword_flags = find_keyword_flags(clause_text, RISKY_TERMS)
