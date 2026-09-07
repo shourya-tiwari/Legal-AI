@@ -30,6 +30,11 @@ __pycache__/
 # ----- KùzuDB embedded KG database (Phase 7 collapsed data layer) -----
 kuzu_data/
 
+# ----- Trained model binaries (Phase 8, backend/training/) -- reproducible
+# via the training scripts; the eval report JSON + model card are what's
+# actually worth keeping in git, not the binary artifact itself -----
+backend/training/models/*.joblib
+
 # ----- Local-only AI assistant working files (not published to the repo) -----
 CLAUDE.md
 LEARNING_LOG.md

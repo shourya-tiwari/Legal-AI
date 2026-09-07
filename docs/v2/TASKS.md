@@ -260,11 +260,11 @@ This is a coherent choice: the docs' own thesis is that legal-domain quality com
 - [ ] Legal-expert review of weak labels in Argilla
 - [ ] Train the Risk Scoring Model (LightGBM, CPU — blocked on labelled data, not hardware); integrate SHAP
 - [ ] Finalize the fine-tuned clause/contract-type classifier and NER head; eval-gate promotion
-- [ ] Document Sensitivity Classifier — classical (TF-IDF + linear) first; fine-tune a transformer only if that underperforms
+- [x] **Document Sensitivity Classifier — classical (TF-IDF + linear) tried and eval-gated for real, not promoted** (`LEARNING_LOG.md` #43) — `backend/training/{prepare_sensitivity_data,train_sensitivity_classifier}.py`: TF-IDF + LogisticRegression trained on 300 synthetic documents (real clause snippets from `app/eval/gold_set.py`/`app/services/rag/corpus.py`, weak-labelled by the *existing* rule classifier — no real customer documents exist to train on, correctly distinguished from an infra blocker). Evaluated against the 11 real, hand-labelled `SENSITIVITY_GOLD` examples (held out of training entirely): **0.818 accuracy vs. the rule baseline's 1.000 — did not pass the gate**, rule base stays production. Full result + failure analysis in `backend/training/models/sensitivity_classifier_card.md`. "Fine-tune a transformer only if [classical] underperforms" is now the honestly-justified next step, itself GPU-blocked (same A4000 dependency as the clause/deontic heads).
 - [ ] Legal Clause Embedding Model — contrastive fine-tune (`NOVELTY.md` #3) with hard-negative mining (GPU training step uses Phase 6 infra)
 - [ ] Redline Acceptance Predictor — per-org, DPO/classifier over redline history (opt-in, org-scoped, never pooled)
 - [ ] MLflow registry + DVC data versioning; eval-gated model promotion in CI/CD
-- [ ] Model cards for every trained model (intended use, data provenance, jurisdictions/contract types covered, eval scores, limitations)
+- [~] Model cards for every trained model (intended use, data provenance, jurisdictions/contract types covered, eval scores, limitations) — the template (`backend/training/model_card_template.md`) existed since Phase 6 with nothing trained yet to fill it in; the sensitivity classifier above is the **first genuinely trained artifact in this repo's history**, and it has a real card (`backend/training/models/sensitivity_classifier_card.md`) even though it wasn't promoted — a negative result is still worth a card. The clause/deontic heads remain scaffold-only (GPU-blocked), so their cards remain the template.
 
 **Portfolio agents (`AGENTS.md`, `KNOWLEDGE_GRAPH.md`)**
 - [ ] Bitemporal graph versioning (valid time / transaction time) — the Phase 3 gap

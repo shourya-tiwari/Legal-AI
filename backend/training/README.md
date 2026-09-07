@@ -7,6 +7,7 @@ Scripts and configs for the in-house token-classification models
 |---|---|---|---|
 | clause / contract-type classifier | `answerdotai/ModernBERT-base` (or `nlpaueb/legal-bert-base-uncased`) | sequence classification | **scaffold only — not trained** |
 | deontic modality tagger | same | multi-label sequence classification | **scaffold only — not trained** |
+| document sensitivity classifier | TF-IDF + LogisticRegression (scikit-learn, CPU) | 4-class sequence classification | **trained and eval-gated — did not beat the rule baseline, not promoted** (`models/sensitivity_classifier_card.md`, `LEARNING_LOG.md` #43) |
 
 **Nothing here has been run.** This session (Phase 6) delivered the pipeline —
 data prep, config-driven training, eval hooks — so the training runs are a
@@ -55,3 +56,27 @@ pip install -r backend/requirements-train.txt
 # optional 2x-faster / lower-VRAM LoRA:
 pip install unsloth
 ```
+
+## Document sensitivity classifier (CPU-only, already run)
+
+Unlike the two BERT-based scaffolds above, this one needed nothing this
+environment lacked — no GPU, no served LLM. `scikit-learn` was already in
+`requirements-train.txt`.
+
+```
+python training/prepare_sensitivity_data.py       # -> data/sensitivity_{train,val}.jsonl
+python training/train_sensitivity_classifier.py   # trains, evaluates, saves
+```
+
+No real customer documents exist, so training data is synthetic: real
+clause snippets already committed elsewhere in this repo, weak-labelled by
+running the *existing* rule classifier over them (the same distillation
+approach `prepare_clause_data.py`'s `--weak-corpus` step already uses).
+Evaluated against `app/eval/gold_set.py::SENSITIVITY_GOLD` (11 real,
+hand-labelled examples, held out of training) — the classical model scored
+0.818 there against the rule baseline's 1.000. **Did not pass the gate**;
+the rule base stays production. See `models/sensitivity_classifier_card.md`
+for the full result and failure analysis, and `LEARNING_LOG.md` #43. The
+honest next step this roadmap line names ("fine-tune a transformer only if
+classical underperforms") is real, GPU-blocked follow-up work, not skipped
+by choice.

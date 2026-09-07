@@ -1,0 +1,76 @@
+{
+  "weak_val_accuracy": 0.911,
+  "weak_val_macro_f1": 0.908,
+  "gold_n": 11,
+  "classical_model_gold_accuracy": 0.818,
+  "rule_baseline_gold_accuracy": 1.0,
+  "passed_cutover_gate": false,
+  "gold_predictions": [
+    {
+      "text": "This memorandum is protected by the attorney-client privilege.",
+      "expected": "privileged",
+      "classical": "privileged",
+      "rule": "privileged"
+    },
+    {
+      "text": "PRIVILEGED & CONFIDENTIAL work product prepared in anticipation of litigation.",
+      "expected": "privileged",
+      "classical": "privileged",
+      "rule": "privileged"
+    },
+    {
+      "text": "Legal advice memo \u2014 subject to the attorney-client privilege, do not forward.",
+      "expected": "privileged",
+      "classical": "privileged",
+      "rule": "privileged"
+    },
+    {
+      "text": "MUTUAL NON-DISCLOSURE AGREEMENT. The parties will exchange Confidential Informat",
+      "expected": "confidential",
+      "classical": "internal",
+      "rule": "confidential"
+    },
+    {
+      "text": "The Receiving Party shall not disclose the Disclosing Party's trade secret infor",
+      "expected": "confidential",
+      "classical": "confidential",
+      "rule": "confidential"
+    },
+    {
+      "text": "Employee record: SSN 123-45-6789, DOB on file, passport number X1234567.",
+      "expected": "confidential",
+      "classical": "internal",
+      "rule": "confidential"
+    },
+    {
+      "text": "FOR IMMEDIATE RELEASE \u2014 the Company announces its results, filed with the SEC on",
+      "expected": "public",
+      "classical": "public",
+      "rule": "public"
+    },
+    {
+      "text": "This document is available to the general public via the EDGAR system.",
+      "expected": "public",
+      "classical": "public",
+      "rule": "public"
+    },
+    {
+      "text": "MASTER SERVICES AGREEMENT covering consulting deliverables, fees and a payment s",
+      "expected": "internal",
+      "classical": "internal",
+      "rule": "internal"
+    },
+    {
+      "text": "5. Confidentiality. Each party will protect the other's confidential information",
+      "expected": "internal",
+      "classical": "internal",
+      "rule": "internal"
+    },
+    {
+      "text": "Amendment No. 2 to the Lease, adjusting the rent and extending the term by one y",
+      "expected": "internal",
+      "classical": "internal",
+      "rule": "internal"
+    }
+  ]
+}
