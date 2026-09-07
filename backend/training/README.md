@@ -95,6 +95,33 @@ and no consent flow to build it around — a product-stage blocker, not an
 infrastructure one, and one no amount of additional engineering in this
 repo can manufacture around.
 
+## Legal-expert review in Argilla (Phase 8, verified live)
+
+```bash
+docker compose -f training/argilla-compose.yml up -d
+python training/push_to_argilla.py       # -> real Argilla dataset, rule-teacher suggestions pre-filled
+# UI: http://localhost:6900  (login: argilla / 12345678)
+docker compose -f training/argilla-compose.yml down -v   # when done
+```
+
+`push_to_argilla.py` pushes weak-labelled deontic examples into an Argilla
+dataset (`modalities` multi-label question, one `Suggestion` per record
+from the existing rule teacher) so a reviewer confirms/corrects instead of
+labelling from scratch. Verified live end-to-end (`LEARNING_LOG.md` #48):
+20 records pushed to a real, locally-run Argilla v2 server, read back with
+suggestions and metadata intact. Two real infra gaps found only by
+actually running it, not by reading docs: the commonly-documented
+single-container `argilla/argilla-quickstart` image serves a stale,
+API-incompatible v1.29.1 server (the current `argilla` Python client is a
+full v2 rewrite); the real v2 server (`argilla/argilla-server`) additionally
+needs a Redis connection for its webhook/task queue even single-node,
+which isn't obvious from Argilla's own docs but is a hard startup failure
+without it — `argilla-compose.yml` is the verified-working three-container
+setup (server + Elasticsearch + Redis). **What stays genuinely blocked**:
+no legal expert exists in this environment to open the UI and actually
+adjudicate a suggestion — a human-availability gap, unrelated to whether
+the infrastructure itself works (it does).
+
 ## Install
 
 ```

@@ -1,0 +1,46 @@
+# backend/training/argilla-compose.yml
+#
+# A real, verified-working local Argilla v2 server for
+# push_to_argilla.py (docs/v2/ROADMAP.md Phase 8 "Legal-expert review of
+# weak labels in Argilla"). Not part of the app's own docker-compose.yml --
+# this is a one-off data-curation tool, not a service the app depends on.
+#
+# The commonly-documented "argilla/argilla-quickstart" single-container
+# image is stale (serves an old v1.29.1 API, incompatible with the current
+# argilla Python client) -- this compose file is the real, verified path:
+# server + Elasticsearch + Redis (the server needs Redis for its
+# webhook/task queue even single-node, which isn't obvious from Argilla's
+# own docs but is a real, hard startup failure without it).
+#
+#   docker compose -f training/argilla-compose.yml up -d
+#   python training/push_to_argilla.py
+#   # UI: http://localhost:6900  (login: argilla / 12345678)
+#   docker compose -f training/argilla-compose.yml down -v   # when done
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+  argilla:
+    image: argilla/argilla-server:latest
+    ports:
+      - "6900:6900"
+    environment:
+      ARGILLA_ELASTICSEARCH: http://elasticsearch:9200
+      ARGILLA_DATABASE_URL: sqlite:////var/lib/argilla/argilla.db
+      ARGILLA_REDIS_URL: redis://redis:6379/0
+      USERNAME: argilla
+      PASSWORD: "12345678"
+      API_KEY: argilla.apikey
+    depends_on:
+      - elasticsearch
+      - redis
