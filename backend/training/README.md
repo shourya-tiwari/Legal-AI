@@ -122,6 +122,29 @@ no legal expert exists in this environment to open the UI and actually
 adjudicate a suggestion — a human-availability gap, unrelated to whether
 the infrastructure itself works (it does).
 
+## Legal Clause Embedding Model — hard-negative pair construction (CPU-only, already run)
+
+```bash
+python training/prepare_embedding_data.py   # -> data/embedding_pairs.jsonl
+```
+
+The CPU half of `docs/v2/ROADMAP.md`'s "Legal Clause Embedding Model —
+contrastive fine-tune (`NOVELTY.md` #3) with hard-negative mining"; the
+actual contrastive fine-tune step needs a GPU (Phase 6 infra), same as the
+clause/deontic heads. Builds 122 verified (anchor, positive,
+hard_negative) triplets: positives are different real clauses sharing a
+clause_type label (from the already-prepared `clause_{train,val}.jsonl`);
+hard negatives are regex perturbations matching NOVELTY.md's own named
+examples (modal-verb swap "shall"/"may", negation, a day-count/dollar/
+percentage shift) — each is **verified**, not assumed, before being kept:
+modal_swap/negation are confirmed by the *existing* rule-based deontic
+tagger actually flipping its tag; numeric_shift is scoped to only
+magnitude/threshold numbers (day/month/year counts, `$` amounts,
+percentages), after an early, broader version was caught corrupting
+statute-year and section-number citations (e.g. "Lanham Act of 1946" →
+"...of 194") into garbage rather than a legally-meaningful hard negative.
+See `LEARNING_LOG.md` #49.
+
 ## Install
 
 ```
