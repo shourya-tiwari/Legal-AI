@@ -57,6 +57,8 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("audit_log", "actor_type", "VARCHAR(16)"),
     ("api_keys", "role", "VARCHAR(16) NOT NULL DEFAULT 'admin'"),
     ("case_analyses", "risk_findings", "JSON"),
+    ("organizations", "feature_flags", "JSON"),
+    ("organizations", "webhook_url", "VARCHAR(2048)"),
 ]
 
 

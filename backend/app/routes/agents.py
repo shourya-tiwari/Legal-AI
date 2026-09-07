@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.agents.graph import run_case_analysis
 from app.auth import OrgContext
 from app.config import get_settings
 from app.db import get_db
-from app.db_models import AgentTrace, CaseAnalysis, Document
+from app.db_models import AgentTrace, CaseAnalysis, Document, Organization
 from app.guard import api_guard
 from app.models import AgentAnalyzeRequest, AgentAnalyzeResponse
 from app.services.model_router import is_external_permitted
+from app.services.org_settings import notify_org
 
 router = APIRouter(tags=["agents"])
 
@@ -20,10 +21,22 @@ def run_and_persist_analysis(
     *,
     analysis_mode: str = "full",
     use_ai_planner: bool = False,
+    background_tasks: BackgroundTasks | None = None,
 ) -> AgentAnalyzeResponse:
     """Run the planner-driven agent graph on a persisted document, write one
     AgentTrace row per step, and build the response. Shared by /api/agents/
     analyze and /api/v2/documents/{id}/analyze.
+
+    Fires an `analysis.completed` webhook (docs/v2/ROADMAP.md Phase 7
+    "Notification/Webhook Service", app/services/org_settings.py) via
+    `background_tasks` when the caller supplies one -- *after* the HTTP
+    response is sent, so a slow or dead webhook endpoint never adds latency
+    to the analyze() call itself. This is the actual "async job completion"
+    notification this codebase has: analysis itself still runs
+    synchronously in-request (or via DBOS if durable execution is on), no
+    true background job queue exists to notify about; a webhook fired
+    immediately after a synchronous call is still a useful, real signal for
+    an org integrating this API, just not one queued and delivered later.
 
     Dispatches to the DBOS durable engine (app/services/durable/dbos_engine.py,
     docs/v2/ROADMAP.md Phase 7) when Settings.DURABLE_EXECUTION_ENABLED --
@@ -80,6 +93,15 @@ def run_and_persist_analysis(
     )
     db.commit()
 
+    if background_tasks is not None:
+        organization = db.query(Organization).filter_by(id=org.id).first()
+        if organization is not None and organization.webhook_url:
+            background_tasks.add_task(
+                notify_org, organization, "analysis.completed",
+                {"document_id": document.id, "needs_human_review": result.needs_human_review,
+                 "faithfulness_ok": result.faithfulness_ok},
+            )
+
     return AgentAnalyzeResponse(
         document_id=document.id,
         clause_count=len(result.clauses),
@@ -102,6 +124,7 @@ def run_and_persist_analysis(
 @router.post("/agents/analyze", response_model=AgentAnalyzeResponse, summary="Run Agentic Case Analysis")
 def analyze_case(
     req: AgentAnalyzeRequest,
+    background_tasks: BackgroundTasks,
     org: OrgContext = Depends(api_guard),
     db: Session = Depends(get_db),
 ) -> AgentAnalyzeResponse:
@@ -113,4 +136,5 @@ def analyze_case(
         document, org, db,
         analysis_mode=req.analysis_mode,
         use_ai_planner=req.use_ai_planner,
+        background_tasks=background_tasks,
     )

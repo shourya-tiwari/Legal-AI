@@ -14,13 +14,13 @@ from __future__ import annotations
 import datetime
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth import OrgContext
 from app.db import get_db
 from app.db_models import AuditLog, Document
-from app.guard import actor_of, api_guard, require_role
+from app.guard import actor_of, require_feature, require_role
 from app.models import (
     AgentAnalyzeResponse,
     AskResponse,
@@ -76,7 +76,7 @@ def _block_text(doc: Document, block_id) -> str:
 @router.get("/documents/{document_id}", response_model=V2DocumentResponse, summary="Get a stored document")
 def get_document(
     document_id: int,
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> V2DocumentResponse:
     doc = _load_doc(document_id, org, db)
@@ -97,7 +97,7 @@ def get_document(
             summary="Get a document's sensitivity tier and why")
 def get_sensitivity(
     document_id: int,
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> SensitivityResponse:
     doc = _load_doc(document_id, org, db)
@@ -149,8 +149,9 @@ def override_sensitivity(
              summary="Run the planner-driven agent analysis")
 def analyze(
     document_id: int,
+    background_tasks: BackgroundTasks,
     body: V2AnalyzeRequest = V2AnalyzeRequest(),
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> AgentAnalyzeResponse:
     doc = _load_doc(document_id, org, db)
@@ -158,6 +159,7 @@ def analyze(
         doc, org, db,
         analysis_mode=body.analysis_mode,
         use_ai_planner=body.use_ai_planner,
+        background_tasks=background_tasks,
     )
 
 
@@ -166,7 +168,7 @@ def analyze(
 def rewrite(
     document_id: int,
     body: V2RewriteRequest = V2RewriteRequest(),
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> RewriteResponse:
     doc = _load_doc(document_id, org, db)
@@ -179,7 +181,7 @@ def rewrite(
              summary="Structure + timeline for the document")
 def contract_map(
     document_id: int,
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> MapResponse:
     doc = _load_doc(document_id, org, db)
@@ -191,7 +193,7 @@ def contract_map(
 def ask(
     document_id: int,
     body: V2AskRequest,
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> AskResponse:
     doc = _load_doc(document_id, org, db)
@@ -204,7 +206,7 @@ def ask(
 def risk_scan(
     document_id: int,
     body: V2RiskScanRequest = V2RiskScanRequest(),
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> RiskScanResponse:
     doc = _load_doc(document_id, org, db)
@@ -217,7 +219,7 @@ def risk_scan(
 def contextualize(
     document_id: int,
     body: V2ContextualizeRequest,
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> ContextualizerResponse:
     doc = _load_doc(document_id, org, db)
@@ -230,7 +232,7 @@ def contextualize(
              summary="Cross-document consistency check (embedding-similarity baseline)")
 def consistency(
     document_id: int,
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> ConsistencyResponse:
     doc = _load_doc(document_id, org, db)
@@ -253,7 +255,7 @@ def consistency(
 def simulate(
     document_id: int,
     body: SimulationRequest = SimulationRequest(),
-    org: OrgContext = Depends(api_guard),
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
     db: Session = Depends(get_db),
 ) -> SimulationResponse:
     doc = _load_doc(document_id, org, db)

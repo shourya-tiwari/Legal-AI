@@ -21,6 +21,14 @@ class Organization(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), unique=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Phase 7 "per-org feature-flagging" (docs/v2/ROADMAP.md) -- {flag_name:
+    # bool}. Absent/unset flags fall back to a hardcoded default (see
+    # app/services/org_settings.py::is_feature_enabled), so adding a new
+    # flag never breaks an org that predates it.
+    feature_flags: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Phase 7 "Notification/Webhook Service for async job completion" --
+    # None means notifications are off for this org (the default).
+    webhook_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="organization")
     users: Mapped[list["User"]] = relationship(back_populates="organization")
@@ -234,6 +242,24 @@ class CaseAnalysis(Base):
     reviewed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewer_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ModelPolicyOverride(Base):
+    """Admin-settable Class C toggle, per task (docs/v2/ROADMAP.md Phase 7
+    "Provider & Model admin: per-task/tier Class C toggles"). The static
+    routing policy (app/policies/routing.yaml) says which tasks are
+    *eligible* for Class C; this table lets an admin additionally force a
+    task off at runtime without editing and redeploying the YAML -- an
+    override can only ever *remove* Class C for a task, never add it back
+    for a task the static policy didn't already permit, and never for a
+    `confidential`/`privileged` document (that gate is enforced separately,
+    unconditionally, in router.py -- this table can't weaken it)."""
+    __tablename__ = "model_policy_overrides"
+
+    task: Mapped[str] = mapped_column(String(64), primary_key=True)
+    class_c_disabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class SemanticMemoryEntry(Base):

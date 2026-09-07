@@ -191,12 +191,65 @@ class ModelProviderStatus(BaseModel):
     leaves_perimeter: bool = Field(description="True only for Class C providers that call a third-party API")
     models: List[str] = Field(default_factory=list)
     note: str = ""
+    # Phase 7 "Model status panel: queue depth/latency" -- queue depth has no
+    # meaning here (no job queue exists in this codebase), but latency is
+    # real, already-collected data (model_calls.latency_ms) that was simply
+    # never aggregated and surfaced before.
+    recent_avg_latency_ms: Optional[float] = Field(
+        None, description="Average latency_ms over this provider's most recent model_calls rows, if any."
+    )
+    recent_call_count: int = Field(0, description="How many recent model_calls rows the average above is based on.")
 
 class ModelsStatusResponse(BaseModel):
     providers: List[ModelProviderStatus]
     policy_version: int
     external_providers_enabled: bool
     strict_local_only: bool
+
+
+# ----- Class C policy overrides (LEARNING_LOG.md #42) -----
+class ClassCOverrideItem(BaseModel):
+    task: str
+    class_c_disabled: bool
+    reason: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ClassCOverridesResponse(BaseModel):
+    overrides: List[ClassCOverrideItem] = Field(default_factory=list)
+
+
+class SetClassCOverrideRequest(BaseModel):
+    class_c_disabled: bool
+    reason: Optional[str] = None
+
+
+# ----- Self-hosted-vs-external delta report (LEARNING_LOG.md #42) -----
+class DeltaReportRow(BaseModel):
+    task: str
+    local_ms: Optional[int] = None
+    external_ms: Optional[int] = None
+    local_len: int
+    external_len: int
+    agreement_f1: float
+    local_error: Optional[str] = None
+    external_error: Optional[str] = None
+
+
+class DeltaReportResponse(BaseModel):
+    rows: List[DeltaReportRow] = Field(default_factory=list)
+
+
+# ----- Org settings: feature flags + webhook (LEARNING_LOG.md #42) -----
+class OrgSettingsResponse(BaseModel):
+    org_id: int
+    feature_flags: dict = Field(default_factory=dict)
+    webhook_url: Optional[str] = None
+
+
+class UpdateOrgSettingsRequest(BaseModel):
+    feature_flags: Optional[dict] = Field(None, description="Merged into the existing flags, not replaced wholesale.")
+    webhook_url: Optional[str] = Field(None, description="Pass an empty string to clear it.")
 
 
 # ----- Eval runs behind the routing policy (/api/models/eval-runs) -----

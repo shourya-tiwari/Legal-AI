@@ -51,6 +51,22 @@ def api_guard(
     return org
 
 
+def require_feature(flag_name: str):
+    """Dependency factory gating a route on a per-org feature flag
+    (docs/v2/ROADMAP.md Phase 7 "per-org feature-flagging",
+    app/services/org_settings.py). Composes api_guard exactly like
+    require_role -- same "resolved once per request" guarantee."""
+    def _check(org: OrgContext = Depends(api_guard), db: Session = Depends(get_db)) -> OrgContext:
+        from app.db_models import Organization
+        from app.services.org_settings import is_feature_enabled
+
+        organization = db.query(Organization).filter_by(id=org.id).first()
+        if organization is not None and not is_feature_enabled(organization, flag_name):
+            raise HTTPException(status_code=403, detail=f"The '{flag_name}' feature is disabled for this org.")
+        return org
+    return _check
+
+
 def require_role(*allowed_roles: str):
     """Dependency factory gating a route on the caller's role (per-key RBAC,
     docs/v2/ARCHITECTURE.md security item 5) -- use in place of

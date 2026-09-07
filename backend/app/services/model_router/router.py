@@ -17,6 +17,7 @@ from typing import List, Optional, Sequence
 
 from . import telemetry
 from .base import ModelProvider
+from .overrides import is_class_c_disabled_for_task
 from .policy import get_policy
 from .registry import get_provider
 from .types import (
@@ -51,6 +52,14 @@ class Router:
             if provider is None:
                 continue
             if not provider.supports(capability):
+                continue
+            # Admin-settable Class C toggle (docs/v2/ROADMAP.md Phase 7,
+            # overrides.py) -- can only ever *remove* a Class C candidate the
+            # static policy already permitted, never add one back or weaken
+            # the sensitivity gate below, which is enforced unconditionally
+            # regardless of this toggle.
+            if getattr(provider, "hosting_class", HostingClass.B) == HostingClass.C \
+                    and is_class_c_disabled_for_task(task):
                 continue
             chain.append(provider)
         return chain
