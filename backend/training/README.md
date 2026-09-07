@@ -145,6 +145,26 @@ statute-year and section-number citations (e.g. "Lanham Act of 1946" →
 "...of 194") into garbage rather than a legally-meaningful hard negative.
 See `LEARNING_LOG.md` #49.
 
+## Deontic-Structure-Aware Counterfactual Ablation (`NOVELTY.md` #5, CPU-only, already run)
+
+```bash
+python training/deontic_ablation.py [--n 5]   # -> models/deontic_ablation_report.json
+```
+
+Explains a Risk Scoring Model prediction by perturbing one legally-
+meaningful span at a time (a deontic modal marker, an extracted entity, a
+defined term — all reused from the *existing* NLP pipeline's own output,
+no new parser) and measuring the shift in predicted-class probability.
+Run against the not-promoted `risk_model.joblib` (#45) — deliberately: this
+validates the *ablation technique*, not the model. Found that removing the
+actual deontic marker barely moves this model's predictions on the real
+gold set (near-zero deltas), independently corroborating
+`risk_model_card.md`'s own SHAP-based finding that the model learned
+superficial n-grams, not legal structure — while a separately-constructed
+richer example confirmed all three span types (`deontic_marker`, `entity:*`,
+`defined_term`) work correctly end to end. Full result in
+`models/deontic_ablation_notes.md` and `LEARNING_LOG.md` #54.
+
 ## Install
 
 ```

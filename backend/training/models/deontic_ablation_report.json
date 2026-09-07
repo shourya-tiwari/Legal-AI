@@ -1,0 +1,61 @@
+[
+  {
+    "clause": "The Contractor shall indemnify and hold harmless the Company from any and all claims, including consequential and punitive damages, with no cap on liability.",
+    "predicted_class": "high",
+    "predicted_proba": 1.0,
+    "span_attributions": [
+      {
+        "span": "shall",
+        "span_type": "deontic_marker",
+        "delta": -0.0
+      }
+    ],
+    "expected_severity": "high"
+  },
+  {
+    "clause": "Either party may terminate this Agreement immediately, for any reason or no reason, without notice or a cure period.",
+    "predicted_class": "medium",
+    "predicted_proba": 0.9976,
+    "span_attributions": [
+      {
+        "span": "may",
+        "span_type": "deontic_marker",
+        "delta": 0.0345
+      }
+    ],
+    "expected_severity": "high"
+  },
+  {
+    "clause": "The Company may unilaterally amend the terms of this Agreement at any time without notifying the Customer.",
+    "predicted_class": "low",
+    "predicted_proba": 0.9986,
+    "span_attributions": [
+      {
+        "span": "may",
+        "span_type": "deontic_marker",
+        "delta": -0.0011
+      }
+    ],
+    "expected_severity": "high"
+  },
+  {
+    "clause": "This non-compete restricts the Employee from working in the same industry anywhere in the world for a period of ten (10) years after termination.",
+    "predicted_class": "low",
+    "predicted_proba": 0.9989,
+    "span_attributions": [],
+    "expected_severity": "high"
+  },
+  {
+    "clause": "Any dispute shall be resolved exclusively through binding arbitration administered by an arbitrator selected solely by the Company, with each party bearing its own costs.",
+    "predicted_class": "medium",
+    "predicted_proba": 1.0,
+    "span_attributions": [
+      {
+        "span": "shall",
+        "span_type": "deontic_marker",
+        "delta": 0.0071
+      }
+    ],
+    "expected_severity": "high"
+  }
+]
