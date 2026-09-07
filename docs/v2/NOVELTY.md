@@ -35,6 +35,8 @@ This document proposes **5 research directions** that go beyond applying establi
 
 **Prior art risk**: **Moderate-to-high.** Graph neural networks applied to legal document analysis are an active academic research area; a targeted literature search (ACL Anthology, JURIX, ICAIL proceedings) and patent search is required before assuming this is unclaimed.
 
+**Architecture design**: `docs/v2/DEONTIC_GAT_DESIGN.md` (`LEARNING_LOG.md` #56) — a concrete graph-construction, edge-feature, and GAT-architecture proposal building on the existing KG schema, written so the literature/patent search above has a specific mechanism to check prior art against rather than only this section's paragraph sketch. Explicitly not a substitute for that search.
+
 ---
 
 ## 2. Temporal Obligation Decay Simulation
