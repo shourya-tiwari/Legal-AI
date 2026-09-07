@@ -63,6 +63,9 @@ The dev box (1× RTX A4000, 16 GB) fits all of this comfortably:
      - weak supervision: tag_deontic_modality_rule_based() over a sentence
        corpus (the teacher step; an LLM teacher via the Model Router is the
        Phase 6 upgrade -- see docs/v2/MODEL_STACK.md "Weak-supervision teacher")
+     - --legalbench : adds real contract_nli_* contract text (LegalBench)
+       as additional sentences for the rule teacher -- grows the corpus from
+       ~15 hand-picked seed sentences to 389 real ones (331/58 train/val)
 
 3. train_clause_classifier.py training/configs/clause_classifier.yaml
    train_deontic_tagger.py   training/configs/deontic_tagger.yaml
@@ -76,6 +79,21 @@ The dev box (1× RTX A4000, 16 GB) fits all of this comfortably:
        primary for clause_type / deontic, rule base demoted to pre-filter
      - write a model card from model_card_template.md
 ```
+
+## Curate training data (Phase 8, docs/v2/ROADMAP.md "org corpora with consent + CUAD/ContractNLI")
+
+The CUAD/ContractNLI half is real and already wired in: `prepare_clause_data.py`
+pulls LegalBench's `cuad_*` subtasks (real, externally-sourced contract
+clauses, not synthetic) for clause-type weak labels; `prepare_deontic_data.py
+--legalbench` (added `LEARNING_LOG.md` #47) pulls `contract_nli_*` contract
+text the same way for deontic weak labels — using `app/eval/datasets.py`'s
+`load_contractnli_subtasks()`, which existed since Phase 6 but had never
+actually been called by anything until now. **"Org corpora with consent" is
+genuinely blocked**, not skipped: this product has no real paying
+organizations yet, so there is no real customer contract corpus to curate
+and no consent flow to build it around — a product-stage blocker, not an
+infrastructure one, and one no amount of additional engineering in this
+repo can manufacture around.
 
 ## Install
 
