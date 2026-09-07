@@ -14,12 +14,21 @@ from __future__ import annotations
 
 import difflib
 import re
+from datetime import datetime, timezone
 from typing import Dict, List
 
 from app.services.nlp.schema import ClauseObject
 
 from . import schema
 from .client import KGClient
+
+
+def _now_iso() -> str:
+    """Transaction-time stamp, computed in Python and passed as a query
+    param -- not a Cypher `timestamp()`/`datetime()` call, so it's the
+    identical value and format across the Memgraph and Kuzu backends
+    (schema.py's bitemporal-versioning note)."""
+    return datetime.now(timezone.utc).isoformat()
 
 CONTEXT_SIMILARITY_THRESHOLD = 0.6
 
@@ -69,10 +78,14 @@ def write_document_graph(
     if not client.available:
         return {"clauses": 0, "defined_terms": 0, "cross_references": 0}
 
+    now = _now_iso()
     doc_id = document_node_id(document_id)
     client.run_query(
-        f"MERGE (d:{schema.DOCUMENT} {{id: $id}}) SET d.org_id = $org_id, d.document_id = $document_id",
-        id=doc_id, org_id=org_id, document_id=document_id,
+        f"MERGE (d:{schema.DOCUMENT} {{id: $id}}) "
+        f"SET d.org_id = $org_id, d.document_id = $document_id, "
+        f"d.created_at = coalesce(d.created_at, $now), "
+        f"d.valid_from = coalesce(d.valid_from, $now)",
+        id=doc_id, org_id=org_id, document_id=document_id, now=now,
     )
 
     for term, context in defined_terms.items():
@@ -96,9 +109,11 @@ def write_document_graph(
             # property is called `content` here for that reason.
             f"MERGE (c:{schema.CLAUSE} {{id: $id}}) "
             f"SET c.content = $content, c.clause_type = $clause_type, c.org_id = $org_id, "
-            f"c.deontic_modalities = $modalities",
+            f"c.deontic_modalities = $modalities, "
+            f"c.created_at = coalesce(c.created_at, $now), "
+            f"c.valid_from = coalesce(c.valid_from, $now)",
             id=c_id, content=clause.text, clause_type=clause.clause_type, org_id=org_id,
-            modalities=[t.modality for t in clause.deontic_tags],
+            modalities=[t.modality for t in clause.deontic_tags], now=now,
         )
         client.run_query(
             f"MATCH (c:{schema.CLAUSE} {{id: $c_id}}), (d:{schema.DOCUMENT} {{id: $doc_id}}) "

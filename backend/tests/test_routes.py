@@ -216,6 +216,53 @@ def test_kg_query_endpoint_returns_empty_without_memgraph_running(client):
     assert resp.json()["clauses"] == []
 
 
+def test_kg_query_endpoint_as_of_returns_empty_without_memgraph_running(client):
+    resp = client.post("/api/kg/query", json={"term": "Tenant", "as_of": "2026-01-01T00:00:00+00:00"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["clauses"] == []
+    assert body["as_of"] == "2026-01-01T00:00:00+00:00"
+
+
+def test_kg_supersede_endpoint_fails_soft_without_memgraph_running(client):
+    files = {"file": ("lease.txt", b'The Tenant ("Tenant") shall pay rent within 30 days.', "text/plain")}
+    old_id = client.post("/api/upload", files=files).json()["document_id"]
+    new_id = client.post("/api/upload", files=files).json()["document_id"]
+
+    resp = client.post("/api/kg/supersede", json={"old_document_id": old_id, "new_document_id": new_id})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["old_document_id"] == old_id
+    assert body["new_document_id"] == new_id
+    # No Memgraph running in the test environment -- fails soft, same
+    # contract as /api/kg/ingest.
+    assert body["kg_available"] is False
+    assert body["clauses_closed"] == 0
+
+
+def test_kg_supersede_endpoint_unknown_document_returns_404(client):
+    resp = client.post("/api/kg/supersede", json={"old_document_id": 999999, "new_document_id": 999998})
+    assert resp.status_code == 404
+
+
+def test_kg_version_history_endpoint_returns_empty_without_memgraph_running(client):
+    files = {"file": ("lease.txt", b'The Tenant ("Tenant") shall pay rent within 30 days.', "text/plain")}
+    document_id = client.post("/api/upload", files=files).json()["document_id"]
+
+    resp = client.get(f"/api/kg/documents/{document_id}/versions")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["document_id"] == document_id
+    assert body["versions"] == []
+
+
+def test_kg_version_history_endpoint_unknown_document_returns_404(client):
+    resp = client.get("/api/kg/documents/999999/versions")
+    assert resp.status_code == 404
+
+
 def test_agents_analyze_endpoint(client, monkeypatch):
     monkeypatch.setattr("app.services.contextualizer.rag.embed_content", fake_embed_content)
     monkeypatch.setattr("app.agents.summary.generate_content", lambda *a, **k: "Risk summary, no citations.")

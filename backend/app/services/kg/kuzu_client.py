@@ -36,10 +36,12 @@ logger = logging.getLogger("legalai.kg.kuzu_client")
 
 _SCHEMA_DDL = [
     f"CREATE NODE TABLE IF NOT EXISTS {schema.DOCUMENT}"
-    f"(id STRING, org_id INT64, document_id INT64, PRIMARY KEY(id))",
+    f"(id STRING, org_id INT64, document_id INT64, "
+    f"created_at STRING, valid_from STRING, valid_to STRING, PRIMARY KEY(id))",
     f"CREATE NODE TABLE IF NOT EXISTS {schema.CLAUSE}"
     f"(id STRING, content STRING, clause_type STRING, org_id INT64, "
-    f"deontic_modalities STRING[], PRIMARY KEY(id))",
+    f"deontic_modalities STRING[], "
+    f"created_at STRING, valid_from STRING, valid_to STRING, PRIMARY KEY(id))",
     f"CREATE NODE TABLE IF NOT EXISTS {schema.DEFINED_TERM}"
     f"(id STRING, term STRING, context STRING, org_id INT64, PRIMARY KEY(id))",
     f"CREATE NODE TABLE IF NOT EXISTS {schema.CROSS_REFERENCE_TARGET}"
@@ -49,6 +51,8 @@ _SCHEMA_DDL = [
     f"CREATE REL TABLE IF NOT EXISTS {schema.USES_TERM}(FROM {schema.CLAUSE} TO {schema.DEFINED_TERM})",
     f"CREATE REL TABLE IF NOT EXISTS {schema.REFERENCES}(FROM {schema.CLAUSE} TO {schema.CROSS_REFERENCE_TARGET})",
     f"CREATE REL TABLE IF NOT EXISTS {schema.SAME_AS}(FROM {schema.DEFINED_TERM} TO {schema.DEFINED_TERM})",
+    f"CREATE REL TABLE IF NOT EXISTS {schema.SUPERSEDES}"
+    f"(FROM {schema.DOCUMENT} TO {schema.DOCUMENT}, valid_from STRING)",
 ]
 
 

@@ -117,14 +117,37 @@ class KGIngestResponse(BaseModel):
 
 class KGQueryRequest(BaseModel):
     term: str = Field(..., min_length=1, max_length=200)
+    as_of: Optional[str] = Field(
+        None, description="ISO date/datetime string. If set, returns clauses valid as of this point in time "
+                           "instead of the current graph state (bitemporal versioning, LEARNING_LOG.md #50)."
+    )
 
 class KGQueryResponse(BaseModel):
     term: str
+    as_of: Optional[str] = None
     clauses: List[dict] = Field(default_factory=list)
 
 class KGConflictsResponse(BaseModel):
     term: str
     conflicts: List[dict] = Field(default_factory=list)
+
+class KGSupersedeRequest(BaseModel):
+    old_document_id: int
+    new_document_id: int
+    valid_from: Optional[str] = Field(
+        None, description="ISO date/datetime the new version took effect. Defaults to now."
+    )
+
+class KGSupersedeResponse(BaseModel):
+    old_document_id: int
+    new_document_id: int
+    valid_from: Optional[str] = None
+    clauses_closed: int = 0
+    kg_available: bool
+
+class KGVersionHistoryResponse(BaseModel):
+    document_id: int
+    versions: List[dict] = Field(default_factory=list)
 
 # ----- Agentic Case Analysis (/api/agents/analyze) -----
 _ANALYSIS_MODE_PATTERN = "^(full|quick|risk_only|extract_only)$"

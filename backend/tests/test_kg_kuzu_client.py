@@ -20,6 +20,7 @@ from app.services.kg.builder import link_portfolio_terms, write_document_graph
 from app.services.kg.kuzu_client import KuzuKGClient
 from app.services.kg.queries import find_clauses_using_term, find_potential_conflicts, get_document_graph_summary
 from app.services.kg.schema import ensure_constraints
+from app.services.kg.versioning import find_clauses_valid_as_of, find_document_version_history, mark_document_superseded
 from app.services.nlp.pipeline import build_clause_objects
 
 SAMPLE_TEXT = (
@@ -109,6 +110,34 @@ def test_ensure_constraints_noops_for_kuzu_backend(kuzu_client):
     # Must not raise -- Kuzu doesn't support Memgraph's CREATE CONSTRAINT
     # syntax at all, and doesn't need to (PRIMARY KEY already enforces it).
     ensure_constraints(kuzu_client)
+
+
+def test_bitemporal_versioning_round_trips_on_real_kuzu(kuzu_client):
+    # Real, empirically-verified (LEARNING_LOG.md #50) proof that the
+    # SUPERSEDES*0.. variable-length traversal and the valid_from/valid_to
+    # as-of filter both work identically on Kuzu, not just Memgraph.
+    old_text = 'The Tenant ("Tenant") shall pay rent within 30 days.'
+    new_text = 'The Tenant ("Tenant") shall pay rent within 60 days.'
+    write_document_graph(kuzu_client, org_id=1, document_id=100,
+                         defined_terms={"Tenant": "ctx"}, clauses=build_clause_objects(old_text))
+    write_document_graph(kuzu_client, org_id=1, document_id=200,
+                         defined_terms={"Tenant": "ctx"}, clauses=build_clause_objects(new_text))
+
+    result = mark_document_superseded(
+        kuzu_client, org_id=1, old_document_id=100, new_document_id=200,
+        valid_from="2027-01-01T00:00:00+00:00",
+    )
+    assert result["kg_available"] is True
+    assert result["clauses_closed"] == 1
+
+    before = find_clauses_valid_as_of(kuzu_client, org_id=1, term="Tenant", as_of="2026-10-01T00:00:00+00:00")
+    assert sorted(r["document_id"] for r in before) == [100, 200]
+
+    after = find_clauses_valid_as_of(kuzu_client, org_id=1, term="Tenant", as_of="2027-06-01T00:00:00+00:00")
+    assert [r["document_id"] for r in after] == [200]
+
+    history = find_document_version_history(kuzu_client, document_id=200)
+    assert sorted(h["document_id"] for h in history) == [100, 200]
 
 
 def test_get_kg_client_dispatches_to_kuzu_when_configured(monkeypatch, tmp_path):

@@ -9,6 +9,7 @@ Edges:  (Clause)-[:PART_OF]->(Document)
         (Clause)-[:USES_TERM]->(DefinedTerm)
         (Clause)-[:REFERENCES]->(CrossReferenceTarget)
         (DefinedTerm)-[:SAME_AS]->(DefinedTerm)   -- portfolio-linking, see builder.py
+        (Document)-[:SUPERSEDES]->(Document)      -- bitemporal versioning, see versioning.py
 
 Deliberately NOT modeled yet: Obligation nodes with resolved actor/action
 (docs/v2/KNOWLEDGE_GRAPH.md's full vision) -- Phase 2's deontic tagger
@@ -17,8 +18,20 @@ Deontic modalities are stored as a property on Clause instead
 (`deontic_modalities: [str]`), honest about what's actually known. Also not
 modeled: Statute/CaseLaw/Jurisdiction nodes (RAG's citation grounding uses a
 separate, non-graph corpus for now -- see services/rag/), Party/Obligation
-distinctions, and bitemporal valid-time tracking (every node just has
-`created_at`).
+distinctions.
+
+Bitemporal versioning (Phase 8, `versioning.py`, `LEARNING_LOG.md` #50):
+Document and Clause nodes carry `created_at` (transaction time -- when this
+graph write happened, stamped in Python at write time, not a Cypher
+`timestamp()` call, so it's identical across the Memgraph/Kuzu backends)
+and `valid_from`/`valid_to` (valid time -- the real-world period this
+version of the document/clause was in effect; `valid_to` is null/absent
+while a version is still current). `versioning.mark_document_superseded`
+closes the prior version's `valid_to` and opens the new version's
+`valid_from` at the same instant, and creates the `SUPERSEDES` edge so a
+document's full version history is traversable, not just its current
+state. This intentionally applies only at the Document/Clause level --
+there is still no Obligation-node concept to version.
 """
 
 DOCUMENT = "Document"
@@ -31,6 +44,7 @@ DEFINES = "DEFINES"
 USES_TERM = "USES_TERM"
 REFERENCES = "REFERENCES"
 SAME_AS = "SAME_AS"
+SUPERSEDES = "SUPERSEDES"
 
 
 def ensure_constraints(client) -> None:
