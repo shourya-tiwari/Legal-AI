@@ -8,6 +8,7 @@ use_lora: true
 lora_r: 16
 lora_alpha: 32
 lora_dropout: 0.05
+lora_target_modules: all-linear  # peft's architecture-agnostic wildcard; override if base_model changes families
 
 lr: 2.0e-4
 batch_size: 16

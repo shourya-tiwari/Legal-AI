@@ -77,6 +77,7 @@ def main() -> None:
         model = get_peft_model(model, LoraConfig(
             task_type=TaskType.SEQ_CLS, r=cfg.get("lora_r", 16),
             lora_alpha=cfg.get("lora_alpha", 32), lora_dropout=cfg.get("lora_dropout", 0.05),
+            target_modules=cfg.get("lora_target_modules", "all-linear"),
         ))
         model.print_trainable_parameters()
 

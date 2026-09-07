@@ -5,19 +5,44 @@ Scripts and configs for the in-house token-classification models
 
 | target | base model | task | status |
 |---|---|---|---|
-| clause / contract-type classifier | `answerdotai/ModernBERT-base` (or `nlpaueb/legal-bert-base-uncased`) | sequence classification | **scaffold only — not trained** |
-| deontic modality tagger | same | multi-label sequence classification | **scaffold only — not trained** |
+| clause / contract-type classifier | `answerdotai/ModernBERT-base` (or `nlpaueb/legal-bert-base-uncased`) | sequence classification | **pipeline verified end-to-end (`--dry-run` + `--smoke`), full fine-tune GPU-blocked** (`LEARNING_LOG.md` #46) |
+| deontic modality tagger | same | multi-label sequence classification | **pipeline verified end-to-end (`--dry-run` + `--smoke`), full fine-tune GPU-blocked** (`LEARNING_LOG.md` #46) |
 | document sensitivity classifier | TF-IDF + LogisticRegression (scikit-learn, CPU) | 4-class sequence classification | **trained and eval-gated — did not beat the rule baseline, not promoted** (`models/sensitivity_classifier_card.md`, `LEARNING_LOG.md` #43) |
 | risk scoring model | TF-IDF + LightGBM (CPU) | 3-class severity classification (low/medium/high) | **trained and eval-gated — did not beat the weak-supervision heuristic, not promoted** (`models/risk_model_card.md`, `LEARNING_LOG.md` #45) |
 
-The clause/deontic heads above are the only ones still genuinely
-**not run** (GPU-blocked). The sensitivity classifier and risk model *have*
-been run — data prep, config-driven training, eval hooks all executed for
-real — the rule-based classifiers (`app/services/nlp/clause_classifier.py`,
-`deontic.py`, `app/services/sensitivity/classifier.py`,
-`app/services/risk_radar/rules.py`) stay the Tier-0 pre-filter and the
-production path until a trained model **beats them on the eval gate**
-(`app/eval/`), which neither classical attempt has yet.
+Every row above has now actually been *run*, not just scaffolded — the
+distinction that matters is what each run could actually complete.
+The sensitivity classifier and risk model are classical (CPU-seconds)
+models, so they trained and eval-gated for real, start to finish. The
+clause/deontic heads are BERT-scale fine-tunes: `--dry-run` (data/label
+validation) and `--smoke` (2 real optimizer steps against a downloaded
+`answerdotai/ModernBERT-base` checkpoint, loss genuinely decreasing) both
+now run clean on CPU in this environment — this surfaced and fixed a real
+bug (see below) — but a full multi-epoch fine-tune to a genuinely
+promotable model is a multi-hour CPU job with `torch.cuda.is_available()`
+confirmed `False` here, not merely assumed unavailable; the A4000 in
+"Hardware" below is this project's intended path for that step, not
+provisioned in this execution environment. The rule-based classifiers
+(`app/services/nlp/clause_classifier.py`, `deontic.py`,
+`app/services/sensitivity/classifier.py`, `app/services/risk_radar/rules.py`)
+stay the Tier-0 pre-filter and the production path until a trained model
+**beats them on the eval gate** (`app/eval/`), which no attempt has yet.
+
+**A real bug fixed while running the smoke tests for the first time**: both
+scripts' `LoraConfig(...)` call had no `target_modules`, which the
+installed `peft` version (0.20.0) no longer auto-infers for
+`ModernBertForSequenceClassification` — `get_peft_model()` raised
+`ValueError: Please specify 'target_modules' or 'target_parameters' in
+'peft_config'` before a single training step could run, on **both**
+scripts, unconditionally. Fixed by passing
+`target_modules=cfg.get("lora_target_modules", "all-linear")` — peft's
+architecture-agnostic wildcard, which also stays correct if `base_model`
+is switched to `nlpaueb/legal-bert-base-uncased` (a different module
+naming scheme) via the yaml config's existing comment. This bug would have
+blocked the very first fine-tuning attempt on this stack regardless of
+whether it ran on this CPU box or the intended A4000 — a real,
+previously-undiscovered defect in code that had never actually been
+executed before now.
 
 ## Hardware
 
