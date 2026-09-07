@@ -1,0 +1,14 @@
+# ---------------------------------------------------------------------------
+# Durable execution (docs/v2/ROADMAP.md Phase 7 "Durable execution & Memory
+# Service" -- app/services/durable/dbos_engine.py). Optional: only needed
+# when Settings.DURABLE_EXECUTION_ENABLED=true. DBOS is a library, not a
+# service -- it checkpoints workflow/step state into the same Postgres
+# already running for the rest of this app's persistence (a real Postgres
+# database specifically; DBOS has no SQLite mode).
+#
+# Note: dbos pulls in SQLAlchemy >=2.0.43, which bumps past requirements.txt's
+# exact SQLAlchemy==2.0.36 pin. Verified this doesn't break anything (full
+# suite green with the bumped version) but installing this alongside the
+# core pin means pip resolves to the newer SQLAlchemy for both.
+# ---------------------------------------------------------------------------
+dbos==2.31.0

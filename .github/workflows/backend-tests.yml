@@ -82,6 +82,44 @@ jobs:
           GOOGLE_API_KEY: ""
         run: pytest -v tests/test_kg_kuzu_client.py
 
+  durable-execution-smoke:
+    # DBOS-driven agent pipeline (docs/v2/ROADMAP.md Phase 7 "Durable
+    # execution & Memory Service", app/services/durable/dbos_engine.py).
+    # DBOS needs a real Postgres (no SQLite mode) -- a GitHub Actions
+    # service container, no separate infra to provision.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dbos
+          POSTGRES_PASSWORD: dbos
+          POSTGRES_DB: dbos_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install core + the durable-execution extra
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-durable.txt
+      - name: Real end-to-end test against a live Postgres-backed DBOS instance
+        env:
+          GOOGLE_API_KEY: ""
+          DBOS_TEST_DATABASE_URL: postgresql://dbos:dbos@localhost:5432/dbos_ci_test
+        run: pytest -v tests/test_dbos_engine.py
+
   sbom-and-image:
     # Build-level proof that the on-prem/air-gapped image genuinely excludes
     # legalai-providers-external -- not just "no source file imports it"

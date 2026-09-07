@@ -128,6 +128,18 @@ class Settings(BaseSettings):
     KG_BACKEND: str = "memgraph"  # "memgraph" | "kuzu"
     KUZU_DB_PATH: str = "./kuzu_data"
 
+    # Durable execution (Phase 7, docs/v2/ROADMAP.md "Durable execution &
+    # Memory Service", app/services/durable/dbos_engine.py). Off by default
+    # -- app/agents/graph.py's synchronous LangGraph execution is still the
+    # default; this is an opt-in alternative orchestrator over the same
+    # AGENT_REGISTRY/planner/CaseState building blocks, checkpointing each
+    # agent node individually so a crashed process resumes from the last
+    # completed node instead of re-running the whole analysis. DBOS has no
+    # SQLite mode -- needs a real Postgres URL, unlike the rest of this
+    # app's persistence layer.
+    DURABLE_EXECUTION_ENABLED: bool = False
+    DBOS_DATABASE_URL: str = ""
+
     # ---- Observability (Phase 5, docs/v2/MODEL_STACK.md "Observability") -----
     # MODEL_CALL_LOGGING persists one row per routing decision to the
     # `model_calls` table (app/db_models.py) -- the join key for the eval

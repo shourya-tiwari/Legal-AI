@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.graph import run_case_analysis
 from app.auth import OrgContext
+from app.config import get_settings
 from app.db import get_db
 from app.db_models import AgentTrace, CaseAnalysis, Document
 from app.guard import api_guard
@@ -22,15 +23,34 @@ def run_and_persist_analysis(
 ) -> AgentAnalyzeResponse:
     """Run the planner-driven agent graph on a persisted document, write one
     AgentTrace row per step, and build the response. Shared by /api/agents/
-    analyze and /api/v2/documents/{id}/analyze."""
-    result = run_case_analysis(
-        document_id=document.id,
-        org_id=org.id,
-        full_text=document.full_text,
-        analysis_mode=analysis_mode,
-        use_ai_planner=use_ai_planner,
-        sensitivity_tier=document.sensitivity_tier,
-    )
+    analyze and /api/v2/documents/{id}/analyze.
+
+    Dispatches to the DBOS durable engine (app/services/durable/dbos_engine.py,
+    docs/v2/ROADMAP.md Phase 7) when Settings.DURABLE_EXECUTION_ENABLED --
+    same AGENT_REGISTRY/planner/CaseState building blocks, each agent node
+    individually checkpointed to Postgres so a crashed process resumes from
+    the last completed node. LangGraph stays the default; the import is
+    lazy so the default path never requires `dbos` or a Postgres connection."""
+    if get_settings().DURABLE_EXECUTION_ENABLED:
+        from app.services.durable.dbos_engine import run_case_analysis_durable
+
+        result = run_case_analysis_durable(
+            document_id=document.id,
+            org_id=org.id,
+            full_text=document.full_text,
+            analysis_mode=analysis_mode,
+            use_ai_planner=use_ai_planner,
+            sensitivity_tier=document.sensitivity_tier,
+        )
+    else:
+        result = run_case_analysis(
+            document_id=document.id,
+            org_id=org.id,
+            full_text=document.full_text,
+            analysis_mode=analysis_mode,
+            use_ai_planner=use_ai_planner,
+            sensitivity_tier=document.sensitivity_tier,
+        )
 
     for step_no, step in enumerate(result.trace, start=1):
         db.add(

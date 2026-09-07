@@ -24,6 +24,12 @@ __pycache__/
 *.db
 *.db-journal
 
+# ----- DBOS's local job-scheduler state (Phase 7 durable engine) -----
+*.sqlite
+
+# ----- KùzuDB embedded KG database (Phase 7 collapsed data layer) -----
+kuzu_data/
+
 # ----- Local-only AI assistant working files (not published to the repo) -----
 CLAUDE.md
 LEARNING_LOG.md

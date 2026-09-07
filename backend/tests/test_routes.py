@@ -252,3 +252,40 @@ def test_agents_analyze_endpoint(client, monkeypatch):
 def test_agents_analyze_unknown_document_returns_404(client):
     resp = client.post("/api/agents/analyze", json={"document_id": 999999})
     assert resp.status_code == 404
+
+
+def test_agents_analyze_dispatches_to_the_durable_engine_when_enabled(client, monkeypatch):
+    # A real dbos+Postgres round trip is tests/test_dbos_engine.py's job
+    # (needs DBOS_TEST_DATABASE_URL). This confirms only the *dispatch*
+    # logic in routes/agents.py::run_and_persist_analysis -- injecting a
+    # fake module into sys.modules so the lazy `from
+    # app.services.durable.dbos_engine import run_case_analysis_durable`
+    # picks up the fake instead of importing the real module (which would
+    # otherwise require `dbos` installed and a live Postgres connection
+    # just to import, since DBOS(config=...) runs at that module's import
+    # time) -- see dbos_engine.py's own docstring on why.
+    import sys
+    import types
+
+    from app.agents.state import CaseState
+    from app.config import get_settings
+
+    called = {}
+
+    def fake_run_case_analysis_durable(document_id, org_id, full_text, **kwargs):
+        called["args"] = (document_id, org_id, full_text, kwargs)
+        return CaseState(document_id=document_id, org_id=org_id, full_text=full_text,
+                         plan=["verifier"], ran_steps=["extraction", "planner", "verifier"])
+
+    fake_module = types.SimpleNamespace(run_case_analysis_durable=fake_run_case_analysis_durable)
+    monkeypatch.setitem(sys.modules, "app.services.durable.dbos_engine", fake_module)
+    monkeypatch.setattr(get_settings(), "DURABLE_EXECUTION_ENABLED", True)
+
+    files = {"file": ("q.txt", b"Some contract text.", "text/plain")}
+    document_id = client.post("/api/upload", files=files).json()["document_id"]
+
+    resp = client.post("/api/agents/analyze", json={"document_id": document_id})
+
+    assert resp.status_code == 200
+    assert called["args"][0] == document_id
+    assert resp.json()["plan"] == ["verifier"]
