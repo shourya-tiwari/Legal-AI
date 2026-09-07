@@ -1,0 +1,123 @@
+{
+  "weak_val_accuracy": 0.892,
+  "weak_val_macro_f1": 0.832,
+  "gold_n": 14,
+  "classical_model_gold_accuracy": 0.5,
+  "heuristic_baseline_gold_accuracy": 0.571,
+  "passed_cutover_gate": false,
+  "gold_predictions": [
+    {
+      "text": "The Contractor shall indemnify and hold harmless the Company from any and all cl",
+      "expected": "high",
+      "classical": "high",
+      "heuristic": "high"
+    },
+    {
+      "text": "Either party may terminate this Agreement immediately, for any reason or no reas",
+      "expected": "high",
+      "classical": "medium",
+      "heuristic": "medium"
+    },
+    {
+      "text": "The Company may unilaterally amend the terms of this Agreement at any time witho",
+      "expected": "high",
+      "classical": "low",
+      "heuristic": "low"
+    },
+    {
+      "text": "This non-compete restricts the Employee from working in the same industry anywhe",
+      "expected": "high",
+      "classical": "low",
+      "heuristic": "low"
+    },
+    {
+      "text": "Any dispute shall be resolved exclusively through binding arbitration administer",
+      "expected": "high",
+      "classical": "medium",
+      "heuristic": "medium"
+    },
+    {
+      "text": "Each party's liability under this Agreement shall not exceed the total fees paid",
+      "expected": "medium",
+      "classical": "medium",
+      "heuristic": "medium"
+    },
+    {
+      "text": "The Provider shall use commercially reasonable efforts to meet the delivery sche",
+      "expected": "medium",
+      "classical": "medium",
+      "heuristic": "medium"
+    },
+    {
+      "text": "Either party may terminate this Agreement upon 30 days' written notice if the ot",
+      "expected": "medium",
+      "classical": "medium",
+      "heuristic": "medium"
+    },
+    {
+      "text": "The Receiving Party shall protect the Disclosing Party's Confidential Informatio",
+      "expected": "medium",
+      "classical": "medium",
+      "heuristic": "low"
+    },
+    {
+      "text": "Rent shall increase by 3% annually on each anniversary of the Commencement Date.",
+      "expected": "medium",
+      "classical": "low",
+      "heuristic": "low"
+    },
+    {
+      "text": "This Agreement, together with its Exhibits, constitutes the entire agreement bet",
+      "expected": "low",
+      "classical": "low",
+      "heuristic": "low"
+    },
+    {
+      "text": "Any notice under this Agreement shall be delivered in writing to the addresses s",
+      "expected": "low",
+      "classical": "medium",
+      "heuristic": "low"
+    },
+    {
+      "text": "This Agreement shall be governed by and construed in accordance with the laws of",
+      "expected": "low",
+      "classical": "low",
+      "heuristic": "low"
+    },
+    {
+      "text": "If any provision of this Agreement is held invalid or unenforceable, the remaini",
+      "expected": "low",
+      "classical": "medium",
+      "heuristic": "low"
+    }
+  ],
+  "shap_explanations": [
+    {
+      "text": "The Contractor shall indemnify and hold harmless the Company from any and all cl",
+      "predicted": "high",
+      "top_contributing_tokens": [
+        "damages (+9.060)",
+        "all (+5.740)",
+        "and (+0.792)"
+      ]
+    },
+    {
+      "text": "Either party may terminate this Agreement immediately, for any reason or no reas",
+      "predicted": "medium",
+      "top_contributing_tokens": [
+        "terminate (+1.377)",
+        "may (+1.063)",
+        "party (+0.923)"
+      ]
+    },
+    {
+      "text": "The Company may unilaterally amend the terms of this Agreement at any time witho",
+      "predicted": "low",
+      "top_contributing_tokens": [
+        "terms (+2.349)",
+        "any (-1.682)",
+        "shall (+1.181)"
+      ]
+    }
+  ]
+}

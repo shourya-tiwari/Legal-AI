@@ -325,3 +325,77 @@ RISK_GOLD: List[RiskExample] = [
         "expected_terms": ["arbitrator selected solely by the Company", "binding arbitration"],
     },
 ]
+
+
+class RiskSeverityExample(TypedDict):
+    text: str
+    expected_severity: str  # low | medium | high
+
+
+# Hand-built cases for the Phase 8 Risk Scoring Model
+# (backend/training/{prepare_risk_data,train_risk_model}.py). Severity is
+# judged directly against real contract-risk conventions (uncapped
+# liability, one-sided termination/amendment rights, harsh restrictive
+# covenants = high; vague/subjective standards or capped, mutual terms =
+# medium; routine boilerplate with no one-sided or open-ended exposure =
+# low) -- deliberately NOT derived from any keyword-count heuristic, so
+# comparing a trained model's accuracy here against a keyword-count rule
+# baseline is a real test, not a tautology.
+RISK_SEVERITY_GOLD: List[RiskSeverityExample] = [
+    {
+        "text": "The Contractor shall indemnify and hold harmless the Company from any and all claims, including consequential and punitive damages, with no cap on liability.",
+        "expected_severity": "high",
+    },
+    {
+        "text": "Either party may terminate this Agreement immediately, for any reason or no reason, without notice or a cure period.",
+        "expected_severity": "high",
+    },
+    {
+        "text": "The Company may unilaterally amend the terms of this Agreement at any time without notifying the Customer.",
+        "expected_severity": "high",
+    },
+    {
+        "text": "This non-compete restricts the Employee from working in the same industry anywhere in the world for a period of ten (10) years after termination.",
+        "expected_severity": "high",
+    },
+    {
+        "text": "Any dispute shall be resolved exclusively through binding arbitration administered by an arbitrator selected solely by the Company, with each party bearing its own costs.",
+        "expected_severity": "high",
+    },
+    {
+        "text": "Each party's liability under this Agreement shall not exceed the total fees paid in the twelve (12) months preceding the claim.",
+        "expected_severity": "medium",
+    },
+    {
+        "text": "The Provider shall use commercially reasonable efforts to meet the delivery schedule set out in Exhibit A.",
+        "expected_severity": "medium",
+    },
+    {
+        "text": "Either party may terminate this Agreement upon 30 days' written notice if the other party fails to cure a material breach within 15 days.",
+        "expected_severity": "medium",
+    },
+    {
+        "text": "The Receiving Party shall protect the Disclosing Party's Confidential Information using the same degree of care it uses for its own confidential information, but not less than reasonable care.",
+        "expected_severity": "medium",
+    },
+    {
+        "text": "Rent shall increase by 3% annually on each anniversary of the Commencement Date.",
+        "expected_severity": "medium",
+    },
+    {
+        "text": "This Agreement, together with its Exhibits, constitutes the entire agreement between the parties and supersedes all prior negotiations.",
+        "expected_severity": "low",
+    },
+    {
+        "text": "Any notice under this Agreement shall be delivered in writing to the addresses set forth on the signature page.",
+        "expected_severity": "low",
+    },
+    {
+        "text": "This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware.",
+        "expected_severity": "low",
+    },
+    {
+        "text": "If any provision of this Agreement is held invalid or unenforceable, the remaining provisions shall continue in full force and effect.",
+        "expected_severity": "low",
+    },
+]

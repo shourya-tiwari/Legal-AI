@@ -8,13 +8,16 @@ Scripts and configs for the in-house token-classification models
 | clause / contract-type classifier | `answerdotai/ModernBERT-base` (or `nlpaueb/legal-bert-base-uncased`) | sequence classification | **scaffold only — not trained** |
 | deontic modality tagger | same | multi-label sequence classification | **scaffold only — not trained** |
 | document sensitivity classifier | TF-IDF + LogisticRegression (scikit-learn, CPU) | 4-class sequence classification | **trained and eval-gated — did not beat the rule baseline, not promoted** (`models/sensitivity_classifier_card.md`, `LEARNING_LOG.md` #43) |
+| risk scoring model | TF-IDF + LightGBM (CPU) | 3-class severity classification (low/medium/high) | **trained and eval-gated — did not beat the weak-supervision heuristic, not promoted** (`models/risk_model_card.md`, `LEARNING_LOG.md` #45) |
 
-**Nothing here has been run.** This session (Phase 6) delivered the pipeline —
-data prep, config-driven training, eval hooks — so the training runs are a
-`python training/train_*.py training/configs/*.yaml` away, not a from-scratch
-build. The rule-based classifiers (`app/services/nlp/clause_classifier.py`,
-`deontic.py`) stay the Tier-0 pre-filter and the production path until a
-trained model **beats them on the eval gate** (`app/eval/`).
+The clause/deontic heads above are the only ones still genuinely
+**not run** (GPU-blocked). The sensitivity classifier and risk model *have*
+been run — data prep, config-driven training, eval hooks all executed for
+real — the rule-based classifiers (`app/services/nlp/clause_classifier.py`,
+`deontic.py`, `app/services/sensitivity/classifier.py`,
+`app/services/risk_radar/rules.py`) stay the Tier-0 pre-filter and the
+production path until a trained model **beats them on the eval gate**
+(`app/eval/`), which neither classical attempt has yet.
 
 ## Hardware
 
@@ -121,11 +124,38 @@ dvc add backend/training/data backend/training/models/sensitivity_classifier.job
 dvc push                                    # after any regeneration that changes the hash
 ```
 
-**Eval-gated promotion in CI/CD**: not built — there's no CI workflow that
-runs `train_sensitivity_classifier.py` and blocks a merge on
-`passed_cutover_gate`, matching `app/eval/cutover_gate.py`'s existing
-manual-invocation pattern for Model Router tasks (`.github/workflows/
-backend-tests.yml` runs `pytest`, not the training scripts). Wiring a
-training run into CI is real, buildable follow-up work — not infra-blocked,
-just not yet done — tracked as a separate `TASKS.md` line rather than
-silently folded into this one.
+## Risk Scoring Model (CPU-only, already run)
+
+```bash
+python training/prepare_risk_data.py       # -> data/risk_{train,val}.jsonl
+python training/train_risk_model.py        # trains, evaluates, saves, SHAP-explains
+```
+
+Same shape as the sensitivity classifier, one important difference: there is
+no existing *production* risk-severity classifier to distill (unlike
+`classify_sensitivity()`), so training labels come from a heuristic
+(`severity_from_flag_count`) invented for this script on top of the
+already-production `risk_radar/rules.py` keyword-flag list. Evaluated
+against `app/eval/gold_set.py::RISK_SEVERITY_GOLD` (14 real, hand-labelled
+examples, judged directly against risk conventions, held out of training)
+— scored 0.500 there against the heuristic's own 0.571. **Did not pass the
+gate**; `app/services/risk_radar/` stays fully rule/LLM-based, no severity
+score in production. SHAP (`shap.TreeExplainer`, exact for gradient-boosted
+trees) explains the top contributing TF-IDF tokens for a few gold
+predictions, written into `models/risk_model_eval.json` — the roadmap's
+"integrate SHAP" line, satisfied as a diagnostic layer regardless of
+promotion outcome. See `models/risk_model_card.md` for the full result,
+including the specific failure pattern (one-sided/open-ended-right clauses
+scored too low because none of their language appears in the 55-term
+keyword list the heuristic was built on) and `LEARNING_LOG.md` #45.
+
+## Eval-gated promotion in CI/CD
+
+**Not built** — there's no CI workflow that runs a training script (either
+`train_sensitivity_classifier.py` or `train_risk_model.py`) and blocks a
+merge on `passed_cutover_gate`, matching `app/eval/cutover_gate.py`'s
+existing manual-invocation pattern for Model Router tasks
+(`.github/workflows/backend-tests.yml` runs `pytest`, not the training
+scripts). Wiring a training run into CI is real, buildable follow-up work —
+not infra-blocked, just not yet done — tracked as a separate `TASKS.md`
+line rather than silently folded into either model's entry.
