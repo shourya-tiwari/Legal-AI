@@ -220,8 +220,40 @@ class CaseAnalysis(Base):
     faithfulness_method: Mapped[str] = mapped_column(String(32), default="lexical_fallback")
     unsupported_claims: Mapped[list] = mapped_column(JSON, default=list)
     invalid_citation_numbers: Mapped[list] = mapped_column(JSON, default=list)
+    # Phase 7 Memory Service (docs/v2/AGENTS.md's episodic tier,
+    # LEARNING_LOG.md #41): AgentAnalyzeResponse.risk_findings was computed
+    # every run and returned in the HTTP response but never persisted --
+    # the same "computed then discarded" shape this table itself was built
+    # to fix for needs_human_review. Without this, there is no historical
+    # record of *which* risk terms were found on a past run, which the
+    # consolidation worker (app/services/memory/consolidation.py) needs to
+    # detect a term recurring across documents.
+    risk_findings: Mapped[list] = mapped_column(JSON, default=list)
     needs_human_review: Mapped[bool] = mapped_column(Boolean, default=False)
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     reviewed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewer_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SemanticMemoryEntry(Base):
+    """Semantic-tier memory (docs/v2/AGENTS.md's Memory system, Phase 7
+    "Memory Service"): a pattern true across more than one of an org's
+    documents, e.g. "this org's contracts tend to raise an indemnification
+    risk" -- the buildable slice of the docs' own example ("this org's
+    leases are always California-governed" is the same shape of claim,
+    just not derivable from today's NLP pipeline's output). Written by
+    app/services/memory/consolidation.py, which explicitly excludes every
+    `privileged`-tier document's data before this table is ever touched --
+    the privacy-tier gate this memory tier's docs require, with no opt-in
+    override built (a real future addition, not a silent gap)."""
+    __tablename__ = "semantic_memory_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    pattern_key: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    supporting_document_ids: Mapped[list] = mapped_column(JSON, default=list)
+    occurrence_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

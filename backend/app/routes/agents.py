@@ -74,6 +74,7 @@ def run_and_persist_analysis(
             faithfulness_method=result.faithfulness_method,
             unsupported_claims=result.unsupported_claims,
             invalid_citation_numbers=result.invalid_citation_numbers,
+            risk_findings=[f.model_dump() for f in result.risk_findings],
             needs_human_review=result.needs_human_review,
         )
     )
