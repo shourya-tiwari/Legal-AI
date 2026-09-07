@@ -165,6 +165,26 @@ richer example confirmed all three span types (`deontic_marker`, `entity:*`,
 `defined_term`) work correctly end to end. Full result in
 `models/deontic_ablation_notes.md` and `LEARNING_LOG.md` #54.
 
+## Temporal Trigger Simulation (`NOVELTY.md` #2, CPU-only, already run)
+
+```bash
+python training/temporal_trigger_simulation.py   # 5/5 hand-modelled scenarios pass
+```
+
+`app/services/simulation.py`'s shipped baseline only schedules clauses
+with an *absolute* resolved date. This prototype does the piece its own
+docstring names as the real gap: extracts "N days/months/years after/of/
+following <trigger phrase>" patterns (a genuinely new regex target, not a
+re-run of `temporal.py`'s absolute-date extraction) and, given a small
+hand-provided dict of known anchor-event dates, derives the downstream
+date. Deliberately single-document scope with hand-provided anchors, not
+the full portfolio `TRIGGERED_BY`-graph vision — that needs
+`Obligation`/`TRIGGERED_BY` KG nodes that don't exist yet, the same
+structural blocker `simulation.py`'s own docstring already names. Validated
+against 5 hand-modelled scenarios (expected dates computed by hand, not by
+running the code) — all pass, including a negative case (no matching
+anchor → honestly skipped, not guessed). See `LEARNING_LOG.md` #55.
+
 ## Install
 
 ```
