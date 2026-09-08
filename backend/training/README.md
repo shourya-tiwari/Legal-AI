@@ -185,6 +185,44 @@ against 5 hand-modelled scenarios (expected dates computed by hand, not by
 running the code) — all pass, including a negative case (no matching
 anchor → honestly skipped, not guessed). See `LEARNING_LOG.md` #55.
 
+## Redline Attribution (`NOVELTY.md` #4, CPU-only, already run)
+
+```bash
+python training/redline_attribution.py [--dry-run]   # -> models/redline_attribution_report.json
+```
+
+The CPU half of `NOVELTY.md` idea #4 ("Adaptive Negotiation Playbook
+Learning from Redline History"): **counterfactual fingerprint-delta
+attribution** — given a redline (`before` → `after`), a word-level diff is
+split into atomic legal changes (modal swap / negation / numeric shift /
+jurisdiction swap / other reword), and each change's contribution to the
+"legal-semantic fingerprint" movement is measured by reconstructing the
+counterfactual "`after`, but with every op of that kind reverted" and
+embedding it. Plus a **background distribution** (each kind's marginal
+delta as a percentile across all observed proposed edits) and a classical
+**Redline Acceptance Predictor** (LogisticRegression over the per-kind
+marginal-delta features).
+
+**Two blockers, both named plainly**: (1) no redline history exists
+anywhere in this codebase (`LEARNING_LOG.md` #51's audit) — the
+`(before, after, outcome)` data is synthetic (`gold_set.py` clauses,
+NOVELTY.md-named perturbations both directions, outcome label *generated*
+from a hand-specified prior, same #43/#45 ceiling); (2) idea #4's
+fingerprint is idea #3's contrastive embedding, GPU-blocked (#49) — this
+uses the Model Router's current `embed_content` (Class-A hashing here) as
+the stand-in.
+
+**Results**: all 4 single-change attribution scenarios pass (the change is
+known by construction), the no-change case correctly produces no
+attribution, and the boilerplate-reword scenario is a documented soft fail
+(on the hashing floor the reword dominates the legal change — exactly why
+idea #4 needs idea #3's fingerprint). The **acceptance predictor does NOT
+beat its majority baseline** (0.514 vs 0.514) — a precise negative result:
+unsigned fingerprint-delta *magnitude* can't encode edit *direction*
+(`shall→may` accepted, `may→shall` rejected, same `|delta|`), which needs
+the *signed* delta in idea #3's learned subspace. Full write-up:
+`models/redline_attribution_notes.md`, `LEARNING_LOG.md` #57.
+
 ## Install
 
 ```

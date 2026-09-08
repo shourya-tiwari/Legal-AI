@@ -1,0 +1,153 @@
+{
+  "scenarios": [
+    {
+      "name": "single modal swap (shall -> may)",
+      "expected_dominant": "modal_swap",
+      "soft": false,
+      "attribution": {
+        "before": "The Provider shall indemnify and hold harmless the Client against all third-party claims.",
+        "after": "The Provider may indemnify and hold harmless the Client against all third-party claims.",
+        "total_delta": 0.104212,
+        "change_attributions": [
+          {
+            "kind": "modal_swap",
+            "marginal_delta": 0.104212,
+            "share": 1.0,
+            "background_percentile": null,
+            "n_ops": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "single negation flip (shall -> shall not)",
+      "expected_dominant": "negation",
+      "soft": false,
+      "attribution": {
+        "before": "Each party shall disclose the terms of this Agreement to its affiliates.",
+        "after": "Each party shall not disclose the terms of this Agreement to its affiliates.",
+        "total_delta": 0.070009,
+        "change_attributions": [
+          {
+            "kind": "negation",
+            "marginal_delta": 0.070009,
+            "share": 1.0,
+            "background_percentile": null,
+            "n_ops": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "single numeric shift (30 -> 300 days)",
+      "expected_dominant": "numeric_shift",
+      "soft": false,
+      "attribution": {
+        "before": "Either party may terminate this Agreement upon 30 days written notice to the other party.",
+        "after": "Either party may terminate this Agreement upon 300 days written notice to the other party.",
+        "total_delta": 0.038322,
+        "change_attributions": [
+          {
+            "kind": "numeric_shift",
+            "marginal_delta": 0.038322,
+            "share": 1.0,
+            "background_percentile": null,
+            "n_ops": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "single jurisdiction swap (California -> Delaware)",
+      "expected_dominant": "jurisdiction_swap",
+      "soft": false,
+      "attribution": {
+        "before": "This Agreement shall be governed by the laws of the State of California.",
+        "after": "This Agreement shall be governed by the laws of the State of Delaware.",
+        "total_delta": 0.125843,
+        "change_attributions": [
+          {
+            "kind": "jurisdiction_swap",
+            "marginal_delta": 0.125843,
+            "share": 1.0,
+            "background_percentile": null,
+            "n_ops": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "negation flip alongside heavy boilerplate rewording -- the legal change should still surface",
+      "expected_dominant": "negation",
+      "soft": true,
+      "attribution": {
+        "before": "The Contractor shall be liable for consequential damages arising out of any breach.",
+        "after": "Notwithstanding anything to the contrary herein, the Contractor shall not be liable for consequential damages arising out of or in connection with any breach of this Agreement.",
+        "total_delta": 0.305731,
+        "change_attributions": [
+          {
+            "kind": "other_reword",
+            "marginal_delta": 0.269559,
+            "share": 0.9272,
+            "background_percentile": null,
+            "n_ops": 3
+          },
+          {
+            "kind": "negation",
+            "marginal_delta": 0.021178,
+            "share": 0.0728,
+            "background_percentile": null,
+            "n_ops": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "no change -- must produce no attribution, no fabricated cause",
+      "expected_dominant": null,
+      "soft": false,
+      "attribution": {
+        "before": "The parties agree to negotiate in good faith.",
+        "after": "The parties agree to negotiate in good faith.",
+        "total_delta": 0.0,
+        "change_attributions": []
+      }
+    }
+  ],
+  "n_synthetic_redlines": 116,
+  "background_distribution_sizes": {
+    "modal_swap": 56,
+    "negation": 44,
+    "numeric_shift": 10,
+    "jurisdiction_swap": 6
+  },
+  "example_attribution": {
+    "before": "The Provider shall indemnify and hold harmless the Client against all third-party claims.",
+    "after": "The Provider may indemnify and hold harmless the Client against all third-party claims.",
+    "total_delta": 0.104212,
+    "change_attributions": [
+      {
+        "kind": "modal_swap",
+        "marginal_delta": 0.104212,
+        "share": 1.0,
+        "background_percentile": 96.4,
+        "n_ops": 1
+      }
+    ]
+  },
+  "acceptance_predictor": {
+    "n_labelled": 116,
+    "n_positive": 55,
+    "holdout_accuracy": 0.514,
+    "majority_class_baseline": 0.514,
+    "coef_by_feature": {
+      "modal_swap": -0.004,
+      "negation": 0.159,
+      "numeric_shift": -0.039,
+      "jurisdiction_swap": -0.233,
+      "other_reword": 0.0,
+      "total_delta": -0.118,
+      "n_changes": 0.0
+    }
+  }
+}
