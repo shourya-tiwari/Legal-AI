@@ -67,6 +67,16 @@ class Settings(BaseSettings):
     ]
     RERANKER_ENABLED: bool = True
 
+    # In-process neural embeddings/reranker via the optional `sentence-transformers`
+    # extra (Class B, providers/local.py::SentenceTransformerProvider). When the
+    # extra is installed and this is true, the router prefers it over the Class-A
+    # hashing embedder / lexical reranker whenever no dedicated TEI server
+    # (EMBEDDING_BASE_URL / RERANKER_BASE_URL) is configured. Set false to force
+    # the Class-A floor even with the extra installed -- the test suite does this
+    # (same reasoning as NLI_ENABLED/NER_ENABLED: deterministic, no model load,
+    # independent of which optional extras happen to be present).
+    LOCAL_NEURAL_ENABLED: bool = True
+
     # Class C gating. EXTERNAL_PROVIDERS_ENABLED=false OR STRICT_LOCAL_ONLY=true
     # keeps every request on self-hosted providers. On-prem/air-gapped builds
     # also simply don't install `google-genai` (requirements-external.txt), so

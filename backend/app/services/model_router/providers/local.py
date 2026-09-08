@@ -180,7 +180,7 @@ class SentenceTransformerProvider(ModelProvider):
         )
 
     def is_available(self) -> bool:
-        return _sentence_transformers_importable()
+        return get_settings().LOCAL_NEURAL_ENABLED and _sentence_transformers_importable()
 
     def embed(self, req: EmbedRequest) -> EmbedResult:
         if not self.is_available():

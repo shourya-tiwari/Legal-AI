@@ -21,6 +21,12 @@ os.environ.setdefault("EXTERNAL_PROVIDERS_ENABLED", "false")
 # NLI_ENABLED on and skips itself when transformers isn't installed.
 os.environ.setdefault("NLI_ENABLED", "false")
 os.environ.setdefault("NER_ENABLED", "false")
+# Same reasoning for the in-process sentence-transformers embed/rerank provider
+# (Class B): OFF in the suite so embeddings/reranking deterministically resolve
+# to the Class-A hashing/lexical floor regardless of whether the optional
+# `sentence-transformers` extra happens to be installed in this environment.
+# tests/test_local_neural_provider.py flips it on and skips without the extra.
+os.environ.setdefault("LOCAL_NEURAL_ENABLED", "false")
 # Deliberately NOT the real default port: tests must not depend on whether
 # docker-compose happens to be running on this machine right now. KG tests
 # use a fake client (test_kg_builder.py) for anything Memgraph-dependent.
