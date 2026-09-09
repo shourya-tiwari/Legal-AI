@@ -12,7 +12,6 @@ env/
 
 # ----- Files -----
 test_files.py
-C:\Users\Shashwat Kumar\Desktop\Labs\genx-hackathon25\frontend\legacy
 GenAI Exchange Hackathon _ Prototype Submission.pptx.pptx
 # ----- Pycache files -----
 __pycache__/
@@ -48,6 +47,6 @@ backend/training/models/promoted/
 # ----- MLflow local file-based tracking store -----
 backend/training/mlruns/
 
-# ----- Local-only AI assistant working files (not published to the repo) -----
-CLAUDE.md
-LEARNING_LOG.md
+# ----- Legacy V1 planning docs -- superseded by docs/v2/, kept locally for
+# reference but not published (see docs/v2/ for the current architecture) -----
+docs/v1/

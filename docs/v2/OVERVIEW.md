@@ -1,10 +1,10 @@
 # LegalAI V2 — Overview
 
-> Status: **design document** — the target architecture, not a description of the current build. Phases 1–5 have shipped a pragmatic slice, Phase 6 is partly done (provider-agnostic Model Router; self-hosted embeddings/rerank/generation serving layer; a real Class-A NLI faithfulness head in the Verifier; GLiNER NER; the graded eval harness + cutover gate), and Phase 7 has started (dynamic Orchestrator/Planner agent; first slice of the document-first `/api/v2/*` API). Still ahead: the LLM task cutover to a self-hosted default (GPU-gated), the in-house fine-tunes (scaffolded, not trained), the frontend SPA, durable execution, the Memory Service, and the on-prem/air-gapped packaging. See `ROADMAP.md`/`TASKS.md` for exactly what is real. Built on top of the V1 system documented in `docs/v1/`.
+> Status: **design document** — the target architecture, not a description of the current build. Phases 1–5 have shipped a pragmatic slice, Phase 6 is partly done (provider-agnostic Model Router; self-hosted embeddings/rerank/generation serving layer; a real Class-A NLI faithfulness head in the Verifier; GLiNER NER; the graded eval harness + cutover gate), and Phase 7 has started (dynamic Orchestrator/Planner agent; first slice of the document-first `/api/v2/*` API). Still ahead: the LLM task cutover to a self-hosted default (GPU-gated), the in-house fine-tunes (scaffolded, not trained), the frontend SPA, durable execution, the Memory Service, and the on-prem/air-gapped packaging. See `ROADMAP.md`/`TASKS.md` for exactly what is real. Built on top of the original V1 system (a single-model, stateless Gemini pipeline — its design docs are kept internal, not in this repo).
 
 ## Vision
 
-V1 (`docs/v1/`) proved the core idea: an LLM behind a thin FastAPI service can make contracts legible to non-lawyers. It is a single-model, single-call, stateless pipeline — one Gemini call per feature, no memory, no persistence, no structural understanding of a contract beyond flat text and regex keyword matches.
+V1 proved the core idea: an LLM behind a thin FastAPI service can make contracts legible to non-lawyers. It is a single-model, single-call, stateless pipeline — one Gemini call per feature, no memory, no persistence, no structural understanding of a contract beyond flat text and regex keyword matches.
 
 **V2 reframes the product as a self-hosted legal *reasoning* system, not a text-transformation API wrapped around someone else's model.** Concretely:
 

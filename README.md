@@ -18,7 +18,7 @@ Legal contracts are often written in complex jargon, making them difficult for n
 This tool is designed to empower individuals and businesses by making legal documents more transparent, accessible, and less intimidating.
 ## Tech Stack
 
-**Client:** HTML, CSS, JavaScript
+**Client:** Next.js (App Router), TypeScript, Tailwind, TanStack Query (`v2/`)
 
 **Server:** Python, FastAPI, Uvicorn
 
@@ -227,7 +227,7 @@ The backend reads its configuration from `backend/.env` (see `backend/app/config
 | `LLM_BASE_URL` | No | OpenAI-compatible endpoint for self-hosted generation (Ollama `http://localhost:11434/v1`, vLLM, …). Unset → generate calls route to Gemini (if enabled) or raise a clear `ModelRouterError`. |
 | `DATABASE_URL` | No | SQLAlchemy connection string. Defaults to a local SQLite file (`sqlite:///./legalai.db`) — zero setup needed. Point at Postgres with `postgresql+psycopg://user:pass@host:5432/db` (see `docker-compose.yml`). |
 | `REDIS_URL` | No | Redis connection string for rate limiting, e.g. `redis://localhost:6379/0`. Leave unset/empty to disable rate limiting entirely. |
-| `AUTH_REQUIRED` | No | `true`/`false`, defaults to `false`. When off, every request resolves to a shared "default" org and no API key is needed — this is what keeps the public frontend working today. Flip to `true` once you've issued API keys (see below) to require `Authorization: Bearer <key>` on every `/api/*` call. |
+| `AUTH_REQUIRED` | No | `true`/`false`, defaults to `false`. When off, every request resolves to a shared "default" org and no API key is needed — this is what keeps the public frontend working with zero setup. Flip to `true` once you've issued API keys (see below) to require `Authorization: Bearer <key>` on every `/api/*` call. |
 | `RATE_LIMIT_PER_MINUTE` | No | Requests/minute per org (or per client IP when `AUTH_REQUIRED` is off). Defaults to `60`. |
 | `MEMGRAPH_URI` | No | Bolt connection string for the knowledge graph, e.g. `bolt://127.0.0.1:7687` (see `docker-compose.yml`). Knowledge graph endpoints (`/api/kg/*`) no-op if unreachable rather than erroring. |
 | `FILE_STORAGE_DIR` | No | Directory for the original-uploaded-file blob store (content-addressed by SHA-256). Defaults to `./file_storage`. No S3/MinIO service required; a cloud profile can point this at a mounted bucket. Fetch a stored original with `GET /api/v2/documents/{id}/original`. |
@@ -281,20 +281,16 @@ Run the backend test suite:
     pytest
 ```
 
-**Frontend Setup**
-- Open `frontend/index.html` directly in your browser, or use a simple local server:
+**Frontend Setup** (`v2/` — Next.js SPA)
 
-```http
-    npx serve frontend
+```bash
+    cd v2
+    npm install
+    npm run dev
 ```
-Frontend will be available at: http://localhost:3000 (if using server)
-
-By default, `frontend/app.js` points at the deployed production API
-(`https://plainspeak-ai.onrender.com/api`), configured in `frontend/config.js`.
-To point the frontend at your local backend instead, either edit
-`PRODUCTION_BASE_URL` in `frontend/config.js`, or open the page with an `api`
-query parameter, e.g. `index.html?api=http://127.0.0.1:8000/api` — no source
-edit required, and the local backend's CORS config already allows any origin.
+Available at http://localhost:3000. Point it at a backend with
+`NEXT_PUBLIC_API_BASE_URL` (see `v2/.env.local.example`); defaults to
+`http://127.0.0.1:8000/api`. See `v2/README.md` for details.
 
 **Issuing API keys** (only needed once you set `AUTH_REQUIRED=true`):
 ```bash
