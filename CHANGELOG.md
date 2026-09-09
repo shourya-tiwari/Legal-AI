@@ -8,6 +8,30 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ## [Unreleased]
 
+### Docs
+- **README** rewritten as a full project README — architecture (mermaid),
+  feature tour, a zero-config quick start plus the docker / self-hosted-GPU
+  paths, a complete configuration reference, API examples (V1 + V2 + KG),
+  project layout, the four deployment profiles, the research track, and the
+  roadmap. Added an MIT `LICENSE`.
+
+### Frontend — M11: UX/UI consistency pass
+- No behaviour changes — standardising drift found in a full page-by-page audit.
+- **`<RouteTabs>`** — the workspace and admin tab bars were two copies that had
+  diverged on hover styling; now one shared component.
+- **Card body padding** for header-less cards standardised to `pt-5` (was a mix
+  of `pt-4` / `pt-5` / `pt-6`); **page rhythm** standardised to `space-y-6`.
+- **CardTitle icons** were sporadic (one card per view carried one) — removed
+  the outliers so each view is internally consistent; admin keeps its full set.
+- **Class C** hosting badge is now `warning`, matching how "leaves the perimeter"
+  is signalled everywhere else.
+- Native `window.prompt` for adding a document tag → a proper dialog; the
+  document-card menu trigger uses `<MoreHorizontal>` like the workspace header;
+  the risk-page clear-filter affordance is a `<Button>`, not a bare link.
+- Page title "Human review queue" → "Review Queue" (matches the nav).
+- Removed dead code: a misleading icon re-export, an unused testimonials
+  section, an always-"unknown" admin line, a disabled "coming soon" button.
+
 ### Frontend — M10: unified information architecture
 
 The marketing site and the application stopped behaving like two products.

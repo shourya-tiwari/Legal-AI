@@ -45,6 +45,7 @@ src/app/
   (marketing)/    – public site: /, /features, /architecture, /research,
                     /docs, /about, /about/developer, /contact
   (app)/          – the application shell (sidebar + topbar + ⌘K palette)
+    welcome/             – guided onboarding (Get started lands here)
     dashboard/           documents/          documents/upload/
     documents/[id]/      – tabbed workspace: overview · clauses · risk ·
                            timeline · negotiation · graph · agents · ask
@@ -53,7 +54,15 @@ src/app/
     admin/               – overview · users · models · egress · flags
     settings/            profile/
   login/          – session auth (outside both shells)
+```
 
+The marketing site and the app are **one product**: the sidebar's Resources
+group and the topbar dropdown link into `(marketing)`, and the public header
+always offers a route back to the dashboard. `layout/nav-config.tsx` is the
+single source of nav truth; `layout/route-tabs.tsx` is the shared underline tab
+bar (workspace + admin).
+
+```
 src/components/
   ui/             – ~32 Radix-backed primitives (shadcn-style API)
   layout/         – AppShell, SidebarNav, Topbar, CommandPalette, headers
