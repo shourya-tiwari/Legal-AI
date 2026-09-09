@@ -98,35 +98,6 @@ export function HomeReasons() {
   );
 }
 
-export function HomeTestimonials() {
-  return (
-    <section className="border-t border-border bg-surface/40">
-      <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center sm:px-6">
-        <p className="text-xs font-medium uppercase tracking-wider text-subtle-foreground">
-          Testimonials
-        </p>
-        <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          This is a portfolio / final-year engineering project — there are no
-          customer quotes to show yet. The code, the tests, the engineering
-          journal, and the evaluation numbers are the evidence.
-        </p>
-        <div className="mx-auto mt-6 grid max-w-2xl gap-4 sm:grid-cols-2">
-          {[
-            "62-entry append-only engineering journal",
-            "Every phase left the system deployable",
-          ].map((t) => (
-            <div
-              key={t}
-              className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground"
-            >
-              &ldquo;{t}&rdquo;
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export function HomeFaq() {
   return (

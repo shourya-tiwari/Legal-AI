@@ -61,7 +61,7 @@ export default function GraphPage() {
   const portfolioLinks = edges.filter((e) => e.type === "SAME_AS").length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(nodeTypeCounts).map(([t, c]) => (

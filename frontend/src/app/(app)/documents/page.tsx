@@ -9,6 +9,7 @@ import {
   List,
   FileText,
   Trash2,
+  MoreHorizontal,
   Tag as TagIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,9 +18,17 @@ import { useUI } from "@/lib/stores/ui";
 import { PageHeader, PageBody } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,7 +78,7 @@ export default function DocumentsPage() {
           </Button>
         }
       />
-      <PageBody className="space-y-5">
+      <PageBody className="space-y-6">
         {docs.length === 0 ? (
           <EmptyState
             icon={FileText}
@@ -232,38 +241,80 @@ export default function DocumentsPage() {
 
 function DocMenu({ id, onRemove }: { id: number; onRemove: () => void }) {
   const addTag = useDocuments((s) => s.addTag);
+  const [tagOpen, setTagOpen] = React.useState(false);
+  const [tag, setTag] = React.useState("");
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Document actions">
-          <span className="text-lg leading-none">⋯</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/documents/${id}`}>Open workspace</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={(e) => {
-            e.preventDefault();
-            const t = window.prompt("Add a tag");
-            if (t?.trim()) addTag(id, t.trim());
-          }}
-        >
-          <TagIcon /> Add tag
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="danger"
-          onClick={() => {
-            onRemove();
-            toast.success("Removed from library", {
-              description: "The document still exists on the backend.",
-            });
-          }}
-        >
-          <Trash2 /> Remove from library
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label="Document actions">
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/documents/${id}`}>Open workspace</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              setTag("");
+              setTagOpen(true);
+            }}
+          >
+            <TagIcon /> Add tag
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="danger"
+            onClick={() => {
+              onRemove();
+              toast.success("Removed from library", {
+                description: "The document still exists on the backend.",
+              });
+            }}
+          >
+            <Trash2 /> Remove from library
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={tagOpen} onOpenChange={setTagOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add a tag</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (tag.trim()) addTag(id, tag.trim());
+              setTagOpen(false);
+            }}
+          >
+            <Label htmlFor="doc-tag">Tag</Label>
+            <Input
+              id="doc-tag"
+              autoFocus
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              placeholder="e.g. NDA, vendor, priority"
+            />
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setTagOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!tag.trim()}>
+                Add tag
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

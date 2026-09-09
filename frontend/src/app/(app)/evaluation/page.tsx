@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { FlaskConical, Play, CheckCircle2, XCircle } from "lucide-react";
+import { FlaskConical, Play, CheckCircle2, XCircle, GitBranch, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 import { getEvalRuns, runDeltaReport } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
@@ -64,8 +64,9 @@ export default function EvaluationPage() {
             label="Cutover gates passed"
             value={gated.length ? `${passed}/${gated.length}` : "—"}
             hint="candidate ≥ baseline × ratio"
+            icon={GitBranch}
           />
-          <Stat label="Tasks evaluated" value={tasks.length} />
+          <Stat label="Tasks evaluated" value={tasks.length} icon={ListChecks} />
         </div>
 
         <Card>

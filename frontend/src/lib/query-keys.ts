@@ -9,6 +9,7 @@ export const qk = {
     ["analyze", id, mode, aiPlanner] as const,
   map: (id: number) => ["map", id] as const,
   riskDashboard: (id: number) => ["risk-dashboard", id] as const,
+  riskScan: (id: number) => ["risk-scan", id] as const,
   consistency: (id: number) => ["consistency", id] as const,
   simulate: (id: number, ref: string, window: number) =>
     ["simulate", id, ref, window] as const,

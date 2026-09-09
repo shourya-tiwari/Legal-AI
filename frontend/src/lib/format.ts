@@ -92,9 +92,13 @@ export const SENSITIVITY_META: Record<
 
 export const HOSTING_CLASS_META: Record<
   string,
-  { label: string; badge: "default" | "info" | "primary"; blurb: string }
+  { label: string; badge: "default" | "info" | "warning"; blurb: string }
 > = {
   A: { label: "Class A", badge: "default", blurb: "Deterministic / CPU" },
   B: { label: "Class B", badge: "info", blurb: "Self-hosted neural" },
-  C: { label: "Class C", badge: "primary", blurb: "External provider API" },
+  C: {
+    label: "Class C",
+    badge: "warning",
+    blurb: "External provider API — leaves the perimeter",
+  },
 };

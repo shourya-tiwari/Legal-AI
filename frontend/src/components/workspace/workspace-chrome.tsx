@@ -1,21 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  Download,
-  AlertTriangle,
-  History,
-  Trash2,
-  MoreHorizontal,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Download, AlertTriangle, Trash2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { originalFileUrl, ingestKg } from "@/lib/api";
 import { useDocuments } from "@/lib/stores/documents";
 import { WORKSPACE_TABS } from "@/components/layout/nav-config";
-import { isActive } from "@/components/layout/sidebar-nav";
 import { PageHeader } from "@/components/layout/page-header";
+import { RouteTabs } from "@/components/layout/route-tabs";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,11 +23,8 @@ import { SensitivityOverrideDialog } from "@/components/workspace/sensitivity-ov
 import { VersionHistoryDialog } from "@/components/workspace/version-history";
 import { useWorkspace } from "./workspace-context";
 import { bytes, relativeTime } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
 
 export function WorkspaceChrome() {
-  const pathname = usePathname();
   const router = useRouter();
   const { id, document, sensitivity, blocks, quality } = useWorkspace();
   const removeFromLibrary = useDocuments((s) => s.remove);
@@ -136,27 +126,7 @@ export function WorkspaceChrome() {
           )
         }
       >
-        <div className="-mb-px mt-4 flex gap-1 overflow-x-auto">
-          {tabs.map((tab) => {
-            const active = isActive(pathname, tab.href, tab.exact);
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:border-border-strong hover:text-foreground",
-                )}
-              >
-                <tab.icon className="size-4" />
-                {tab.label}
-              </Link>
-            );
-          })}
-        </div>
+        <RouteTabs tabs={tabs} />
       </PageHeader>
 
       {quality && quality.low_quality_pages.length > 0 && (
@@ -193,6 +163,3 @@ export function WorkspaceChrome() {
     </>
   );
 }
-
-// re-export so pages can trigger KG ingest lazily if needed
-export { History };

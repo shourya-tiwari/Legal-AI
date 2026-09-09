@@ -41,7 +41,7 @@ export function RunAnalysisCta({
       description={description}
       action={
         <Button onClick={onRun}>
-          <Sparkles /> Run full analysis
+          <Sparkles /> Run analysis
         </Button>
       }
     />

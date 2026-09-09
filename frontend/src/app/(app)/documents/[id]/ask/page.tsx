@@ -100,7 +100,7 @@ export default function AskPage() {
                   <Sparkles className="size-3.5" />
                 </div>
                 <Card className="flex-1">
-                  <CardContent className="space-y-2.5 pt-4">
+                  <CardContent className="space-y-2.5 pt-5">
                     {turn.error ? (
                       <p className="text-sm text-danger">{turn.error}</p>
                     ) : turn.a ? (

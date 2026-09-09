@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, ArrowLeft, Download } from "lucide-react";
+import { Mail, ArrowLeft } from "lucide-react";
 import { GithubIcon, LinkedinIcon } from "@/components/shared/brand-icons";
 import { MarketingHero, Section } from "@/components/marketing/section";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ const SKILLS = {
 
 const STATS = [
   ["8", "delivery phases"],
-  ["62", "engineering-journal entries"],
+  ["60+", "engineering-journal entries"],
   ["400+", "backend tests"],
   ["40+", "API endpoints"],
   ["5", "research prototypes"],
@@ -51,9 +51,6 @@ export default function DeveloperPage() {
             <a href="mailto:tshourya1507@gmail.com">
               <Mail /> Email
             </a>
-          </Button>
-          <Button variant="outline" disabled>
-            <Download /> Résumé (coming soon)
           </Button>
         </div>
       </MarketingHero>

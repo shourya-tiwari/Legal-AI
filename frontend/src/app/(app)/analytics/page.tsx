@@ -10,14 +10,7 @@ import {
   Cell,
   Tooltip as RTooltip,
 } from "recharts";
-import {
-  Activity,
-  Cpu,
-  ShieldAlert,
-  FileText,
-  Gauge,
-  ExternalLink,
-} from "lucide-react";
+import { Activity, Cpu, ShieldAlert, FileText, ExternalLink } from "lucide-react";
 import {
   getModelsStatus,
   getEvalRuns,
@@ -121,9 +114,7 @@ export default function AnalyticsPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gauge className="size-4" /> Provider latency
-              </CardTitle>
+              <CardTitle>Provider latency</CardTitle>
             </CardHeader>
             <CardContent>
               {models.isLoading ? (

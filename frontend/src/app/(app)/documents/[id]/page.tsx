@@ -2,14 +2,7 @@
 
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import {
-  Wand2,
-  Sparkles,
-  ShieldAlert,
-  Workflow,
-  ArrowRight,
-  FileText,
-} from "lucide-react";
+import { Wand2, Sparkles, ShieldAlert, ArrowRight } from "lucide-react";
 import { analyzeDocument } from "@/lib/api";
 import { useDocuments } from "@/lib/stores/documents";
 import { useWorkspace } from "@/components/workspace/workspace-context";
@@ -55,9 +48,7 @@ export default function OverviewPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="size-4" /> Extracted text
-            </CardTitle>
+            <CardTitle>Extracted text</CardTitle>
             <div className="flex gap-2">
               <RewriteDialog
                 documentId={id}
@@ -118,9 +109,7 @@ export default function OverviewPage() {
 
           <Card>
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Workflow className="size-4" /> Agent analysis
-              </CardTitle>
+              <CardTitle>Agent analysis</CardTitle>
               <Button variant="ghost" size="sm" asChild>
                 <Link href={`/documents/${id}/agents`}>
                   Details <ArrowRight />

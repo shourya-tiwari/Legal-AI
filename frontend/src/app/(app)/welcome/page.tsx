@@ -86,7 +86,7 @@ export default function WelcomePage() {
         {/* Primary paths */}
         <div className="grid gap-4 lg:grid-cols-3">
           <Card className="flex flex-col border-primary/30 bg-primary-muted/30">
-            <CardContent className="flex flex-1 flex-col gap-3 pt-6">
+            <CardContent className="flex flex-1 flex-col gap-3 pt-5">
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Upload className="size-5" />
               </div>
@@ -104,7 +104,7 @@ export default function WelcomePage() {
           </Card>
 
           <Card className="flex flex-col">
-            <CardContent className="flex flex-1 flex-col gap-3 pt-6">
+            <CardContent className="flex flex-1 flex-col gap-3 pt-5">
               <div className="flex size-10 items-center justify-center rounded-lg bg-elevated text-foreground">
                 <Sparkles className="size-5" />
               </div>
@@ -119,7 +119,7 @@ export default function WelcomePage() {
           </Card>
 
           <Card className="flex flex-col">
-            <CardContent className="flex flex-1 flex-col gap-3 pt-6">
+            <CardContent className="flex flex-1 flex-col gap-3 pt-5">
               <div className="flex size-10 items-center justify-center rounded-lg bg-elevated text-foreground">
                 <LayoutDashboard className="size-5" />
               </div>

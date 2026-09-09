@@ -26,7 +26,6 @@ export default function AdminOverviewPage() {
   const models = useQuery({ queryKey: qk.modelsStatus, queryFn: getModelsStatus });
 
   const providerHealth = models.data?.providers ?? [];
-  const kgImplied = "unknown"; // no dedicated KG-health endpoint
 
   return (
     <div className="space-y-6">
@@ -166,7 +165,7 @@ export default function AdminOverviewPage() {
           </div>
           <p className="flex items-center gap-1.5 pt-1 text-xs">
             <Network className="size-3.5" /> Per-task Class-C kill switches are
-            on the Models tab. KG backend: {kgImplied}.
+            on the Models tab.
           </p>
         </CardContent>
       </Card>

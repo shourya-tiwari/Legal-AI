@@ -75,7 +75,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex justify-end">
         <CreateUserDialog
           onCreated={() => qc.invalidateQueries({ queryKey: qk.users })}

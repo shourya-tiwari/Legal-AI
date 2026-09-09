@@ -42,7 +42,7 @@ export default function ProfilePage() {
         ) : (
           <>
             <Card>
-              <CardContent className="flex items-center gap-4 pt-6">
+              <CardContent className="flex items-center gap-4 pt-5">
                 <Avatar className="size-14">
                   <AvatarFallback className="text-lg">
                     {initials(session?.email ?? "?")}

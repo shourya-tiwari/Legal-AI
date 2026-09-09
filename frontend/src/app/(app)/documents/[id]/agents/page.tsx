@@ -2,13 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  Workflow,
-  ShieldAlert,
-  RefreshCw,
-  ChevronRight,
-  CircleDot,
-} from "lucide-react";
+import { ShieldAlert, RefreshCw, ChevronRight, CircleDot } from "lucide-react";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { useAnalysis } from "@/components/workspace/use-analysis";
 import { RunAnalysisCta } from "@/components/workspace/run-analysis-cta";
@@ -99,9 +93,7 @@ export default function AgentsPage() {
           {/* Plan */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Workflow className="size-4" /> Planner
-              </CardTitle>
+              <CardTitle>Planner</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">

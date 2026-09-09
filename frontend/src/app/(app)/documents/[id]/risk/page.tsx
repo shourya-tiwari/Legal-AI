@@ -3,11 +3,12 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Layers, Flame } from "lucide-react";
 import { getRiskDashboard, riskScanDocument } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Stat } from "@/components/ui/stat";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,7 +33,7 @@ export default function RiskPage() {
     queryFn: () => getRiskDashboard(id),
   });
   const scan = useQuery({
-    queryKey: ["risk-scan", id],
+    queryKey: qk.riskScan(id),
     queryFn: () => riskScanDocument(id),
   });
 
@@ -54,11 +55,16 @@ export default function RiskPage() {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Total risk flags" value={total} icon={ShieldAlert} />
-        <Stat label="Categories triggered" value={`${activeCategories}/8`} />
+        <Stat
+          label="Categories triggered"
+          value={`${activeCategories}/8`}
+          icon={Layers}
+        />
         <Stat
           label="Highest-risk category"
           value={topCategory && topCategory[1] > 0 ? titleCase(topCategory[0]) : "—"}
           hint={topCategory && topCategory[1] > 0 ? `${topCategory[1]} flags` : ""}
+          icon={Flame}
         />
       </div>
 
@@ -87,12 +93,13 @@ export default function RiskPage() {
               {selected ? `${titleCase(selected)} clauses` : "Clause-level flags"}
             </CardTitle>
             {selected && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setSelected(null)}
-                className="text-xs text-primary hover:underline"
               >
                 Clear filter
-              </button>
+              </Button>
             )}
           </CardHeader>
           <CardContent>

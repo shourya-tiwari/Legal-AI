@@ -46,7 +46,7 @@ export default function ClausesPage() {
   ).length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Card>
         <CardContent className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center">
           <div className="relative flex-1">

@@ -73,7 +73,7 @@ export function DashboardOnboarding() {
     <div className="space-y-8">
       {/* Hero */}
       <Card className="overflow-hidden border-primary/25">
-        <CardContent className="relative pt-6">
+        <CardContent className="relative pt-5">
           <div className="absolute inset-0 -z-10 bg-dots opacity-40" />
           <Badge variant="primary" className="gap-1.5">
             <span className="size-1.5 rounded-full bg-primary-foreground/80" />

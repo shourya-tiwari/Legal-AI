@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, CalendarCheck, CalendarX, ListTree } from "lucide-react";
+import { CalendarClock, CalendarCheck, CalendarX } from "lucide-react";
 import { mapDocument, simulateTimeline } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
 import { useWorkspace } from "@/components/workspace/workspace-context";
@@ -155,9 +155,7 @@ export default function TimelinePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ListTree className="size-4" /> Descriptive timeline
-              </CardTitle>
+              <CardTitle>Descriptive timeline</CardTitle>
             </CardHeader>
             <CardContent>
               {map.isLoading ? (

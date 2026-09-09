@@ -140,7 +140,7 @@ export default function FeaturesPage() {
             >
               <div className="flex items-center gap-3">
                 <div className="flex size-9 items-center justify-center rounded-lg bg-primary-muted text-primary">
-                  <g.icon className="size-4.5" />
+                  <g.icon className="size-4" />
                 </div>
                 <h3 className="text-base font-semibold">{g.title}</h3>
               </div>

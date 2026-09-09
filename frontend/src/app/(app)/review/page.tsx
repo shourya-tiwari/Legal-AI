@@ -38,7 +38,7 @@ export default function ReviewPage() {
   return (
     <>
       <PageHeader
-        title="Human review queue"
+        title="Review Queue"
         description="Every agent analysis the Verifier flagged needs_human_review — a knowledge-graph conflict, an invalid citation, or a faithfulness check that failed."
         actions={
           <div className="flex items-center gap-2">
@@ -53,7 +53,7 @@ export default function ReviewPage() {
           </div>
         }
       />
-      <PageBody className="max-w-4xl space-y-4">
+      <PageBody className="max-w-4xl space-y-6">
         {q.isLoading ? (
           <ListSkeleton />
         ) : q.isError ? (
@@ -69,15 +69,18 @@ export default function ReviewPage() {
             description="When an agent analysis fails verification, it lands here for a human to sign off."
           />
         ) : (
-          items.map((item) => (
-            <ReviewCard
-              key={item.id}
-              item={item}
-              onResolved={() =>
-                qc.invalidateQueries({ queryKey: ["review-queue"] })
-              }
-            />
-          ))
+          <div className="space-y-4">
+            {items.map((item) => (
+              <ReviewCard
+                key={item.id}
+                item={item}
+                onResolved={() =>
+                  // prefix-match both the filtered and unfiltered queries
+                  qc.invalidateQueries({ queryKey: ["review-queue"] })
+                }
+              />
+            ))}
+          </div>
         )}
       </PageBody>
     </>

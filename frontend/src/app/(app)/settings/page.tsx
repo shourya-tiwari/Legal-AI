@@ -39,7 +39,7 @@ export default function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="Negotiation playbook, appearance, and local data."
+        description="Negotiation playbook, appearance, keyboard shortcuts, and local data."
       />
       <PageBody className="max-w-3xl">
         <Tabs defaultValue="negotiation">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { GitCompareArrows, AlertTriangle, ScanSearch } from "lucide-react";
+import { AlertTriangle, ScanSearch } from "lucide-react";
 import { checkConsistency } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,9 +22,7 @@ export function ConsistencyCard({ documentId }: { documentId: number }) {
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <GitCompareArrows className="size-4" /> Cross-document consistency
-        </CardTitle>
+        <CardTitle>Cross-document consistency</CardTitle>
         {check.data && (
           <span className="text-xs text-subtle-foreground">
             {check.data.other_documents_checked} other doc(s) checked

@@ -132,7 +132,7 @@ export default function KnowledgeGraphPage() {
                 <div className="space-y-3">
                   {clauses.map((c, i) => (
                     <Card key={i}>
-                      <CardContent className="pt-4">
+                      <CardContent className="pt-5">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <Badge variant="primary">{submitted}</Badge>
                           {typeof c.document_id !== "undefined" && (
