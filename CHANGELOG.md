@@ -8,6 +8,39 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ## [Unreleased]
 
+### Frontend — M2 + M5 + M9: marketing polish, consistency, hygiene
+- **Home page** grew a "by the numbers" strip, a "why this platform" section, a testimonials
+  placeholder (honest — it's a portfolio project), and an FAQ accordion. Scroll-reveal motion via
+  Framer Motion, `prefers-reduced-motion`-aware.
+- **Cross-document consistency** — a previously-unsurfaced endpoint. The workspace Overview now
+  has a consistency card: embed this document's deontic clauses, compare against the rest of the
+  library, flag semantic matches and active modality conflicts.
+- **`.gitattributes`** — `text=auto eol=lf` normalisation (ends the CRLF churn), binary-asset
+  markers, `linguist-generated` on `api-types.ts` / `package-lock.json` / training data.
+- **`next.config.ts`** — `poweredByHeader: false`, `compress`, `optimizePackageImports` for
+  lucide/recharts/date-fns. React Flow and Recharts are already `next/dynamic`-lazy at their call
+  sites.
+
+### Frontend — M7 + M8: Ops, admin, settings
+- **Evaluation** (`/evaluation`) — most-recent eval run per task/provider with candidate-vs-baseline
+  score bars and cutover pass/fail; admin "run delta report" (real provider calls).
+- **Analytics** (`/analytics`) — Recharts provider-latency (coloured by hosting class), Class-C
+  egress by provider, evaluation pass rate by task, recent external dispatches, and local activity.
+- **Admin** (`/admin/*`, tabbed) — health tiles + provider reachability + `create_api_key.py`
+  command; Users (list/create/revoke); Models (per-task Class-C kill switches); Egress Log (the
+  full SHA-256 audit trail with PII-redaction counts); Feature Flags + completion webhook.
+- **Settings** (`/settings`, tabbed) — negotiation playbook editor, appearance, keyboard-shortcut
+  reference, and local-data controls.
+- **Profile** (`/profile`), **`/login`** (session auth, graceful when auth is off), and the
+  portfolio **Knowledge Graph** (`/knowledge-graph`) — term usage across ingested documents +
+  candidate cross-document conflicts + an as-of time-travel control.
+
+### Frontend — M6: AI Assistant
+- `/assistant` — a full chat experience over the frozen single-turn `/ask` endpoint. Conversation
+  list (create/rename/delete/search, `localStorage`-persisted), per-conversation document context,
+  `react-markdown` + `remark-gfm` rendering, faithfulness badge + unsupported-claims callout per
+  answer, suggested prompts, Markdown export, collapsible sidebar. No fake token streaming.
+
 ### Frontend — M4: Document workspace
 - **Tabbed workspace** at `/documents/[id]` — a shared `WorkspaceProvider` (document +
   sensitivity queries) and `WorkspaceChrome` (header, 8-tab bar, quality warning, version

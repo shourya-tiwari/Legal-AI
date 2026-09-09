@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { FaithfulnessBadge } from "@/components/shared/faithfulness-badge";
 import { titleCase } from "@/lib/format";
+import { ConsistencyCard } from "@/components/workspace/consistency-card";
 
 export default function OverviewPage() {
   const { id, document, sensitivity, blocks } = useWorkspace();
@@ -223,6 +224,8 @@ export default function OverviewPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConsistencyCard documentId={id} />
     </div>
   );
 }

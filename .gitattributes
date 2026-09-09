@@ -1,0 +1,18 @@
+# Normalise line endings — the repo is authored cross-platform.
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.joblib binary
+*.woff binary
+*.woff2 binary
+
+# Generated / vendored — keep out of diffs and language stats
+frontend/src/lib/api-types.ts linguist-generated=true
+frontend/package-lock.json linguist-generated=true
+backend/training/data/** linguist-generated=true

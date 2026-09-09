@@ -12,6 +12,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  HomeNumbers,
+  HomeReasons,
+  HomeTestimonials,
+  HomeFaq,
+} from "@/components/marketing/home-sections";
 
 export const metadata = {
   title: "Self-hosted legal contract intelligence",
@@ -208,6 +214,11 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <HomeNumbers />
+      <HomeReasons />
+      <HomeTestimonials />
+      <HomeFaq />
 
       {/* CTA */}
       <section className="mx-auto w-full max-w-4xl px-4 py-20 sm:px-6">
