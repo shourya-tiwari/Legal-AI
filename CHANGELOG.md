@@ -8,6 +8,32 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ## [Unreleased]
 
+### Frontend — M4: Document workspace
+- **Tabbed workspace** at `/documents/[id]` — a shared `WorkspaceProvider` (document +
+  sensitivity queries) and `WorkspaceChrome` (header, 8-tab bar, quality warning, version
+  history, sensitivity override dialog, KG ingest). Eight tabs, all backed by real endpoints:
+  - **Overview** — text viewer with in-document search/highlight, plain-English rewrite dialog,
+    agent-analysis summary card, clause preview.
+  - **Clauses** — `POST /api/nlp/analyze` rendered as rich `ClauseCard`s (deontic modality,
+    entities, defined terms, cross-references, temporal expressions, ambiguity flags), per-clause
+    rewrite + "explain for my situation" (contextualize) dialogs, clause-type filter, AI-escalation
+    toggle.
+  - **Risk** — Recharts radar over the 8-category dashboard with click-to-drill-down, plus the
+    AI + keyword scan.
+  - **Timeline** — dated-obligation timeline from `simulate` (past/upcoming/future) with a
+    configurable reference date and warning window, plus the descriptive timeline and structure
+    tree from `map`.
+  - **Negotiation** — redline diff of each deviation from the org playbook, local accept/reject,
+    Markdown redline export; honest empty state linking to Settings when no preferences are set.
+  - **Graph** — React Flow (`@xyflow/react`) knowledge-graph canvas with ingest/refresh,
+    portfolio-link (`SAME_AS`) highlighting, minimap, and a fail-soft "graph offline" state.
+  - **Agents** — planner plan + rationale, verifier verdict (faithfulness, unsupported claims,
+    fabricated citations, `needs_human_review`), risk/KG findings, and an accordion execution
+    trace; analysis-mode and AI-planner controls.
+  - **Ask** — a grounded per-document Q&A thread with a faithfulness badge and unsupported-claim
+    callouts.
+- Shared `useAnalysis` hook caches the `analyze()` result across the Agents and Negotiation tabs.
+
 ### Frontend — M1: Foundation & design system
 - **Design system** — `frontend/src/components/ui/` (30 Radix-backed primitives: button, card,
   badge, dialog, sheet, dropdown-menu, popover, tooltip, tabs, select, accordion, table, command,
