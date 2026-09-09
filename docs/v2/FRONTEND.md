@@ -2,6 +2,24 @@
 
 V1's frontend was a single static HTML page with vanilla JS and no build step — appropriate for a 6-endpoint demo, insufficient for a system with streaming multi-agent traces, collaborative redlining, and a knowledge-graph explorer. It has been replaced by a proper SPA (now in `frontend/`) that keeps the same "ship something a browser can render with no exotic runtime requirements" spirit.
 
+> **Implementation status** — the SPA is being rebuilt into a production-grade
+> SaaS UI against the now-frozen backend. `docs/v2/FRONTEND_PLAN.md` is the
+> live plan (backend→frontend capability map, IA, design system, 9 milestones).
+> This document is the target architecture; the plan tracks what has shipped.
+>
+> - **M1 — Foundation** ✅ design system (`components/ui/*`, dark/light tokens),
+>   app shell (sidebar + topbar + ⌘K command palette), route groups
+>   (`(marketing)` / `(app)`), a typed API client with optional auth, Zustand
+>   stores (client document library, chat, UI prefs), and rebuilt Dashboard /
+>   Documents / Upload / Workspace-overview / Review / Model Router pages plus
+>   the full marketing site skeleton (Home, Features, Architecture, Research,
+>   Docs, About, About/Developer, Contact) and `/login`.
+>
+> Sections below that describe real-time WebSocket streaming, Yjs collaboration,
+> and PDF.js overlays remain **target state** — the frozen backend has no
+> WebSocket/SSE surface, so those are handled with honest non-streaming UX
+> (see `FRONTEND_PLAN.md` §1).
+
 ## Stack
 
 | Layer | Choice | Why |

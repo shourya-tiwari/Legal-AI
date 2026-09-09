@@ -8,11 +8,38 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ## [Unreleased]
 
+### Frontend — M1: Foundation & design system
+- **Design system** — `frontend/src/components/ui/` (30 Radix-backed primitives: button, card,
+  badge, dialog, sheet, dropdown-menu, popover, tooltip, tabs, select, accordion, table, command,
+  toast, skeleton, switch, checkbox, progress, scroll-area, avatar, alert, empty/error states,
+  stat, …). oklch design tokens with a real light + dark theme (`next-themes`), tuned typography,
+  radius, and shadow scales.
+- **App shell** — collapsible sidebar with nav groups, sticky topbar, ⌘K command palette (`cmdk`),
+  theme toggle, user menu; `(marketing)` and `(app)` route groups with their own layouts.
+- **Data layer** — a fully typed `lib/api.ts` client covering every backend endpoint, with
+  optional bearer auth (works token-less when `AUTH_REQUIRED=false`), `XMLHttpRequest` upload
+  progress, and structured `ApiError`. Zustand stores: client-side document library, AI-assistant
+  conversation history, and UI preferences (all `localStorage`-persisted). Centralised query keys
+  and formatters.
+- **Pages** — rebuilt Dashboard, Documents (library, grid/list/search/filter/tags), Upload
+  (dropzone + progress), Workspace overview, Review Queue, and Model Router in the new system.
+  Full marketing skeleton: Home (hero, pipeline, features, security, CTA), Features, Architecture,
+  Research (the 5 `NOVELTY.md` ideas), Docs hub, About (case study), About/Developer (portfolio),
+  Contact; plus `/login`.
+- **Dependencies added** — framer-motion, lucide-react, sonner, cmdk, next-themes, zustand,
+  react-hook-form, zod, `@tanstack/react-table`, `@xyflow/react`, recharts, react-markdown,
+  date-fns, class-variance-authority, tailwind-merge, and the Radix primitive set.
+- Removed the old V1-scaffold panel components; the V1 `SiteHeader` and one-page workspace.
+
 ### Added
 - **Frontend implementation plan** (`docs/v2/FRONTEND_PLAN.md`) — complete backend→frontend
   capability map, information architecture, design-system spec, and a 9-milestone delivery plan
   for rebuilding `frontend/` into a world-class Legal-AI platform UI.
 - This `CHANGELOG.md`.
+
+### Notes
+- `openapi-typescript` (dev-only, used by `npm run codegen`) pulls a transitive `js-yaml`
+  advisory (`GHSA-2883-xcg3-v3hh`). Not shipped in the app bundle; tracked for a future override.
 
 ---
 

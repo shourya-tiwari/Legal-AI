@@ -1,17 +1,40 @@
-import type { Metadata } from "next";
-import { QueryProvider } from "@/lib/query-client";
+import type { Metadata, Viewport } from "next";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LegalAI Workspace",
-  description: "Document-first legal contract analysis (Phase 7 SPA scaffold)",
+  metadataBase: new URL("https://legalai.local"),
+  title: {
+    default: "LegalAI — Self-hosted legal contract intelligence",
+    template: "%s · LegalAI",
+  },
+  description:
+    "A self-hosted Legal-AI platform: clause extraction, risk analysis, plain-English rewrites, a planner-driven agent pipeline with faithfulness verification, a knowledge graph, and negotiation drafting — with every model call routed by sensitivity tier.",
+  applicationName: "LegalAI",
+  keywords: [
+    "legal AI",
+    "contract analysis",
+    "clause extraction",
+    "risk analysis",
+    "knowledge graph",
+    "self-hosted LLM",
+  ],
+  authors: [{ name: "LegalAI" }],
+  icons: { icon: "/favicon.ico" },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d0d12" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,#312e81,transparent),linear-gradient(#020617,#0a0a0f)] bg-fixed text-zinc-100 font-sans">
-        <QueryProvider>{children}</QueryProvider>
+    <html lang="en" suppressHydrationWarning className="h-full antialiased">
+      <body className="min-h-full font-sans">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

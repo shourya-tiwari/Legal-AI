@@ -183,8 +183,8 @@ Each milestone: implemented · responsive (sm→2xl) · a11y (keyboard, focus, A
 
 | # | Milestone | Scope |
 |---|---|---|
-| **M0** | Plan | this document |
-| **M1** | Foundation | deps, design tokens + light/dark, `components/ui/` primitives, `AppShell`/`Sidebar`/`Topbar`, command palette, `PublicHeader`/`Footer`, route groups, `lib/` (api client + auth + query keys + Zustand stores + formatters), toasts, error boundary |
+| **M0** | Plan ✅ | this document + `CHANGELOG.md` |
+| **M1** | Foundation ✅ | deps, design tokens + light/dark, 30 `components/ui/` primitives, `AppShell`/`SidebarNav`/`Topbar`, ⌘K command palette, `PublicHeader`/`Footer`, `(marketing)`/`(app)` route groups, `lib/` (typed api client + optional auth + query keys + Zustand stores + formatters), sonner toasts, error/not-found/loading boundaries. Rebuilt Dashboard, Documents, Upload, Workspace-overview, Review, Model Router; full marketing skeleton (Home, Features, Architecture, Research, Docs, About, About/Developer, Contact) + `/login`. `READY_ROUTES` gate keeps every commit 404-free as later milestones add pages. |
 | **M2** | Marketing | Landing (hero, animated bg, feature cards, architecture preview, workflow viz, security, tech, research highlights, benchmarks, FAQ, CTA, footer) · Features · Architecture (interactive) · Research · Docs hub · About (case study) · About/Developer (portfolio) · Contact |
 | **M3** | Dashboard + Documents | `/dashboard` (recent, review count, model status, eval summary, risk overview, quick actions) · `/documents` (grid/list, search, filter, tags, dropzone) · `/documents/upload` · document-library store |
 | **M4** | Workspace core | `/documents/[id]` shell + layout + shared analysis cache · Overview · Clauses (nlp/analyze) · viewer (text + lazy PDF) · sensitivity control + override · original download · version history |
