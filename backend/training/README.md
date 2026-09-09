@@ -320,13 +320,39 @@ including the specific failure pattern (one-sided/open-ended-right clauses
 scored too low because none of their language appears in the 55-term
 keyword list the heuristic was built on) and `LEARNING_LOG.md` #45.
 
-## Eval-gated promotion in CI/CD
+## Eval-gated promotion in CI/CD (Phase 8, `LEARNING_LOG.md` #59)
 
-**Not built** — there's no CI workflow that runs a training script (either
-`train_sensitivity_classifier.py` or `train_risk_model.py`) and blocks a
-merge on `passed_cutover_gate`, matching `app/eval/cutover_gate.py`'s
-existing manual-invocation pattern for Model Router tasks
-(`.github/workflows/backend-tests.yml` runs `pytest`, not the training
-scripts). Wiring a training run into CI is real, buildable follow-up work —
-not infra-blocked, just not yet done — tracked as a separate `TASKS.md`
-line rather than silently folded into either model's entry.
+**Built.** `promoted.json` is the promotion manifest — the single source of
+truth for which trained `.joblib` head is approved for production use — and
+`promote_model.py` is the gate around it:
+
+```bash
+python -m training.promote_model --check              # CI gate (exit 1 on inconsistency)
+python -m training.promote_model --promote <name>     # flip to promoted (refuses a failed gate)
+python -m training.promote_model --promote <name> --force   # documented, reviewed exception only
+python -m training.promote_model --demote <name>      # revert
+python -m training.promote_model --list               # print the manifest
+```
+
+`--promote` reads `models/<name>_eval.json` (written by the training script)
+and **refuses** unless `passed_cutover_gate` is `true` — the same
+meet-or-beat-baseline rule `app/eval/cutover_gate.py` enforces for Model
+Router tasks. On success it copies the artifact to the stable
+`models/promoted/<name>.joblib` path an application loader reads and, if
+`mlflow` is installed, transitions the model's newest registered version to
+the `Production` stage.
+
+`--check` runs in CI (`.github/workflows/backend-tests.yml`, job
+`model-promotion-gate`) and fails the build if the manifest and the eval
+results disagree — e.g. a model marked `promoted: true` whose eval didn't
+pass, or whose promoted artifact is missing. It's pure-stdlib: it doesn't
+re-run training (minutes-to-hours, and GPU-blocked for the clause/deontic
+heads), it verifies the *committed* eval JSON against the manifest.
+
+Application code reads the manifest through
+`app/services/trained_models.py` (`is_promoted(name)`,
+`promoted_artifact_path(name)`), fail-soft to "nothing promoted". Today
+**both** shipped classical models sit at `promoted: false` — sensitivity
+0.818 vs the rule baseline's 1.000 (#43), risk 0.500 vs the heuristic's
+0.571 (#45) — so nothing loads them, which is exactly the state this gate
+keeps honest.

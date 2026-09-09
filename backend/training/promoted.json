@@ -1,0 +1,24 @@
+{
+  "_comment": "Eval-gated model promotion manifest (docs/v2/ROADMAP.md Phase 8). A model is used in production ONLY if its entry here has promoted:true, which training/promote_model.py refuses to set unless models/<name>_eval.json reports passed_cutover_gate:true. `python -m training.promote_model --check` enforces the two agree, and runs in CI (.github/workflows/backend-tests.yml, job model-promotion-gate).",
+  "models": {
+    "sensitivity_classifier": {
+      "promoted": false,
+      "passed_cutover_gate": false,
+      "reason": "0.818 vs the rule baseline's 1.000 on SENSITIVITY_GOLD (LEARNING_LOG.md #43). app/services/sensitivity/ stays rule-based.",
+      "eval": {
+        "classical_model_gold_accuracy": 0.818,
+        "rule_baseline_gold_accuracy": 1.0
+      }
+    },
+    "risk_model": {
+      "promoted": false,
+      "passed_cutover_gate": false,
+      "reason": "0.500 vs the heuristic baseline's 0.571 on RISK_SEVERITY_GOLD (LEARNING_LOG.md #45). app/services/risk_radar/ stays rule/LLM-based.",
+      "eval": {
+        "classical_model_gold_accuracy": 0.5,
+        "heuristic_baseline_gold_accuracy": 0.571
+      }
+    }
+  },
+  "updated_at": "2026-09-09T00:00:00+00:00"
+}

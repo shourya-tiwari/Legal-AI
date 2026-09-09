@@ -57,6 +57,26 @@ jobs:
           GOOGLE_API_KEY: ""
         run: pytest -v -k "provider_isolation or model_router or rag_hybrid or nlp_pipeline or eval_gate or eval_metrics or models_status"
 
+  model-promotion-gate:
+    # Eval-gated model promotion (docs/v2/ROADMAP.md Phase 8). Fails the
+    # build if backend/training/promoted.json marks a model promoted whose
+    # models/<name>_eval.json doesn't report passed_cutover_gate:true (or
+    # whose promoted artifact is missing). Pure-stdlib -- no training run,
+    # no ML deps: it checks the committed eval results against the manifest,
+    # the same meet-or-beat-baseline rule app/eval/cutover_gate.py enforces
+    # for Model Router tasks.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Check the promotion manifest against the eval results
+        run: python -m training.promote_model --check
+
   collapsed-data-layer-smoke:
     # The laptop/single-binary profile (docs/v2/ROADMAP.md Phase 7
     # "Collapsed data layer"): KG_BACKEND=kuzu substitutes an embedded,
