@@ -21,7 +21,7 @@ class RewriteResponse(BaseModel):
 # ----- Upload -----
 # POST /api/upload returns a hand-built dict (document_id + sensitivity +
 # optional quality), not a Pydantic model -- see app/routes/upload.py and
-# the v2 frontend's hand-typed UploadResult. No response_model here on purpose.
+# the frontend's hand-typed UploadResult. No response_model here on purpose.
 
 # ----- Timeline (/api/map) -----
 class DocumentSection(BaseModel):

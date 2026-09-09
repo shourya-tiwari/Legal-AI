@@ -18,7 +18,7 @@ Legal contracts are often written in complex jargon, making them difficult for n
 This tool is designed to empower individuals and businesses by making legal documents more transparent, accessible, and less intimidating.
 ## Tech Stack
 
-**Client:** Next.js (App Router), TypeScript, Tailwind, TanStack Query (`v2/`)
+**Client:** Next.js (App Router), TypeScript, Tailwind, TanStack Query (`frontend/`)
 
 **Server:** Python, FastAPI, Uvicorn
 
@@ -281,16 +281,16 @@ Run the backend test suite:
     pytest
 ```
 
-**Frontend Setup** (`v2/` — Next.js SPA)
+**Frontend Setup** (`frontend/` — Next.js SPA)
 
 ```bash
-    cd v2
+    cd frontend
     npm install
     npm run dev
 ```
 Available at http://localhost:3000. Point it at a backend with
-`NEXT_PUBLIC_API_BASE_URL` (see `v2/.env.local.example`); defaults to
-`http://127.0.0.1:8000/api`. See `v2/README.md` for details.
+`NEXT_PUBLIC_API_BASE_URL` (see `frontend/.env.local.example`); defaults to
+`http://127.0.0.1:8000/api`. See `frontend/README.md` for details.
 
 **Issuing API keys** (only needed once you set `AUTH_REQUIRED=true`):
 ```bash

@@ -1,4 +1,4 @@
-# LegalAI — v2 frontend
+# LegalAI — frontend
 
 Next.js (App Router) + TypeScript + Tailwind + TanStack Query SPA for the
 LegalAI backend. Dark theme, no third-party font/asset origins.
