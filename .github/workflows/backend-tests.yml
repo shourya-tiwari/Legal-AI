@@ -182,6 +182,14 @@ jobs:
         # @v0.33.1+ pins its sub-actions by commit SHA, so it survives tag
         # churn.
         uses: aquasecurity/trivy-action@v0.33.1
+        # This scan is report-only (see exit-code below). The vuln-DB pull is
+        # an anonymous ghcr.io fetch that rate-limits in CI -- a DB-download
+        # failure must not fail the pipeline for a report-only step. The AWS
+        # ECR mirrors below reduce the flake; continue-on-error covers the rest.
+        continue-on-error: true
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1
         with:
           image-ref: legalai-backend:core
           severity: "CRITICAL,HIGH"
