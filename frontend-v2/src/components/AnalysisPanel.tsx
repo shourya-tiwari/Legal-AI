@@ -125,6 +125,41 @@ export function AnalysisPanel({ documentId }: { documentId: number }) {
               </ul>
             </div>
           )}
+
+          {/* Negotiation/Drafting agent (app/agents/negotiation.py) -- clauses
+              deviating from the org's configured preferred language. Always
+              status="pending_review"; never auto-applied. Empty unless the org
+              has set Organization.negotiation_preferences. This is the
+              non-collaborative "Negotiation Studio" surface -- the Yjs
+              real-time collaborative editor is deferred (needs a WebSocket
+              sync server this deployment can't validate; docs/v2/TASKS.md). */}
+          {(analyze.data.negotiation_suggestions ?? []).length > 0 && (
+            <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3">
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sky-300">
+                Negotiation suggestions ({(analyze.data.negotiation_suggestions ?? []).length}) — pending review
+              </h4>
+              <ul className="flex flex-col gap-3 text-xs">
+                {(analyze.data.negotiation_suggestions ?? []).map((s, i) => (
+                  <li key={i} className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+                    <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 font-medium text-zinc-200">
+                        {s.clause_type}
+                      </span>
+                      <span>clause {String(s.clause_id)}</span>
+                      <span>similarity {(s.similarity * 100).toFixed(0)}%</span>
+                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-300">
+                        {s.status}
+                      </span>
+                    </div>
+                    {s.rationale && <p className="mb-1 italic text-zinc-400">{s.rationale}</p>}
+                    <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-black/30 p-2 text-[11px] leading-relaxed text-zinc-300">
+                      {(s.diff_lines ?? []).join("\n")}
+                    </pre>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

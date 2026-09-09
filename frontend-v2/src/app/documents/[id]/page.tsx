@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getDocument, getSensitivity } from "@/lib/api";
+import { getDocument, getSensitivity, originalFileUrl } from "@/lib/api";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SensitivityBadge } from "@/components/SensitivityBadge";
 import { ClauseList, type Block } from "@/components/ClauseList";
@@ -84,6 +84,17 @@ export default function DocumentPage() {
               ← Upload another document
             </Link>
             <h1 className="text-xl font-semibold text-white">{data.filename}</h1>
+            {data.original_available && (
+              <a
+                href={originalFileUrl(documentId)}
+                className="mt-1 inline-block text-xs text-indigo-400 hover:underline"
+              >
+                ↓ Download original file
+                {typeof data.original_size === "number"
+                  ? ` (${(data.original_size / 1024).toFixed(1)} KB)`
+                  : ""}
+              </a>
+            )}
           </div>
           <SensitivityBadge
             tier={data.sensitivity_tier}

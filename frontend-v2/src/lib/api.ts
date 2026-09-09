@@ -82,6 +82,13 @@ export async function getSensitivity(id: number): Promise<SensitivityResponse> {
   return request<SensitivityResponse>(`/v2/documents/${id}/sensitivity`);
 }
 
+// Direct URL for the original-uploaded-file download (Phase 7,
+// GET /api/v2/documents/{id}/original streams bytes, not JSON, so it's a
+// plain <a href> target rather than a request<T>() call).
+export function originalFileUrl(id: number): string {
+  return `${API_BASE}/v2/documents/${id}/original`;
+}
+
 export async function rewriteDocument(
   id: number,
   blockId?: string | number | null,

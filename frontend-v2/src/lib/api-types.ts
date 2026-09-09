@@ -489,6 +489,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/documents/{document_id}/original": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the original uploaded file
+         * @description Stream back the exact bytes that were uploaded (Phase 7,
+         *     services/file_store.py). 404 if this document predates blob storage or
+         *     its upload's storage write failed (`original_sha256` is null), or if the
+         *     blob is somehow missing from the store.
+         */
+        get: operations["get_original_file_api_v2_documents__document_id__original_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/documents/{document_id}/sensitivity": {
         parameters: {
             query?: never;
@@ -1716,6 +1739,17 @@ export interface components {
             quality?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Original Available
+             * @description True when the original uploaded file bytes were stored and can be fetched from GET /api/v2/documents/{id}/original.
+             * @default false
+             */
+            original_available: boolean;
+            /**
+             * Original Size
+             * @description Byte count of the stored original file, when available.
+             */
+            original_size?: number | null;
         };
         /** V2RewriteRequest */
         V2RewriteRequest: {
@@ -2792,6 +2826,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["V2DocumentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_original_file_api_v2_documents__document_id__original_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
