@@ -139,7 +139,11 @@ export const READY_ROUTES = new Set<string>([
   "/documents",
   "/documents/upload",
   "/review",
+  "/knowledge-graph",
+  "/evaluation",
   "/models",
+  "/analytics",
+  "/admin",
 ]);
 
 export function filterReadyNav(groups: NavGroup[]): NavGroup[] {
