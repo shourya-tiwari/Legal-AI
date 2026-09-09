@@ -112,6 +112,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./legalai.db"
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Original-uploaded-file blob store (Phase 7, app/services/file_store.py).
+    # A plain local directory, content-addressed by SHA-256 -- no S3/MinIO
+    # service to operate, which is exactly the "collapsed data layer" /
+    # on-prem property. A cloud profile can point this at a mounted bucket
+    # with no code change. Gitignored.
+    FILE_STORAGE_DIR: str = "./file_storage"
+
     # Auth (docs/v2/ROADMAP.md Phase 1). Off by default so the existing public
     # frontend keeps working with zero credentials until keys are issued and
     # this is deliberately flipped on.

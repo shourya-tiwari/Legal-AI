@@ -31,6 +31,13 @@ os.environ.setdefault("LOCAL_NEURAL_ENABLED", "false")
 # docker-compose happens to be running on this machine right now. KG tests
 # use a fake client (test_kg_builder.py) for anything Memgraph-dependent.
 os.environ.setdefault("MEMGRAPH_URI", "bolt://127.0.0.1:65535")
+# Original-file blob store (Phase 7, app/services/file_store.py): point it at
+# a throwaway temp dir so the suite never writes uploaded bytes into the repo.
+import tempfile as _tempfile
+os.environ.setdefault(
+    "FILE_STORAGE_DIR",
+    os.path.join(_tempfile.gettempdir(), "legalai_test_file_storage"),
+)
 
 import pytest
 from fastapi.testclient import TestClient

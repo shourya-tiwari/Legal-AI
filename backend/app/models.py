@@ -396,6 +396,14 @@ class V2DocumentResponse(BaseModel):
     quality: Optional[dict] = Field(
         None, description="CV quality triage (blur/skew) -- only set for PDFs with scanned pages."
     )
+    original_available: bool = Field(
+        False,
+        description="True when the original uploaded file bytes were stored and can be "
+        "fetched from GET /api/v2/documents/{id}/original.",
+    )
+    original_size: Optional[int] = Field(
+        None, description="Byte count of the stored original file, when available."
+    )
 
 
 # ----- Document sensitivity (/api/v2/documents/{id}/sensitivity) -----

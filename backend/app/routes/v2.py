@@ -15,6 +15,7 @@ import datetime
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.auth import OrgContext
@@ -45,6 +46,7 @@ from app.routes.agents import run_and_persist_analysis
 from app.services.chatbot import answer_question
 from app.services.consistency import MAX_OTHER_DOCUMENTS, find_cross_document_consistency
 from app.services.contextualizer.explainer import generate_contextualized_explanation
+from app.services.file_store import load_bytes
 from app.services.model_router import is_external_permitted
 from app.services.nlp.pipeline import build_clause_objects
 from app.services.risk_radar.detector import generate_risk_dashboard, generate_risk_radar_response
@@ -92,6 +94,32 @@ def get_document(
         sensitivity_tier=doc.sensitivity_tier,
         sensitivity_source=doc.sensitivity_source,
         quality=doc.quality,
+        original_available=bool(doc.original_sha256),
+        original_size=doc.original_size,
+    )
+
+
+@router.get("/documents/{document_id}/original", summary="Download the original uploaded file")
+def get_original_file(
+    document_id: int,
+    org: OrgContext = Depends(require_feature("api_v2_enabled")),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Stream back the exact bytes that were uploaded (Phase 7,
+    services/file_store.py). 404 if this document predates blob storage or
+    its upload's storage write failed (`original_sha256` is null), or if the
+    blob is somehow missing from the store."""
+    doc = _load_doc(document_id, org, db)
+    if not doc.original_sha256:
+        raise HTTPException(status_code=404, detail="Original file was not stored for this document")
+    data = load_bytes(doc.original_sha256)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Original file blob is missing from the store")
+    filename = (doc.filename or "document").replace('"', "")
+    return Response(
+        content=data,
+        media_type=doc.content_type or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

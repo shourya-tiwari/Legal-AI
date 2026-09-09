@@ -122,6 +122,15 @@ class Document(Base):
     # at upload time and returned in that one response only, never persisted.
     quality: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+    # Original uploaded file bytes (Phase 7, app/services/file_store.py).
+    # `original_sha256` is both the integrity check and the key into the
+    # content-addressed blob store; null means the bytes weren't stored
+    # (a fail-soft storage error at upload, or a document created before
+    # this shipped). `original_size` is the byte count for the download
+    # Content-Length / UI display.
+    original_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    original_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
 
 class AuditLog(Base):
     __tablename__ = "audit_log"

@@ -6,6 +6,7 @@ from ..db import get_db
 from ..db_models import Document
 from ..guard import api_guard
 from ..services.extractor import extract_text_and_blocks
+from ..services.file_store import store_bytes
 from ..services.model_router import is_external_permitted
 from ..services.sensitivity import classify_sensitivity
 
@@ -36,6 +37,12 @@ async def upload_contract(
 
     assessment = classify_sensitivity(result["full_text"], filename=file.filename)
 
+    # Persist the original file bytes (Phase 7, services/file_store.py).
+    # Best-effort: extraction has already succeeded and the Document row is
+    # the primary artifact, so a storage failure records "not stored" rather
+    # than failing the upload.
+    blob = store_bytes(file_bytes)
+
     document = Document(
         org_id=org.id,
         filename=file.filename,
@@ -46,6 +53,8 @@ async def upload_contract(
         sensitivity_source=assessment.source,
         sensitivity_signals=[s.model_dump() for s in assessment.signals],
         quality=result.get("quality"),
+        original_sha256=blob.sha256 if blob else None,
+        original_size=blob.size if blob else None,
     )
     db.add(document)
     db.commit()

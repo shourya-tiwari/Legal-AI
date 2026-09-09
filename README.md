@@ -42,6 +42,10 @@ Response (JSON):
   "full_text": "This Agreement is made on..."
 }
 
+The original uploaded file bytes are stored too (content-addressed, see
+`FILE_STORAGE_DIR` below) and can be fetched back with
+`GET /api/v2/documents/{id}/original`.
+
 
 #### rewrite document
 
@@ -225,6 +229,7 @@ The backend reads its configuration from `backend/.env` (see `backend/app/config
 | `AUTH_REQUIRED` | No | `true`/`false`, defaults to `false`. When off, every request resolves to a shared "default" org and no API key is needed — this is what keeps the public frontend working today. Flip to `true` once you've issued API keys (see below) to require `Authorization: Bearer <key>` on every `/api/*` call. |
 | `RATE_LIMIT_PER_MINUTE` | No | Requests/minute per org (or per client IP when `AUTH_REQUIRED` is off). Defaults to `60`. |
 | `MEMGRAPH_URI` | No | Bolt connection string for the knowledge graph, e.g. `bolt://127.0.0.1:7687` (see `docker-compose.yml`). Knowledge graph endpoints (`/api/kg/*`) no-op if unreachable rather than erroring. |
+| `FILE_STORAGE_DIR` | No | Directory for the original-uploaded-file blob store (content-addressed by SHA-256). Defaults to `./file_storage`. No S3/MinIO service required; a cloud profile can point this at a mounted bucket. Fetch a stored original with `GET /api/v2/documents/{id}/original`. |
 
 
 
