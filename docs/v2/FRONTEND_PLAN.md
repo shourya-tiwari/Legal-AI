@@ -3,6 +3,11 @@
 > **Status**: living plan for the `frontend/` rebuild (Next.js 16 / React 19 / Tailwind v4).
 > Goal: a world-class, production-grade Legal-AI SaaS UI on top of the **feature-complete,
 > frozen backend**. No backend API or architecture changes (bug fixes only).
+>
+> **Progress**: M0 ✅ · M1 ✅ · M4 ✅ · M6 ✅ · M7+M8 ✅ · M2 ✅ · M5 ✅ · M9 (partial — `.gitattributes`,
+> `next.config` optimisations, lazy heavy libs done; a11y sweep + Lighthouse pass + screenshots
+> remain). ~34 routes, `npm run lint` + `build` clean at every commit. M3 (dashboard/documents
+> depth) folded into M1/M4.
 
 This document maps **every backend capability to a frontend surface**, defines the design
 system and information architecture, and breaks the work into shippable milestones.
