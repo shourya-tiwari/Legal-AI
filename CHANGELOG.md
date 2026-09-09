@@ -8,6 +8,19 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ## [Unreleased]
 
+### CI
+- **`sbom-and-image`** (Backend tests) had failed at "Set up job" on every run
+  in the repo's history — `aquasecurity/trivy-action@0.24.0` stopped resolving
+  after Aquasec deleted the old tags. Bumped to `@v0.33.1` (SHA-pins its
+  sub-actions); the Trivy scan step (report-only) is now `continue-on-error`
+  with the public ECR DB mirrors so its anonymous ghcr.io DB pull can't fail
+  the pipeline. All six backend jobs green.
+- **`frontend-ci.yml`** added — `npm install` + `npm run lint` + `npm run build`
+  on `frontend/**` and PRs (Node 22). `npm install` rather than `npm ci`: npm
+  doesn't record the `@tailwindcss/oxide` / `unrs-resolver` wasm-fallback
+  dependency subtree cross-platform-completely, so `npm ci`'s strict sync check
+  fails on the Linux runner while passing locally.
+
 ### Docs
 - **README** rewritten as a full project README — architecture (mermaid),
   feature tour, a zero-config quick start plus the docker / self-hosted-GPU
