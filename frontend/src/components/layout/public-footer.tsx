@@ -1,43 +1,7 @@
 import Link from "next/link";
 import { GithubIcon } from "@/components/shared/brand-icons";
 import { Logo } from "./logo";
-
-const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
-  {
-    title: "Product",
-    links: [
-      { label: "Features", href: "/features" },
-      { label: "Architecture", href: "/architecture" },
-      { label: "Dashboard", href: "/dashboard" },
-      { label: "AI Assistant", href: "/assistant" },
-    ],
-  },
-  {
-    title: "Platform",
-    links: [
-      { label: "Model Router", href: "/models" },
-      { label: "Evaluation", href: "/evaluation" },
-      { label: "Knowledge Graph", href: "/knowledge-graph" },
-      { label: "Review Queue", href: "/review" },
-    ],
-  },
-  {
-    title: "Resources",
-    links: [
-      { label: "Documentation", href: "/docs" },
-      { label: "Research", href: "/research" },
-      { label: "About the project", href: "/about" },
-      { label: "About the developer", href: "/about/developer" },
-    ],
-  },
-  {
-    title: "Company",
-    links: [
-      { label: "Contact", href: "/contact" },
-      { label: "GitHub", href: "https://github.com/shourya-tiwari/Legal-AI" },
-    ],
-  },
-];
+import { FOOTER_SECTIONS, GITHUB_URL } from "./nav-config";
 
 export function PublicFooter() {
   return (
@@ -51,7 +15,7 @@ export function PublicFooter() {
               sensitivity tier — privileged text never leaves the perimeter.
             </p>
             <a
-              href="https://github.com/shourya-tiwari/Legal-AI"
+              href={GITHUB_URL}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -60,7 +24,7 @@ export function PublicFooter() {
               View source
             </a>
           </div>
-          {COLUMNS.map((col) => (
+          {FOOTER_SECTIONS.map((col) => (
             <div key={col.title}>
               <p className="text-xs font-medium uppercase tracking-wider text-subtle-foreground">
                 {col.title}
@@ -68,12 +32,23 @@ export function PublicFooter() {
               <ul className="mt-3 space-y-2">
                 {col.links.map((l) => (
                   <li key={l.label}>
-                    <Link
-                      href={l.href}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {l.label}
-                    </Link>
+                    {l.external ? (
+                      <a
+                        href={l.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        {l.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={l.href}
+                        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        {l.label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -82,8 +57,15 @@ export function PublicFooter() {
         </div>
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-xs text-subtle-foreground sm:flex-row">
           <p>
-            © {new Date().getFullYear()} LegalAI. A final-year / portfolio
-            engineering project.
+            © {new Date().getFullYear()} LegalAI · MIT License · Built by{" "}
+            <a
+              href="https://github.com/shourya-tiwari"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Shourya Tiwari
+            </a>
           </p>
           <p>Built with Next.js · FastAPI · self-hosted models.</p>
         </div>

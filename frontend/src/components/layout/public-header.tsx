@@ -63,10 +63,10 @@ export function PublicHeader() {
             <ThemeToggle />
           </div>
           <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-            <Link href="/dashboard">Sign in</Link>
+            <Link href="/dashboard">Open dashboard</Link>
           </Button>
           <Button size="sm" asChild className="hidden sm:inline-flex">
-            <Link href="/dashboard">Get Started</Link>
+            <Link href="/welcome">Get started</Link>
           </Button>
           <button
             className="rounded-md p-2 text-muted-foreground md:hidden"
@@ -93,10 +93,21 @@ export function PublicHeader() {
                 {item.label}
               </Link>
             ))}
-            <div className="mt-2 flex items-center gap-2 border-t border-border pt-3">
-              <ThemeToggle />
-              <Button size="sm" asChild className="flex-1">
-                <Link href="/dashboard">Get Started</Link>
+            <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  asChild
+                  className="flex-1"
+                  onClick={() => setOpen(false)}
+                >
+                  <Link href="/dashboard">Open dashboard</Link>
+                </Button>
+              </div>
+              <Button size="sm" asChild onClick={() => setOpen(false)}>
+                <Link href="/welcome">Get started</Link>
               </Button>
             </div>
           </nav>

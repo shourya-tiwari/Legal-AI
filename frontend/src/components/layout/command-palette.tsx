@@ -22,7 +22,14 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { APP_NAV, MARKETING_NAV, READY_ROUTES } from "./nav-config";
+import {
+  APP_NAV,
+  MARKETING_NAV,
+  RESOURCES_NAV,
+  READY_ROUTES,
+  SETTINGS_NAV_ITEM,
+  WEBSITE_NAV_ITEM,
+} from "./nav-config";
 import { useUI } from "@/lib/stores/ui";
 import { useDocuments } from "@/lib/stores/documents";
 import { SENSITIVITY_META } from "@/lib/format";
@@ -100,7 +107,7 @@ export function CommandPalette() {
 
         <CommandSeparator />
         <CommandGroup heading="Navigate">
-          {APP_NAV.flatMap((g) => g.items)
+          {[...APP_NAV.flatMap((g) => g.items), SETTINGS_NAV_ITEM]
             .filter((i) => READY_ROUTES.has(i.href))
             .map((item) => (
             <CommandItem
@@ -113,6 +120,20 @@ export function CommandPalette() {
                 <ArrowRight className="ml-auto opacity-0 group-data-[selected=true]:opacity-60" />
               </CommandItem>
             ))}
+        </CommandGroup>
+
+        <CommandSeparator />
+        <CommandGroup heading="Resources">
+          {[WEBSITE_NAV_ITEM, ...RESOURCES_NAV].map((item) => (
+            <CommandItem
+              key={item.href}
+              value={`resource ${item.label}`}
+              onSelect={() => go(item.href)}
+            >
+              <item.icon />
+              {item.label}
+            </CommandItem>
+          ))}
         </CommandGroup>
 
         <CommandSeparator />

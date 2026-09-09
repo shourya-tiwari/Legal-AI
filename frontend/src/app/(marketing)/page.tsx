@@ -94,8 +94,8 @@ export default function HomePage() {
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Button size="lg" asChild>
-              <Link href="/dashboard">
-                Get Started <ArrowRight />
+              <Link href="/welcome">
+                Get started <ArrowRight />
               </Link>
             </Button>
             <Button size="lg" variant="secondary" asChild>

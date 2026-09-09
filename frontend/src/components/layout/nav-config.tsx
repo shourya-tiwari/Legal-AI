@@ -18,6 +18,9 @@ import {
   Microscope,
   Info,
   Mail,
+  Upload,
+  Globe,
+  Compass,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +31,10 @@ export interface NavItem {
   description?: string;
   /** exact-match highlight only (default: prefix match) */
   exact?: boolean;
+  /** custom active-match predicate — wins over `exact`/prefix when set */
+  match?: (pathname: string) => boolean;
+  /** links out of the app (marketing route or external URL) */
+  external?: boolean;
 }
 
 export interface NavGroup {
@@ -35,6 +42,12 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+export const GITHUB_URL = "https://github.com/shourya-tiwari/Legal-AI";
+
+/**
+ * Primary application navigation. Four groups; `Resources` bridges to the
+ * marketing layout so the user is never trapped inside the dashboard.
+ */
 export const APP_NAV: NavGroup[] = [
   {
     label: "Workspace",
@@ -47,16 +60,24 @@ export const APP_NAV: NavGroup[] = [
         exact: true,
       },
       {
-        label: "AI Assistant",
-        href: "/assistant",
-        icon: Sparkles,
-        description: "Grounded Q&A over your contracts",
+        label: "Upload",
+        href: "/documents/upload",
+        icon: Upload,
+        description: "Add a contract for analysis",
       },
       {
         label: "Documents",
         href: "/documents",
         icon: FileText,
         description: "Your contract library",
+        // highlight for the library and any workspace, but not /documents/upload
+        match: (p) => p === "/documents" || /^\/documents\/\d+/.test(p),
+      },
+      {
+        label: "AI Assistant",
+        href: "/assistant",
+        icon: Sparkles,
+        description: "Grounded Q&A over your contracts",
       },
     ],
   },
@@ -108,6 +129,58 @@ export const APP_NAV: NavGroup[] = [
   },
 ];
 
+/**
+ * Marketing pages surfaced *inside* the app sidebar. These navigate into the
+ * `(marketing)` layout — the public header there always offers a one-click
+ * route back to the dashboard.
+ */
+export const RESOURCES_NAV: NavItem[] = [
+  {
+    label: "Documentation",
+    href: "/docs",
+    icon: BookOpen,
+    description: "Concepts and repository docs",
+    external: true,
+  },
+  {
+    label: "Architecture",
+    href: "/architecture",
+    icon: Workflow,
+    description: "The full system design",
+    external: true,
+  },
+  {
+    label: "Research",
+    href: "/research",
+    icon: Microscope,
+    description: "The five novelty directions",
+    external: true,
+  },
+  {
+    label: "About",
+    href: "/about",
+    icon: Info,
+    description: "The engineering case study",
+    external: true,
+  },
+];
+
+/** Sidebar footer — settings + the routes that leave the app entirely. */
+export const SETTINGS_NAV_ITEM: NavItem = {
+  label: "Settings",
+  href: "/settings",
+  icon: Settings,
+  description: "Playbook, appearance, local data",
+};
+
+export const WEBSITE_NAV_ITEM: NavItem = {
+  label: "Back to website",
+  href: "/",
+  icon: Globe,
+  description: "The marketing site",
+  external: true,
+};
+
 export const WORKSPACE_TABS = (id: number): NavItem[] => [
   { label: "Overview", href: `/documents/${id}`, icon: Layers, exact: true },
   { label: "Clauses", href: `/documents/${id}/clauses`, icon: FileText },
@@ -135,6 +208,7 @@ export const ADMIN_TABS: NavItem[] = [
  */
 export const READY_ROUTES = new Set<string>([
   "/dashboard",
+  "/welcome",
   "/assistant",
   "/documents",
   "/documents/upload",
@@ -144,6 +218,8 @@ export const READY_ROUTES = new Set<string>([
   "/models",
   "/analytics",
   "/admin",
+  "/settings",
+  "/profile",
 ]);
 
 export function filterReadyNav(groups: NavGroup[]): NavGroup[] {
@@ -163,4 +239,49 @@ export const MARKETING_NAV: NavItem[] = [
   { label: "Docs", href: "/docs", icon: BookOpen },
   { label: "About", href: "/about", icon: Info },
   { label: "Contact", href: "/contact", icon: Mail },
+];
+
+/** Marketing footer sections. */
+export const FOOTER_SECTIONS: { title: string; links: NavItem[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { label: "Features", href: "/features", icon: Layers },
+      { label: "Architecture", href: "/architecture", icon: Workflow },
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { label: "AI Assistant", href: "/assistant", icon: Sparkles },
+    ],
+  },
+  {
+    title: "Platform",
+    links: [
+      { label: "Model Router", href: "/models", icon: Cpu },
+      { label: "Evaluation", href: "/evaluation", icon: FlaskConical },
+      { label: "Knowledge Graph", href: "/knowledge-graph", icon: Network },
+      { label: "Review Queue", href: "/review", icon: ClipboardCheck },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { label: "Documentation", href: "/docs", icon: BookOpen },
+      { label: "Research", href: "/research", icon: Microscope },
+      { label: "Get started", href: "/welcome", icon: Compass },
+      { label: "Contact", href: "/contact", icon: Mail },
+    ],
+  },
+  {
+    title: "Project",
+    links: [
+      { label: "About the project", href: "/about", icon: Info },
+      { label: "About the developer", href: "/about/developer", icon: Info },
+      { label: "GitHub", href: GITHUB_URL, icon: Globe, external: true },
+      {
+        label: "License (MIT)",
+        href: `${GITHUB_URL}/blob/main/LICENSE`,
+        icon: FileText,
+        external: true,
+      },
+    ],
+  },
 ];
