@@ -100,11 +100,25 @@ All KG surfaces render an honest **"knowledge graph offline"** state when `kg_av
 
 ## 3. Information architecture & routing
 
+**One product, two layouts.** The `(marketing)` and `(app)` route groups have
+different chrome but are never sealed off from each other. From any marketing
+page the header offers a persistent **Open dashboard** plus **Get started**
+(→ `/welcome`). From inside the app, the sidebar carries a **Resources** group
+(Documentation, Architecture, Research, About) and a footer **Back to website**
++ GitHub link; the topbar has a **Resources** dropdown and the user menu links
+Profile / Settings / Documentation / Marketing site. The command palette
+mirrors all of it (Navigate · Resources · Marketing groups). A short enter
+transition (`(app)/template.tsx`, reduced-motion-aware) makes app navigation
+feel continuous.
+
 Two route groups under `frontend/src/app/`:
 
 ```
 (marketing)/                      – PublicHeader + Footer, mostly RSC
-  page.tsx                        /                 Landing
+  page.tsx                        /                 Landing — full product
+                                                    website (19 sections,
+                                                    every one backed by a
+                                                    real backend capability)
   features/page.tsx              /features
   architecture/page.tsx         /architecture      interactive diagram
   research/page.tsx             /research          NOVELTY.md — 5 ideas
@@ -114,7 +128,14 @@ Two route groups under `frontend/src/app/`:
   contact/page.tsx              /contact
 
 (app)/                            – AppShell: sidebar + topbar + command palette
-  dashboard/page.tsx            /dashboard
+  template.tsx                  – per-navigation enter transition
+  welcome/page.tsx              /welcome           guided onboarding: upload /
+                                                    try-sample-NDA / explore,
+                                                    + a 5-stage pipeline primer
+  dashboard/page.tsx            /dashboard         empty state = a teaching
+                                                    experience (hero, quick
+                                                    links, capability preview);
+                                                    populated = stats + recents
   assistant/page.tsx            /assistant         + /assistant/[conversationId]
   documents/page.tsx            /documents         library (grid/list)
   documents/upload/page.tsx     /documents/upload
@@ -144,7 +165,21 @@ Two route groups under `frontend/src/app/`:
 login/page.tsx                  /login             (no shell)
 ```
 
-Sidebar groups: **Workspace** (Dashboard, Assistant, Documents) · **Analysis** (Review, Knowledge Graph, Evaluation) · **Platform** (Models, Analytics, Admin) · footer (Settings, Profile, theme, docs link).
+Sidebar groups: **Workspace** (Dashboard, Upload, Documents, AI Assistant) ·
+**Analysis** (Review Queue, Knowledge Graph, Evaluation) · **Platform** (Model
+Router, Analytics, Admin) · **Resources** (Documentation, Architecture,
+Research, About — these bridge into the `(marketing)` layout) · footer
+(Settings, Back to website, GitHub). The `Documents` item stays highlighted for
+`/documents` and any `/documents/{id}` workspace, but not `/documents/upload`
+(which is its own `Upload` item).
+
+The bundled **sample NDA** (`lib/sample-contract.ts`) is uploaded through the
+real `POST /api/upload` by `<TrySampleButton>` — shared by `/welcome` and the
+empty dashboard — so "try a sample" runs the genuine pipeline, nothing stubbed.
+
+Marketing footer: **Product** · **Platform** · **Resources** · **Project**
+(About project/developer, GitHub, MIT License), plus a "Built by Shourya
+Tiwari" line.
 
 ---
 
@@ -199,6 +234,7 @@ Each milestone: implemented · responsive (sm→2xl) · a11y (keyboard, focus, A
 | **M2** | Marketing polish | FAQ, benchmarks strip, testimonials placeholder, "why this platform", subtle hero motion, interactive architecture. |
 | **M5** | Analysis polish | Cross-document consistency panel (a currently-unsurfaced endpoint), diff-viewer refinement, KG-explorer layout upgrades. |
 | **M9** | Polish | `.gitattributes` (LF normalisation), per-route `loading.tsx`/`error.tsx`, keyboard shortcuts, responsive + a11y audit, perf (lazy heavy libs — done for React Flow/Recharts — bundle check, Lighthouse), final docs sync. |
+| **M10** | Unified IA ✅ | The marketing site and the app stop behaving like two products. Sidebar reorganised into Workspace / Analysis / Platform / **Resources** (bridges to marketing) + footer (Settings, Back to website, GitHub); topbar Resources dropdown; user-menu regains Profile/Settings/Docs/site. **`/welcome`** guided onboarding + bundled **sample NDA** (real `/api/upload`) via `<TrySampleButton>`. Dashboard empty state rebuilt as a teaching experience. Marketing landing expanded to the full 19-section product website (`landing-sections.tsx` + `<BrowserFrame>`); **About** rewritten as an engineering case study with GPU-pending / infra-pending work split out. Footer: Product/Platform/Resources/Project + MIT License + "Built by Shourya". Per-navigation `(app)/template.tsx` transition. |
 
 Backend docs to keep synced after every milestone: `README.md`, `ROADMAP.md`, `TASKS.md`,
 `ARCHITECTURE.md`, `CLAUDE.md`, `CHANGELOG.md`, `LEARNING_LOG.md`, `docs/v2/FRONTEND.md`, this plan.

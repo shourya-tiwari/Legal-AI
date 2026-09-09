@@ -14,6 +14,18 @@ V1's frontend was a single static HTML page with vanilla JS and no build step �
 >   Documents / Upload / Workspace-overview / Review / Model Router pages plus
 >   the full marketing site skeleton (Home, Features, Architecture, Research,
 >   Docs, About, About/Developer, Contact) and `/login`.
+> - **M2–M9** ✅ full marketing site, document library, the 8-tab workspace,
+>   the AI Assistant, Evaluation / Analytics / Admin / Settings / Profile /
+>   portfolio Knowledge Graph, plus per-route error/loading boundaries.
+> - **M10 — Unified IA** ✅ the marketing site and the app are one product,
+>   not two. The sidebar carries a **Resources** group and a **Back to website**
+>   footer link; the topbar has a Resources dropdown; the command palette
+>   mirrors it. A **`/welcome`** onboarding route and a bundled **sample NDA**
+>   (uploaded through the real `/api/upload`) replace the drop-into-empty-
+>   dashboard first run, and the dashboard's empty state is now a teaching
+>   experience. The landing page is the full 19-section product website; the
+>   About page is an engineering case study with GPU-blocked and infra-blocked
+>   work called out explicitly.
 >
 > Sections below that describe real-time WebSocket streaming, Yjs collaboration,
 > and PDF.js overlays remain **target state** — the frozen backend has no

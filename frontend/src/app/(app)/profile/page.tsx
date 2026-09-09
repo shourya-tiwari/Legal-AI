@@ -21,7 +21,11 @@ export default function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Profile" />
+      <PageHeader
+        title="Profile"
+        description="Your session, organisation, and role."
+        breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "Profile" }]}
+      />
       <PageBody className="max-w-2xl space-y-6">
         {!token ? (
           <Alert variant="info">

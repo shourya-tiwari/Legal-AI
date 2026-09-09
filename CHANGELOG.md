@@ -8,6 +8,46 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ## [Unreleased]
 
+### Frontend — M10: unified information architecture
+
+The marketing site and the application stopped behaving like two products.
+
+- **Cross-layout navigation** — the app sidebar gains a **Resources** group
+  (Documentation, Architecture, Research, About — these bridge into the
+  `(marketing)` layout) and a footer with **Settings**, **Back to website**,
+  and **GitHub**. The topbar has a **Resources** dropdown; the user menu
+  regains Profile / Settings / Documentation / Marketing site; the command
+  palette mirrors all of it. The public header now carries a persistent
+  **Open dashboard** alongside **Get started**, so the app is one click from
+  any marketing page.
+- **Guided onboarding** — a new `/welcome` route (upload / try-sample /
+  explore, plus a five-stage pipeline primer). `lib/sample-contract.ts` +
+  `<TrySampleButton>` upload a synthetic mutual NDA through the real
+  `POST /api/upload` and open its workspace — nothing stubbed. "Get started"
+  now routes here instead of dropping first-time users into an empty
+  dashboard.
+- **Dashboard** — the empty state is a teaching experience (welcome hero,
+  quick links to docs/features/architecture, a capability preview) with
+  platform status kept secondary. The populated dashboard is unchanged.
+- **Sidebar groups** — Workspace (Dashboard, Upload, Documents, AI Assistant)
+  / Analysis (Review Queue, Knowledge Graph, Evaluation) / Platform (Model
+  Router, Analytics, Admin) / Resources / Settings.
+- **Marketing landing page** — expanded from hero + cards to the full product
+  website: how-it-works, architecture overview, security & privacy, AI
+  pipeline, knowledge graph, risk analysis, negotiation agent, evaluation
+  framework, research contributions, screenshots (`<BrowserFrame>` previews
+  built from the live design system), technology stack, roadmap, about
+  teasers, FAQ, CTA — every section backed by a real backend capability.
+- **About page** — rewritten as an engineering case study: why / vision /
+  design philosophy, five architecture decisions with the problem each
+  solved, research inspiration, technologies, the eight-phase development
+  journey, statistics, and a Future-work section that splits next-phase vs.
+  GPU-blocked vs. infra/human-blocked work explicitly.
+- **Footer** — Product / Platform / Resources / Project columns, an MIT
+  License link, and a "Built by Shourya Tiwari" line.
+- **Motion** — a short per-navigation enter transition via
+  `(app)/template.tsx`, `prefers-reduced-motion`-aware.
+
 ### Frontend — M2 + M5 + M9: marketing polish, consistency, hygiene
 - **Home page** grew a "by the numbers" strip, a "why this platform" section, a testimonials
   placeholder (honest — it's a portfolio project), and an FAQ accordion. Scroll-reveal motion via
