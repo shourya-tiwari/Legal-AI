@@ -57,7 +57,7 @@ class NLIExample(TypedDict):
 
 def _require_datasets():
     try:
-        import datasets  # noqa: F401
+        import datasets
     except Exception as e:  # pragma: no cover - exercised only without the extra
         raise RuntimeError(
             f"The `datasets` package is required to load benchmark corpora. {_PIP_HINT}"

@@ -1,6 +1,7 @@
 import io
 
 import docx
+import pytest
 
 from app.services.extractor import extract_text_and_blocks
 
@@ -47,3 +48,23 @@ def test_unknown_extension_falls_back_to_plain_text_decode():
 
     assert "Just some plain content" in result["full_text"]
     assert len(result["blocks"]) == 1
+
+
+def test_scanned_pdf_page_reports_quality_and_redacted_regions():
+    """A no-text-layer PDF page triggers the CV path: blur/skew quality *and*
+    the geometric redaction-box screen (services/cv/redaction.py), both
+    surfaced under result["quality"] -- the wiring docs/v2/COMPUTER_VISION.md
+    describes."""
+    fitz = pytest.importorskip("fitz")
+    doc = fitz.open()
+    page = doc.new_page(width=600, height=800)
+    page.draw_rect(fitz.Rect(100, 100, 400, 160), color=(0, 0, 0), fill=(0, 0, 0))
+    pdf_bytes = doc.tobytes()
+    doc.close()
+
+    result = extract_text_and_blocks(pdf_bytes, "scan.pdf", "application/pdf")
+
+    quality = result["quality"]
+    assert quality["pages_assessed"] == 1
+    assert quality["pages_with_redactions"] == [1]
+    assert quality["pages"][0]["redacted_regions"]  # at least one black box found

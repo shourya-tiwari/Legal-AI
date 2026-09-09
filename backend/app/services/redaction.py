@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 from app.config import get_settings
 from app.services.model_router import ModelRouterError, ner_extract

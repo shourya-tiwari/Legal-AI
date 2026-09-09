@@ -102,12 +102,12 @@ def _score_or_none(run: Callable, gen_fn: Callable):
     try:
         # probe: does the provider answer at all?
         gen_fn("Reply with the single word: Yes")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return None, f"cannot evaluate ({e})"
     try:
         result = run(gen_fn)
         return result, None
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return None, f"eval error ({e})"
 
 

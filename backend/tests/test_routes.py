@@ -1,6 +1,7 @@
 """
-Route-level tests for all 6 /api endpoints, with every Gemini call mocked
-so these tests never hit the network or require a real GOOGLE_API_KEY.
+Route-level tests for the core V1 /api endpoints, with every model call mocked
+(patched at each consumer module) so these tests never hit the network or
+require any model credentials.
 """
 from types import SimpleNamespace
 
@@ -69,6 +70,26 @@ def test_rewrite_endpoint(client, monkeypatch):
 def test_rewrite_rejects_unsupported_mode(client):
     resp = client.post("/api/rewrite", json={"text": "Some clause.", "mode": "advanced"})
     assert resp.status_code == 422
+
+
+def test_unhandled_service_error_returns_a_clean_500(monkeypatch):
+    """A service blowing up gives one consistent 500 with a generic body --
+    never the exception text (paths / provider errors / SQL). See
+    app/main.py::unhandled_exception_handler."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    def boom(*a, **k):
+        raise ValueError("internal detail: /var/secret/path and a stack trace")
+
+    monkeypatch.setattr("app.routes.map.generate_map", boom)
+    with TestClient(app, raise_server_exceptions=False) as c:
+        resp = c.post("/api/map", json={"contract_text": "hello"})
+
+    assert resp.status_code == 500
+    assert resp.json() == {"error": "Internal server error"}
+    assert "secret" not in resp.text and "ValueError" not in resp.text
 
 
 def test_map_endpoint(client, monkeypatch):

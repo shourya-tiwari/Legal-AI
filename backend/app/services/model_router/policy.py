@@ -32,7 +32,7 @@ logger = logging.getLogger("legalai.model_router.policy")
 # `escalate_to` (generate tasks): providers prepended to the chain when the
 # caller passes hard=True (docs/v2/AI_STACK.md "Escalation without a bigger
 # vendor" -- a bigger *self-hosted* model, never Class C).
-_GEN = lambda esc=None: {  # noqa: E731 - compact, one shape repeated
+_GEN = lambda esc=None: {
     "capability": "generate", "chain": ["local-llm"],
     "escalate_to": esc or ["local-llm-large"], "class_c": ["gemini"],
 }

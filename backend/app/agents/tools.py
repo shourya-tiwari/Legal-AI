@@ -31,13 +31,11 @@ from __future__ import annotations
 
 import difflib
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from dateutil.relativedelta import relativedelta
 from pydantic import BaseModel, Field
-
-logger_name = "legalai.agents.tools"
 
 
 class ToolError(Exception):

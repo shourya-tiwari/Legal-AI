@@ -65,9 +65,14 @@ AGENT_REGISTRY: Dict[str, AgentSpec] = {
     ),
 }
 
-# The agents the planner may include or drop (order matters -- it's the
-# execution order within a plan).
-PLANNABLE: Tuple[str, ...] = ("risk_compliance", "research", "summarize", "negotiation_drafting")
+# The agents the planner may include or drop -- everything that isn't
+# `always` (extraction/planner/verifier are the fixed spine). Derived from
+# the registry so `always` is the single source of truth, not a second list
+# to keep in sync; registry insertion order IS the execution order within a
+# plan, so keep the middle agents ordered there.
+PLANNABLE: Tuple[str, ...] = tuple(
+    nid for nid, spec in AGENT_REGISTRY.items() if not spec.always
+)
 
 # Node ids for graph wiring / plan validation.
 EXECUTABLE_NODE_IDS: Tuple[str, ...] = tuple(

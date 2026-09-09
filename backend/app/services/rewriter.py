@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import time
-from typing import List, Tuple
+from typing import List
 
 from .model_router import generate_content
 

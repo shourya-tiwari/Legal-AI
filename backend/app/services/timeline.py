@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from .model_router import generate_content
 from ..models import MapResponse, DocumentSection, TimelineEvent

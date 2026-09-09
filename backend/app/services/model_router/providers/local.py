@@ -25,7 +25,7 @@ import logging
 import math
 import re
 from functools import lru_cache
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
 from app.config import get_settings
 

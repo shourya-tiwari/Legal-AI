@@ -255,7 +255,9 @@ def _router_generate_fn(*, task: str = "qa", temperature: float = 0.0, max_outpu
         try:
             return generate_content(prompt, task=task, sensitivity="public", temperature=temperature,
                                     max_output_tokens=max_output_tokens)
-        except Exception as e:  # noqa: BLE001 - the task records a miss, not a crash
+        except Exception as e:
+            # a failed generation is a task miss (empty answer -> scores 0),
+            # not a harness crash.
             logger.warning("generate failed: %s", e)
             return ""
     return fn

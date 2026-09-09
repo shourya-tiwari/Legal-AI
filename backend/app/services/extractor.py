@@ -24,6 +24,7 @@ except ImportError:
     pytesseract = None
 
 from .cv.quality import assess_image_quality
+from .cv.redaction import detect_redacted_regions
 from .cv.utils import pixmap_to_array
 
 PDF_MIME = "application/pdf"
@@ -70,8 +71,10 @@ def _extract_pdf(file_bytes: bytes) -> Dict[str, Any]:
 
         # Empty text layer usually means a scanned page. Render it once and
         # (a) run a lightweight CV quality check (blur/skew/resolution — see
-        # services/cv/quality.py) so extraction confidence is visible, and
-        # (b) OCR it if pytesseract is available.
+        # services/cv/quality.py) so extraction confidence is visible,
+        # (b) flag solid-black redaction boxes (services/cv/redaction.py — a
+        # geometric screening signal, not a certified audit), and
+        # (c) OCR it if pytesseract is available.
         if not page_text.strip():
             pix = None
             try:
@@ -81,8 +84,13 @@ def _extract_pdf(file_bytes: bytes) -> Dict[str, Any]:
 
             if pix is not None:
                 try:
-                    quality = assess_image_quality(pixmap_to_array(pix))
+                    page_array = pixmap_to_array(pix)
+                    quality = assess_image_quality(page_array)
                     quality["page"] = page_num
+                    try:
+                        quality["redacted_regions"] = detect_redacted_regions(page_array)
+                    except Exception:
+                        quality["redacted_regions"] = []
                     page_quality_reports.append(quality)
                 except Exception:
                     pass
@@ -121,6 +129,9 @@ def _extract_pdf(file_bytes: bytes) -> Dict[str, Any]:
         result["quality"] = {
             "pages_assessed": len(page_quality_reports),
             "low_quality_pages": [q["page"] for q in page_quality_reports if q["is_low_quality"]],
+            "pages_with_redactions": [
+                q["page"] for q in page_quality_reports if q.get("redacted_regions")
+            ],
             "pages": page_quality_reports,
         }
     return result

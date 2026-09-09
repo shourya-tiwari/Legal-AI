@@ -1,14 +1,18 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+import logging
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from ..auth import OrgContext
-from ..db import get_db
-from ..db_models import Document
-from ..guard import api_guard
-from ..services.extractor import extract_text_and_blocks
-from ..services.file_store import store_bytes
-from ..services.model_router import is_external_permitted
-from ..services.sensitivity import classify_sensitivity
+from app.auth import OrgContext
+from app.db import get_db
+from app.db_models import Document
+from app.guard import api_guard
+from app.services.extractor import extract_text_and_blocks
+from app.services.file_store import store_bytes
+from app.services.model_router import is_external_permitted
+from app.services.sensitivity import classify_sensitivity
+
+logger = logging.getLogger("legalai.routes.upload")
 
 router = APIRouter()
 
@@ -22,15 +26,22 @@ async def upload_contract(
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
+    file_bytes = await file.read()
     try:
-        file_bytes = await file.read()
         result = extract_text_and_blocks(
             file_bytes=file_bytes,
             filename=file.filename,
             content_type=file.content_type,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
+        # Almost always a bad input (unsupported type, corrupt/encrypted file)
+        # -> a 4xx, not a 5xx. The exception text can carry local paths /
+        # library internals, so it's logged server-side, not returned.
+        logger.warning("extraction failed for %s: %s", file.filename, e)
+        raise HTTPException(
+            status_code=422,
+            detail="Could not extract text from the uploaded file (unsupported type, or a corrupt/encrypted document).",
+        ) from e
 
     # Normalize to clauses list expected by UI
     clauses = [{"id": b["id"], "text": b["text"], "rewritten": None} for b in result["blocks"]]

@@ -252,7 +252,7 @@ def risk_dashboard(
     db: Session = Depends(get_db),
 ) -> RiskDashboardResponse:
     doc = _load_doc(document_id, org, db)
-    clauses = build_clause_objects(doc.full_text)
+    clauses = build_clause_objects(doc.full_text, sensitivity=doc.sensitivity_tier)
     return generate_risk_dashboard(clauses)
 
 
@@ -278,16 +278,19 @@ def consistency(
     db: Session = Depends(get_db),
 ) -> ConsistencyResponse:
     doc = _load_doc(document_id, org, db)
+    # The service only compares against the newest MAX_OTHER_DOCUMENTS anyway;
+    # cap the query rather than loading the whole org's document rows.
     other_docs = (
         db.query(Document)
         .filter(Document.org_id == org.id, Document.id != doc.id)
         .order_by(Document.created_at.desc())
+        .limit(MAX_OTHER_DOCUMENTS)
         .all()
     )
     findings = find_cross_document_consistency(doc, other_docs, sensitivity=doc.sensitivity_tier)
     return ConsistencyResponse(
         document_id=doc.id,
-        other_documents_checked=min(len(other_docs), MAX_OTHER_DOCUMENTS),
+        other_documents_checked=len(other_docs),
         findings=findings,
     )
 

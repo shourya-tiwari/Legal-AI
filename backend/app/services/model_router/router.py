@@ -13,7 +13,7 @@ import dataclasses
 import logging
 import time
 from functools import lru_cache
-from typing import List, Optional, Sequence
+from typing import List
 
 from . import telemetry
 from .base import ModelProvider

@@ -19,10 +19,9 @@ class RewriteResponse(BaseModel):
     meta: dict | None = None
 
 # ----- Upload -----
-class UploadResponse(BaseModel):
-    session_id: str = Field(..., description="Unique ID for this document session.")
-    filename: str
-    message: str = "File uploaded and text extracted successfully."
+# POST /api/upload returns a hand-built dict (document_id + sensitivity +
+# optional quality), not a Pydantic model -- see app/routes/upload.py and
+# frontend-v2's hand-typed UploadResult. No response_model here on purpose.
 
 # ----- Timeline (/api/map) -----
 class DocumentSection(BaseModel):

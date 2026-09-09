@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="LegalAI Contract Analyzer Backend", version="0.1.0", lifespan=lifespan)
 
-# ---- Exception Handler ----
+# ---- Exception Handlers ----
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
@@ -59,6 +59,19 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "details": exc.errors(),
         },
     )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """One consistent 500 for any unhandled error, logged in full server-side
+    but never leaking the exception text (which can carry file paths, provider
+    errors, SQL) to the client. Routes no longer need their own
+    `try/except Exception -> HTTPException(500, str(e))` wrappers -- that was
+    both duplicated and, where it interpolated `str(e)` into `detail`, an
+    information-disclosure risk. FastAPI's own HTTPException/validation
+    handlers still run first for those cases."""
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 # ---- Routers ----
 app.include_router(upload.router, prefix="/api", tags=["extract"])

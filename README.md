@@ -133,7 +133,7 @@ Response (JSON):
 | Body Field | Type | Description |
 | :-- | :-- | :-- |
 | `contract_text` | `string` | **Required.** Full contract text |
-| `use_ai_escalation` | `boolean` | Optional, default `false`. If true, clauses the rule-based classifiers can't confidently handle are escalated to Gemini. |
+| `use_ai_escalation` | `boolean` | Optional, default `false`. If true, clauses the rule-based classifiers can't confidently handle are escalated via the Model Router to the configured LLM (self-hosted by default; Gemini only for `public`/`internal` tiers when enabled). |
 
 Breaks the contract into clauses and annotates each with its type, deontic tags (obligation/permission/prohibition/discretion), defined terms used, cross-references, money/jurisdiction entities, and dates. Runs entirely offline (rule-based) unless `use_ai_escalation` is set.
 
@@ -222,8 +222,9 @@ The backend reads its configuration from `backend/.env` (see `backend/app/config
 
 | Variable | Required | Description |
 | :-- | :-- | :-- |
-| `GOOGLE_API_KEY` | Yes | API key for the Gemini Developer API (`google-genai`). Get one from Google AI Studio. |
+| `GOOGLE_API_KEY` | No | API key for the Gemini Developer API (`google-genai`). Only needed for the optional Class C (external) provider — the app runs fully self-hosted / offline with no model credentials at all (embeddings + rerank fall to local providers; a generate call needs `LLM_BASE_URL` or Gemini). See `docs/v2/AI_STACK.md`. |
 | `GENAI_MODEL` | No | Gemini model name. Defaults to `gemini-flash-latest` if unset. |
+| `LLM_BASE_URL` | No | OpenAI-compatible endpoint for self-hosted generation (Ollama `http://localhost:11434/v1`, vLLM, …). Unset → generate calls route to Gemini (if enabled) or raise a clear `ModelRouterError`. |
 | `DATABASE_URL` | No | SQLAlchemy connection string. Defaults to a local SQLite file (`sqlite:///./legalai.db`) — zero setup needed. Point at Postgres with `postgresql+psycopg://user:pass@host:5432/db` (see `docker-compose.yml`). |
 | `REDIS_URL` | No | Redis connection string for rate limiting, e.g. `redis://localhost:6379/0`. Leave unset/empty to disable rate limiting entirely. |
 | `AUTH_REQUIRED` | No | `true`/`false`, defaults to `false`. When off, every request resolves to a shared "default" org and no API key is needed — this is what keeps the public frontend working today. Flip to `true` once you've issued API keys (see below) to require `Authorization: Bearer <key>` on every `/api/*` call. |

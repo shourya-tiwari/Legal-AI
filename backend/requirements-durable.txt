@@ -6,9 +6,8 @@
 # already running for the rest of this app's persistence (a real Postgres
 # database specifically; DBOS has no SQLite mode).
 #
-# Note: dbos pulls in SQLAlchemy >=2.0.43, which bumps past requirements.txt's
-# exact SQLAlchemy==2.0.36 pin. Verified this doesn't break anything (full
-# suite green with the bumped version) but installing this alongside the
-# core pin means pip resolves to the newer SQLAlchemy for both.
+# Note: dbos needs SQLAlchemy >=2.0.43 -- requirements.txt's core pin was
+# widened to `>=2.0.43,<2.1` (LEARNING_LOG.md #58) so a combined dev venv
+# resolves cleanly. Full suite green on the resolved 2.0.x.
 # ---------------------------------------------------------------------------
 dbos==2.31.0
