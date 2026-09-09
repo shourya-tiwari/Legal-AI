@@ -12,12 +12,26 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { FadeIn } from "@/components/marketing/fade-in";
 import {
   HomeNumbers,
   HomeReasons,
-  HomeTestimonials,
   HomeFaq,
 } from "@/components/marketing/home-sections";
+import {
+  LandingHowItWorks,
+  LandingArchitecture,
+  LandingAiPipeline,
+  LandingKnowledgeGraph,
+  LandingRiskAnalysis,
+  LandingNegotiation,
+  LandingEvaluation,
+  LandingResearch,
+  LandingScreenshots,
+  LandingTechStack,
+  LandingRoadmap,
+  LandingAbout,
+} from "@/components/marketing/landing-sections";
 
 export const metadata = {
   title: "Self-hosted legal contract intelligence",
@@ -56,14 +70,6 @@ const FEATURES = [
   },
 ];
 
-const PIPELINE = [
-  { label: "Upload", body: "PDF, DOCX, TXT, or a scanned image." },
-  { label: "Classify", body: "Sensitivity tier assigned — privileged text never leaves the perimeter." },
-  { label: "Extract", body: "Structured clause graph, not just flat text." },
-  { label: "Analyse", body: "Risk, timeline, agents, knowledge graph, negotiation." },
-  { label: "Verify", body: "Faithfulness-checked before it reaches you." },
-];
-
 export default function HomePage() {
   return (
     <>
@@ -99,7 +105,7 @@ export default function HomePage() {
               </Link>
             </Button>
             <Button size="lg" variant="secondary" asChild>
-              <Link href="/features">Explore Features</Link>
+              <Link href="/features">Explore features</Link>
             </Button>
           </div>
           <p className="mt-4 text-xs text-subtle-foreground">
@@ -109,57 +115,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pipeline strip */}
-      <section className="border-y border-border bg-surface/40">
-        <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-          <ol className="grid gap-6 sm:grid-cols-3 lg:grid-cols-5">
-            {PIPELINE.map((step, i) => (
-              <li key={step.label} className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex size-6 items-center justify-center rounded-full bg-primary-muted text-xs font-semibold text-primary">
-                    {i + 1}
-                  </span>
-                  <span className="text-sm font-semibold">{step.label}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
+      <LandingHowItWorks />
 
-      {/* Features */}
+      <HomeNumbers />
+
+      {/* Core features */}
       <section className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Everything runs against the real document
-          </h2>
-          <p className="mt-3 text-muted-foreground">
-            Not a demo. Every capability below is a live endpoint with an
-            honest &ldquo;knowledge graph offline&rdquo; state when a service
-            isn&rsquo;t reachable.
-          </p>
-        </div>
+        <FadeIn>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Everything runs against the real document
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Not a demo. Every capability below is a live endpoint with an
+              honest &ldquo;knowledge graph offline&rdquo; state when a service
+              isn&rsquo;t reachable.
+            </p>
+          </div>
+        </FadeIn>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="group rounded-xl border border-border bg-surface p-6 transition-colors hover:border-border-strong"
-            >
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary-muted text-primary">
-                <f.icon className="size-5" />
+          {FEATURES.map((f, i) => (
+            <FadeIn key={f.title} delay={i * 0.04}>
+              <div className="group h-full rounded-xl border border-border bg-surface p-6 transition-colors hover:border-border-strong">
+                <div className="flex size-10 items-center justify-center rounded-lg bg-primary-muted text-primary">
+                  <f.icon className="size-5" />
+                </div>
+                <h3 className="mt-4 text-sm font-semibold">{f.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{f.body}</p>
               </div>
-              <h3 className="mt-4 text-sm font-semibold">{f.title}</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">{f.body}</p>
-            </div>
+            </FadeIn>
           ))}
         </div>
       </section>
 
-      {/* Security */}
-      <section className="border-t border-border bg-surface/40">
-        <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center">
-          <div>
+      <LandingArchitecture />
+
+      {/* Security & privacy */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+          <FadeIn>
             <Badge variant="primary" className="mb-4">
               <ShieldCheck />
               Sensitivity-tiered routing
@@ -188,36 +182,49 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="rounded-xl border border-border bg-background p-6 font-mono text-xs shadow-sm">
-            <p className="text-subtle-foreground"># routing decision</p>
-            <p className="mt-2">
-              <span className="text-info">task</span>{" "}
-              <span className="text-foreground">clause_rewrite</span>
-            </p>
-            <p>
-              <span className="text-info">sensitivity</span>{" "}
-              <span className="text-warning">privileged</span>
-            </p>
-            <p>
-              <span className="text-info">candidates</span>{" "}
-              <span className="text-muted-foreground">
-                [local-llm, local-llm-large]
-              </span>
-            </p>
-            <p className="text-danger">
-              class_c_candidates dropped: gemini (tier not permitted)
-            </p>
-            <p className="mt-2 text-success">
-              → resolved: local-llm-large (self-hosted)
-            </p>
-          </div>
+          </FadeIn>
+          <FadeIn delay={0.1}>
+            <div className="rounded-xl border border-border bg-background p-6 font-mono text-xs shadow-sm">
+              <p className="text-subtle-foreground"># routing decision</p>
+              <p className="mt-2">
+                <span className="text-info">task</span>{" "}
+                <span className="text-foreground">clause_rewrite</span>
+              </p>
+              <p>
+                <span className="text-info">sensitivity</span>{" "}
+                <span className="text-warning">privileged</span>
+              </p>
+              <p>
+                <span className="text-info">candidates</span>{" "}
+                <span className="text-muted-foreground">
+                  [local-llm, local-llm-large]
+                </span>
+              </p>
+              <p className="text-danger">
+                class_c_candidates dropped: gemini (tier not permitted)
+              </p>
+              <p className="mt-2 text-success">
+                → resolved: local-llm-large (self-hosted)
+              </p>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
-      <HomeNumbers />
+      <LandingAiPipeline />
+      <LandingKnowledgeGraph />
+      <LandingRiskAnalysis />
+      <LandingNegotiation />
+      <LandingEvaluation />
+      <LandingResearch />
+      <LandingScreenshots />
+      <LandingTechStack />
+      <LandingRoadmap />
+
       <HomeReasons />
-      <HomeTestimonials />
+
+      <LandingAbout />
+
       <HomeFaq />
 
       {/* CTA */}
@@ -228,14 +235,20 @@ export default function HomePage() {
             Open the workspace
           </h2>
           <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-            Upload a contract and see clause extraction, the risk radar, the
-            agent trace, and the knowledge graph run against it.
+            Upload a contract, or start with the sample NDA, and see clause
+            extraction, the risk radar, the agent trace, and the knowledge graph
+            run against it.
           </p>
-          <Button size="lg" asChild className="mt-7">
-            <Link href="/dashboard">
-              Get Started <ArrowRight />
-            </Link>
-          </Button>
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <Button size="lg" asChild>
+              <Link href="/welcome">
+                Get started <ArrowRight />
+              </Link>
+            </Button>
+            <Button size="lg" variant="secondary" asChild>
+              <Link href="/dashboard">Open the dashboard</Link>
+            </Button>
+          </div>
         </div>
       </section>
     </>
