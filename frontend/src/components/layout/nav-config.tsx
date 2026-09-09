@@ -135,6 +135,7 @@ export const ADMIN_TABS: NavItem[] = [
  */
 export const READY_ROUTES = new Set<string>([
   "/dashboard",
+  "/assistant",
   "/documents",
   "/documents/upload",
   "/review",
