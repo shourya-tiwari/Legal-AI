@@ -177,10 +177,11 @@ jobs:
           output-file: legalai-backend-core.spdx.json
 
       - name: Scan for known vulnerabilities (Trivy)
-        # Aquasec deleted the old non-"v"-prefixed tags; @0.24.0 no longer
-        # resolves and failed the whole job at "Set up job". Tags are now
-        # "v"-prefixed.
-        uses: aquasecurity/trivy-action@v0.28.0
+        # Aquasec deleted the old tags: @0.24.0 doesn't resolve, and @v0.28.0
+        # internally pins aquasecurity/setup-trivy by a tag that's also gone.
+        # @v0.33.1+ pins its sub-actions by commit SHA, so it survives tag
+        # churn.
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           image-ref: legalai-backend:core
           severity: "CRITICAL,HIGH"

@@ -21,7 +21,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Node 24 (npm 11) — matches the npm that generated package-lock.json.
+          # Node 20/22 ship npm 10, whose stricter `npm ci` sync check rejects
+          # this lockfile ("Missing: @emnapi/* from lock file"). Node 20 is also
+          # deprecated on GitHub runners.
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
