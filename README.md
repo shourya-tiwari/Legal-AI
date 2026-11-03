@@ -14,6 +14,7 @@ privileged text never leaves your perimeter.
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000)](frontend/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Runs offline](https://img.shields.io/badge/runs-air--gapped-6f42c1)](#deployment-profiles)
+[![Packaged with KitOps](https://img.shields.io/badge/Packaged%20with-KitOps-FFAF52?labelColor=363636)](https://kitops.org)
 
 </div>
 
